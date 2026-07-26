@@ -1,6 +1,6 @@
 import { AgentInvokeResponseSchema, type AgentInvokeRequest, type AgentInvokeResponse } from "./contracts";
 
-const AGENT_API_BASE = process.env.NEXT_PUBLIC_AGENT_API_BASE || "/api";
+const AGENT_API_BASE = "/api";
 const CLIENT_TIMEOUT_MS = 15_000;
 
 export class AgentGatewayError extends Error {

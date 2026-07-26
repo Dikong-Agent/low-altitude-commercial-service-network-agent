@@ -39,7 +39,7 @@
 - `GET /api/data/products`：AG-001 Mock产品诊断接口，可按`ids`或`scenario`查询。
 - 未实现的数据资源返回`404`，避免把接口路径错误伪装为空数据。
 - AG-002、AG-003、AG-012、AG-025明确返回`preview`状态，不表示工作流已经实现。
-- `NEXT_PUBLIC_AGENT_API_BASE`只指向我方 Agent BFF；正式业务数据由服务端`BusinessDataPort`访问，不从浏览器直接连接数据中台。
+- 浏览器固定调用同源`/api` BFF；正式AI能力和业务数据均由服务端适配器访问，不允许前端通过公开环境变量绕过我方接口层。
 
 ## 本地运行
 
