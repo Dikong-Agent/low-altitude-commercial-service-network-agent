@@ -5,12 +5,20 @@ export interface Ag012Dependencies {
   aiPlatform: AIPlatformPort;
   policyData: PolicyDataPort;
   providerName: string;
+  engine: "langgraph-demo" | "langgraph-adapter";
+  environment: "demo" | "production";
 }
 
 type Ag012ProviderFactory = () => Ag012Dependencies;
 
 const providerFactories = new Map<string, Ag012ProviderFactory>([
-  ["demo", () => ({ aiPlatform: new DemoAIPlatformAdapter(), policyData: new MockPolicyDataAdapter(), providerName: "demo" })],
+  ["demo", () => ({
+    aiPlatform: new DemoAIPlatformAdapter(),
+    policyData: new MockPolicyDataAdapter(),
+    providerName: "demo",
+    engine: "langgraph-demo",
+    environment: "demo",
+  })],
 ]);
 let providerRevision = 0;
 

@@ -11,12 +11,14 @@ export function effectiveStatus(document: DemoPolicyDocument, asOfDate: string):
 }
 
 function topicMatchesChange(topics: PolicyTopic[], topic: string): boolean {
-  if (topics.length === 0) return true;
-  return topics.some((item) => (
+  const filterableTopics: PolicyTopic[] = ["scope", "logistics", "applicability", "filing", "record_retention"];
+  const concreteTopics = topics.filter((item) => filterableTopics.includes(item));
+  if (concreteTopics.length === 0) return true;
+  return concreteTopics.some((item) => (
     (item === "scope" || item === "logistics" || item === "applicability") && topic === "适用范围"
   ) || (item === "filing" && ["活动报备", "重大变更"].includes(topic))
     || (item === "record_retention" && topic === "运行记录")
-    || item === "business_impact" || item === "version_status");
+  );
 }
 
 export function rankPolicyEvidence(
@@ -76,6 +78,7 @@ export function buildPolicyOutput(
   documents: DemoPolicyDocument[],
   intent: PolicyIntent,
   rankedEvidence: RankedPolicyEvidence[],
+  engine: AgentPolicyOutput["engine"] = "langgraph-demo",
 ): AgentPolicyOutput {
   const currentDocument = selectCurrentVersion(documents, intent.asOfDate);
   const currentEvidence = rankedEvidence.filter((item) => item.document.id === currentDocument?.id);
@@ -103,6 +106,14 @@ export function buildPolicyOutput(
 
   const keyPointEvidence = evidence.filter((item) => intent.mode === "version_compare" || intent.mode === "business_impact" || item.document.id === currentDocument?.id);
   const keyPoints = [...new Set((keyPointEvidence.length ? keyPointEvidence : evidence).map((item) => item.section.plainLanguage))].slice(0, 5);
+  const jointApplicabilityEvidence = evidence.find((item) => (
+    (!intent.subjectTypes.length || intent.subjectTypes.some((subject) => item.section.appliesTo.includes(subject)))
+    && (!intent.scenarios.length || intent.scenarios.some((scenario) => item.section.scenarios.includes(scenario)))
+  ));
+  const subjectEvidence = jointApplicabilityEvidence ?? evidence.find((item) => intent.subjectTypes.some((subject) => item.section.appliesTo.includes(subject)));
+  const scenarioEvidence = jointApplicabilityEvidence ?? evidence.find((item) => intent.scenarios.some((scenario) => item.section.scenarios.includes(scenario)));
+  const subjectSourceEvidence = intent.scenarios.length ? jointApplicabilityEvidence : subjectEvidence;
+  const scenarioSourceEvidence = intent.subjectTypes.length ? jointApplicabilityEvidence : scenarioEvidence;
   const applicability = intent.mode === "applicability" ? [
     {
       condition: "适用地区",
@@ -113,18 +124,22 @@ export function buildPolicyOutput(
     {
       condition: "主体类型",
       assessment: intent.subjectTypes.length
-        ? (evidence.some((item) => intent.subjectTypes.some((subject) => item.section.appliesTo.includes(subject))) ? "matched" as const : "not_matched" as const)
+        ? (subjectEvidence && (!intent.scenarios.length || jointApplicabilityEvidence) ? "matched" as const : "not_matched" as const)
         : "unknown" as const,
-      explanation: intent.subjectTypes.length ? `已按${intent.subjectTypes.join("、")}核对条款适用主体。` : "提问中没有明确企业或个人等主体类型。",
-      source_ref: evidence[0] ? `${evidence[0].document.version} · ${evidence[0].section.locator}` : "待核实",
+      explanation: intent.subjectTypes.length
+        ? (subjectSourceEvidence ? `已按${intent.subjectTypes.join("、")}核对条款适用主体。` : "未找到同时支持提问主体与业务场景的同一条款依据。")
+        : "提问中没有明确企业或个人等主体类型。",
+      source_ref: subjectSourceEvidence ? `${subjectSourceEvidence.document.version} · ${subjectSourceEvidence.section.locator}` : "未找到主体与场景的同一条款依据",
     },
     {
       condition: "业务场景",
       assessment: intent.scenarios.length
-        ? (evidence.some((item) => intent.scenarios.some((scenario) => item.section.scenarios.includes(scenario))) ? "matched" as const : "not_matched" as const)
+        ? (scenarioEvidence && (!intent.subjectTypes.length || jointApplicabilityEvidence) ? "matched" as const : "not_matched" as const)
         : "unknown" as const,
-      explanation: intent.scenarios.length ? `已按${intent.scenarios.join("、")}核对已收录场景。` : "提问中没有明确巡检、物流、测绘或航拍等业务场景。",
-      source_ref: evidence[0] ? `${evidence[0].document.version} · ${evidence[0].section.locator}` : "待核实",
+      explanation: intent.scenarios.length
+        ? (scenarioSourceEvidence ? `已按${intent.scenarios.join("、")}核对已收录场景。` : "未找到同时支持提问主体与业务场景的同一条款依据。")
+        : "提问中没有明确巡检、物流、测绘或航拍等业务场景。",
+      source_ref: scenarioSourceEvidence ? `${scenarioSourceEvidence.document.version} · ${scenarioSourceEvidence.section.locator}` : "未找到主体与场景的同一条款依据",
     },
     {
       condition: "版本时效",
@@ -138,7 +153,9 @@ export function buildPolicyOutput(
     ...(intent.mode === "applicability" ? ["政策适用性会受地区、主体资质、具体活动和主管部门执行口径影响，需由专业人员最终确认。"] : []),
     ...(intent.mode === "business_impact" ? ["业务影响属于辅助分析，应结合企业现有流程、正式政策文本和主管部门口径复核。"] : []),
     ...(evidence.some((item) => effectiveStatus(item.document, intent.asOfDate) === "upcoming") ? ["结果引用了尚未生效的修订稿，执行时必须区分当前有效要求与未来准备事项。"] : []),
+    ...(evidence.some((item) => effectiveStatus(item.document, intent.asOfDate) === "expired") ? ["结果引用了历史失效版本，仅用于追溯或比较，不得作为当前执行依据。"] : []),
     ...(applicability.some((item) => item.assessment === "unknown") ? ["地区、主体或业务场景信息不完整，当前只能给出条件性判断。"] : []),
+    ...(applicability.some((item) => item.assessment === "not_matched") ? ["至少一项地区、主体或业务场景条件暂不匹配，不能据此认定政策适用。"] : []),
   ];
   const currentStatus = currentDocument ? effectiveStatus(currentDocument, intent.asOfDate) : null;
   const answer = intent.mode === "version_compare"
@@ -150,7 +167,7 @@ export function buildPolicyOutput(
         : `截至${intent.asOfDate}，基于${currentDocument?.version ?? "已检索样例材料"}形成带版本和条款定位的解读。${keyPoints[0] ?? ""}`;
 
   return {
-    engine: "langgraph-demo",
+    engine,
     mode: intent.mode,
     intent: {
       document_types: intent.documentTypes,

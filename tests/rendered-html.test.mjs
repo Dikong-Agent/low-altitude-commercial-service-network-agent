@@ -34,7 +34,7 @@ test("renders the Agent capability showroom", async () => {
   assert.match(html, /五种模式，一套底座/);
   assert.match(html, /AG-001/);
   assert.match(html, /AG-025/);
-  assert.match(html, /V1\.7/);
+  assert.match(html, /V1\.8/);
   assert.equal((html.match(/<i>RUNNABLE<\/i>/g) ?? []).length, 4);
   assert.equal((html.match(/<i>PREVIEW<\/i>/g) ?? []).length, 1);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
@@ -436,7 +436,11 @@ test("serves the AG-003 mock solution directory through BusinessDataPort", async
 
 test("runs AG-012 through the policy summary workflow with time-aware citations", async () => {
   const worker = await loadWorker();
-  const response = await invoke(worker, "AG-012", "概括样例低空政策对运营企业提出的三项核心要求");
+  const response = await invokeBody(worker, "AG-012", {
+    agent_id: "AG-012",
+    input: "概括样例低空政策对运营企业提出的三项核心要求",
+    context: { as_of_date: "2026-07-26" },
+  });
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("x-agent-engine"), "langgraph-demo");
   const body = await response.json();
@@ -447,11 +451,17 @@ test("runs AG-012 through the policy summary workflow with time-aware citations"
   assert.ok(body.output.policy.key_points.length >= 3);
   assert.ok(body.output.policy.citations.every((item) => item.document_number && item.locator));
   assert.equal(body.output.policy.capability_coverage.length, 56);
+  assert.equal(body.output.policy.capability_coverage.filter((item) => item.status === "mock-demonstrated").length, 23);
+  assert.equal(body.output.policy.capability_coverage.find((item) => item.capability === "跨来源冲突信息识别").status, "adapter-ready");
 });
 
 test("AG-012 compares linked policy versions without treating a future version as current", async () => {
   const worker = await loadWorker();
-  const response = await invoke(worker, "AG-012", "新旧政策在飞行活动管理方面有哪些主要变化？");
+  const response = await invokeBody(worker, "AG-012", {
+    agent_id: "AG-012",
+    input: "新旧政策在飞行活动管理方面有哪些主要变化？",
+    context: { as_of_date: "2026-07-26" },
+  });
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.output.policy.mode, "version_compare");
@@ -459,6 +469,76 @@ test("AG-012 compares linked policy versions without treating a future version a
   assert.equal(body.output.policy.changes.length, 4);
   assert.ok(body.output.policy.documents.some((item) => item.id === "DEMO-POLICY-FLIGHT-2026" && item.effective_status === "upcoming"));
   assert.ok(body.output.policy.changes.every((item) => item.old_source_ref && item.new_source_ref));
+});
+
+test("AG-012 does not substitute an unrelated policy chain for a standard comparison", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-012", "低空物流运行安全规范新旧版本有什么变化？");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "needs_clarification");
+  assert.equal(body.output.policy, undefined);
+  assert.match(body.output.summary, /只收录了一个版本/);
+});
+
+test("AG-012 preserves an explicitly requested historical version", async () => {
+  const worker = await loadWorker();
+  const response = await invokeBody(worker, "AG-012", {
+    agent_id: "AG-012",
+    input: "样例低空飞行活动管理办法2025版的报备要求是什么？",
+    context: { as_of_date: "2026-08-02", document_ids: ["DEMO-POLICY-FLIGHT-2025"] },
+  });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "needs_review");
+  assert.equal(body.output.policy.current_version.document_id, "DEMO-POLICY-FLIGHT-2025");
+  assert.equal(body.output.policy.current_version.effective_status, "expired");
+  assert.ok(body.output.policy.documents.every((item) => item.id === "DEMO-POLICY-FLIGHT-2025"));
+  assert.ok(body.output.policy.review_items.some((item) => /历史失效版本/.test(item)));
+});
+
+test("AG-012 rejects invalid natural-language dates", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-012", "截至2026年13月1日，样例低空政策的报备要求是什么？");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "needs_clarification");
+  assert.equal(body.output.policy, undefined);
+  assert.match(body.output.summary, /日期无效/);
+});
+
+test("AG-012 resolves current-time questions from the request date instead of a fixed release date", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-012", "当前样例低空政策的报备要求是什么？");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  assert.equal(body.output.policy.intent.as_of_date, `${values.year}-${values.month}-${values.day}`);
+});
+
+test("AG-012 interprets month-before expressions as the previous month end", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-012", "我们是样例示范区物流企业，2026年8月以前开展配送需要满足哪些条件？");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.output.policy.intent.as_of_date, "2026-07-31");
+  assert.equal(body.output.policy.current_version.document_id, "DEMO-POLICY-FLIGHT-2025");
+  assert.ok(body.output.policy.applicability.some((item) => item.condition === "业务场景" && item.assessment === "not_matched"));
+});
+
+test("AG-012 limits a focused version comparison to the requested change topic", async () => {
+  const worker = await loadWorker();
+  const response = await invokeBody(worker, "AG-012", {
+    agent_id: "AG-012",
+    input: "新旧政策的运行记录保存期限有什么变化？",
+    context: { as_of_date: "2026-07-26" },
+  });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.deepEqual(body.output.policy.changes.map((item) => item.topic), ["运行记录"]);
 });
 
 test("AG-012 evaluates future applicability by region, subject, scenario, and effective date", async () => {
@@ -472,6 +552,19 @@ test("AG-012 evaluates future applicability by region, subject, scenario, and ef
   assert.equal(body.output.policy.current_version.document_id, "DEMO-POLICY-FLIGHT-2026");
   assert.ok(body.output.policy.applicability.every((item) => item.assessment === "matched"));
   assert.ok(body.output.policy.review_items.some((item) => /专业人员/.test(item)));
+});
+
+test("AG-012 does not combine separate subject and scenario evidence into a false applicability match", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-012", "样例示范区个人在2026年8月以后开展物流配送是否适用？");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  const subject = body.output.policy.applicability.find((item) => item.condition === "主体类型");
+  const scenario = body.output.policy.applicability.find((item) => item.condition === "业务场景");
+  assert.equal(subject.assessment, "not_matched");
+  assert.equal(scenario.assessment, "not_matched");
+  assert.match(subject.source_ref, /未找到主体与场景的同一条款依据/);
+  assert.ok(body.output.policy.review_items.some((item) => /不能据此认定政策适用/.test(item)));
 });
 
 test("AG-012 retrieves the requested standard instead of unrelated policy versions", async () => {

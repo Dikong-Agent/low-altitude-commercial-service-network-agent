@@ -22,6 +22,7 @@ const Ag012GraphState = new StateSchema({
   intent: PolicyIntentSchema.optional(),
   documents: z.array(DemoPolicyDocumentSchema).optional(),
   documentsMissing: z.boolean().optional(),
+  versionComparisonIssue: z.string().nullable().optional(),
   rankedEvidence: z.array(RankedPolicyEvidenceSchema).optional(),
   policyOutput: AgentPolicyOutputSchema.optional(),
   response: AgentInvokeResponseSchema.optional(),
@@ -61,7 +62,7 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
       trace_id: state.traceId,
       agent_id: "AG-012",
       status: "needs_clarification",
-      environment: "demo",
+      environment: dependencies.environment,
       output: {
         title: "需要补充政策问题",
         summary: state.intent?.clarificationMessage ?? "请补充政策、标准或适航问题。",
@@ -79,7 +80,7 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
       trace_id: state.traceId,
       agent_id: "AG-012",
       status: "needs_review",
-      environment: "demo",
+      environment: dependencies.environment,
       output: {
         title: "适航资料接口待接入",
         summary: "当前演示环境没有接入权威适航资料，不能形成适航要求、案例适用性或合规结论。",
@@ -93,21 +94,33 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
 
   const loadDocuments = async (state: typeof Ag012GraphState.State) => {
     const intent = state.intent!;
-    const allDocuments = await executeWithPolicy(
-      "ag012.policy-data",
+    let documents = await executeWithPolicy(
+      "ag012.policy-data-search",
       AG012_CONFIG.reliability.policyData,
-      (signal) => dependencies.policyData.listDocuments({ signal }),
+      (signal) => intent.requestedDocumentIds.length
+        ? dependencies.policyData.getDocuments(intent.requestedDocumentIds, { signal })
+        : dependencies.policyData.searchDocuments({ documentTypes: intent.documentTypes, query: state.request.input, limit: 20 }, { signal }),
     );
-    let documents = intent.requestedDocumentIds.length
-      ? allDocuments.filter((document) => intent.requestedDocumentIds.includes(document.id))
-      : allDocuments.filter((document) => intent.documentTypes.includes(document.documentType));
+    let versionComparisonIssue: string | null = null;
     if (intent.mode === "version_compare") {
       const chainIds = new Set(documents.map((document) => document.versionChainId));
-      documents = allDocuments.filter((document) => chainIds.has(document.versionChainId));
+      if (chainIds.size !== 1) {
+        versionComparisonIssue = chainIds.size === 0
+          ? "未找到可比较的政策或标准版本链。"
+          : "当前问题命中了多个不同版本链，请明确只比较一项政策或标准。";
+      } else {
+        documents = await executeWithPolicy(
+          "ag012.policy-data-version-chain",
+          AG012_CONFIG.reliability.policyData,
+          (signal) => dependencies.policyData.getVersionChains([...chainIds], { signal }),
+        );
+        if (documents.length < 2) versionComparisonIssue = "当前资料库只收录了一个版本，暂时无法进行新旧版本比较。";
+      }
     }
     return {
       documents,
       documentsMissing: documents.length === 0,
+      versionComparisonIssue,
       trace: appendTrace(state, "加载样例政策库", documents.length
         ? `通过 ${dependencies.providerName} PolicyDataPort 加载${documents.length}份虚构样例政策或标准。`
         : "当前样例政策库中没有找到指定材料。"),
@@ -120,7 +133,7 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
       trace_id: state.traceId,
       agent_id: "AG-012",
       status: "needs_clarification",
-      environment: "demo",
+      environment: dependencies.environment,
       output: {
         title: "未找到指定政策材料",
         summary: "当前演示环境没有找到指定政策或标准，请改用预置样例材料。",
@@ -128,6 +141,24 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
         evidence: ["AG-012 Mock 政策目录"],
       },
       trace: appendTrace(state, "请求选择材料", "材料不存在，工作流在检索前安全停止。"),
+    };
+    return { response, trace: response.trace };
+  };
+
+  const buildVersionComparisonUnavailable = (state: typeof Ag012GraphState.State) => {
+    const response: AgentInvokeResponse = {
+      request_id: `AG012-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+      trace_id: state.traceId,
+      agent_id: "AG-012",
+      status: "needs_clarification",
+      environment: dependencies.environment,
+      output: {
+        title: "暂不具备可比较的版本链",
+        summary: state.versionComparisonIssue ?? "请明确需要比较的政策或标准，并确认资料库已收录至少两个关联版本。",
+        points: ["一次只比较同一政策或标准的关联版本。", "至少需要两个能够确认版本关系的材料。", "不会使用其他政策的版本变化替代当前问题。"],
+        evidence: ["AG-012 版本链完整性规则 v1.1"],
+      },
+      trace: appendTrace(state, "请求确认比较对象", "版本链不唯一或版本数量不足，工作流未生成替代性比较结论。"),
     };
     return { response, trace: response.trace };
   };
@@ -157,7 +188,7 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
       trace_id: state.traceId,
       agent_id: "AG-012",
       status: "needs_clarification",
-      environment: "demo",
+      environment: dependencies.environment,
       output: {
         title: "样例材料中未找到可靠依据",
         summary: "当前样例政策与标准中没有找到能够直接支持该问题的条款，未生成推测性结论。",
@@ -170,7 +201,7 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
   };
 
   const composeInterpretation = (state: typeof Ag012GraphState.State) => {
-    const policyOutput = buildPolicyOutput(state.documents ?? [], state.intent!, state.rankedEvidence ?? []);
+    const policyOutput = buildPolicyOutput(state.documents ?? [], state.intent!, state.rankedEvidence ?? [], dependencies.engine);
     return {
       policyOutput,
       trace: appendTrace(state, "生成带依据解读", `形成${policyOutput.key_points.length}项要点、${policyOutput.changes.length}项版本变化和${policyOutput.citations.length}处条款引用。`),
@@ -190,7 +221,7 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
       trace_id: state.traceId,
       agent_id: "AG-012",
       status: policy.review_items.length ? "needs_review" : "completed",
-      environment: "demo",
+      environment: dependencies.environment,
       output: {
         title: responseTitle(policy),
         summary: `${policy.answer}${policy.review_items.length ? " 结果包含需核实事项，请勿直接作为真实业务执行依据。" : ""}`,
@@ -211,6 +242,7 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
     .addNode("airworthiness_boundary", buildAirworthinessBoundary)
     .addNode("load_documents", loadDocuments)
     .addNode("missing_documents", buildMissingDocuments)
+    .addNode("version_comparison_unavailable", buildVersionComparisonUnavailable)
     .addNode("resolve_versions", resolveVersions)
     .addNode("retrieve_evidence", retrieveEvidence)
     .addNode("no_evidence", buildNoEvidence)
@@ -221,8 +253,13 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
     .addConditionalEdges("understand_request", (state) => state.intent?.needsClarification ? "clarify" : state.intent?.mode === "airworthiness" ? "airworthiness_boundary" : "load_documents")
     .addEdge("clarify", END)
     .addEdge("airworthiness_boundary", END)
-    .addConditionalEdges("load_documents", (state) => state.documentsMissing ? "missing_documents" : "resolve_versions")
+    .addConditionalEdges("load_documents", (state) => state.documentsMissing
+      ? "missing_documents"
+      : state.versionComparisonIssue
+        ? "version_comparison_unavailable"
+        : "resolve_versions")
     .addEdge("missing_documents", END)
+    .addEdge("version_comparison_unavailable", END)
     .addEdge("resolve_versions", "retrieve_evidence")
     .addConditionalEdges("retrieve_evidence", (state) => state.rankedEvidence?.length ? "compose_interpretation" : "no_evidence")
     .addEdge("no_evidence", END)

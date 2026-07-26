@@ -87,7 +87,8 @@ export async function POST(request: Request, context: { params: Promise<{ agentI
         response = await invokeAg001(parsed.data, traceId);
       }
       recordAgentRun({ traceId, requestId: response.request_id, agentId: agent.id, status: response.status, durationMs: Date.now() - startedAt });
-      return Response.json(response, { headers: responseHeaders(traceId, "langgraph-demo") });
+      const engine = response.output.policy?.engine ?? "langgraph-demo";
+      return Response.json(response, { headers: responseHeaders(traceId, engine) });
     } catch (error) {
       const dependencyFailure = error instanceof DependencyUnavailableError;
       recordAgentRun({

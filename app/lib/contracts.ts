@@ -282,7 +282,7 @@ export const AgentPolicyOutputSchema = z.object({
     subject_types: z.array(z.string()),
     scenarios: z.array(z.string()),
     requested_document_ids: z.array(z.string()),
-    as_of_date: z.string(),
+    as_of_date: z.iso.date(),
   }),
   current_version: z.object({
     document_id: z.string(), title: z.string(), version: z.string(), effective_status: z.enum(["effective", "upcoming", "expired"]),

@@ -1,6 +1,5 @@
 import type { Ag012InvokeRequest, PolicyMode, PolicyTopic } from "../../contracts";
 import { DEMO_POLICY_DOCUMENTS } from "./catalog";
-import { AG012_CONFIG } from "./config";
 import { rankPolicyEvidence } from "./engine";
 import type { DemoPolicyDocument, PolicyIntent, RankedPolicyEvidence } from "./types";
 
@@ -9,9 +8,20 @@ export interface AIPlatformPort {
   retrievePolicyEvidence(documents: DemoPolicyDocument[], intent: PolicyIntent, query: string, options?: { signal?: AbortSignal }): Promise<RankedPolicyEvidence[]>;
 }
 
+export interface PolicyDocumentSearch {
+  documentTypes: PolicyIntent["documentTypes"];
+  query: string;
+  limit: number;
+}
+
 export interface PolicyDataPort {
-  listDocuments(options?: { signal?: AbortSignal }): Promise<DemoPolicyDocument[]>;
+  searchDocuments(search: PolicyDocumentSearch, options?: { signal?: AbortSignal }): Promise<DemoPolicyDocument[]>;
   getDocuments(ids: string[], options?: { signal?: AbortSignal }): Promise<DemoPolicyDocument[]>;
+  getVersionChains(chainIds: string[], options?: { signal?: AbortSignal }): Promise<DemoPolicyDocument[]>;
+}
+
+export interface PolicyClock {
+  today(): string;
 }
 
 const topicRules: Array<[PolicyTopic, RegExp, string]> = [
@@ -55,17 +65,62 @@ function contextDocumentIds(request: Ag012InvokeRequest): string[] {
   return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [];
 }
 
-function dateFromInput(input: string): string | null {
+function validDate(year: number, month: number, day: number): string | null {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function previousMonthEnd(year: number, month: number): string {
+  const date = new Date(Date.UTC(year, month - 1, 0));
+  return date.toISOString().slice(0, 10);
+}
+
+function monthEnd(year: number, month: number): string {
+  const date = new Date(Date.UTC(year, month, 0));
+  return date.toISOString().slice(0, 10);
+}
+
+function dateFromInput(input: string): { date: string | null; issue: string | null } {
   const iso = input.match(/(20\d{2})[-/.](\d{1,2})(?:[-/.](\d{1,2}))?/);
   const chinese = input.match(/(20\d{2})年(\d{1,2})月(?:(\d{1,2})日)?/);
   const match = iso ?? chinese;
-  if (!match) return null;
-  const month = String(Number(match[2])).padStart(2, "0");
-  const day = String(Number(match[3] ?? "1")).padStart(2, "0");
-  return `${match[1]}-${month}-${day}`;
+  if (!match) return { date: null, issue: null };
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = match[3] ? Number(match[3]) : null;
+  if (month < 1 || month > 12 || (day !== null && !validDate(year, month, day))) {
+    return { date: null, issue: "提问中的日期无效，请使用真实的年月日。" };
+  }
+  if (day !== null) return { date: validDate(year, month, day), issue: null };
+  if (/以前|之前/.test(input)) return { date: previousMonthEnd(year, month), issue: null };
+  if (/截至|月底|月末/.test(input)) return { date: monthEnd(year, month), issue: null };
+  if (/以后|之后|自.*起|开始/.test(input)) return { date: validDate(year, month, 1), issue: null };
+  return { date: null, issue: "提问只给出了月份，请说明是月初、月末、以前还是以后。" };
+}
+
+const shanghaiClock: PolicyClock = {
+  today() {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  },
+};
+
+function documentAliasMatches(input: string, document: DemoPolicyDocument): { any: boolean; specific: boolean } {
+  const aliases = [document.title, document.documentNumber, ...document.aliases];
+  const matched = aliases.filter((alias) => input.includes(alias));
+  return {
+    any: matched.length > 0,
+    specific: matched.some((alias) => /20\d{2}|试行版|修订稿|〔.+〕/.test(alias) || alias === document.title || alias === document.documentNumber),
+  };
 }
 
 export class DemoAIPlatformAdapter implements AIPlatformPort {
+  constructor(private readonly clock: PolicyClock = shanghaiClock) {}
+
   async understandPolicyRequest(request: Ag012InvokeRequest): Promise<PolicyIntent> {
     const input = request.input.trim();
     const mode = modeFromInput(input);
@@ -76,15 +131,13 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
     const jurisdictions = /样例示范区/.test(input) ? ["样例示范区"] : [];
     const documentTypes: PolicyIntent["documentTypes"] = /适航/.test(input) ? ["airworthiness_notice"] : /标准|规范/.test(input) ? ["standard"] : ["policy"];
     const explicitIds = contextDocumentIds(request);
-    const aliasIds = DEMO_POLICY_DOCUMENTS.filter((document) => [document.title, document.documentNumber, ...document.aliases].some((alias) => input.includes(alias))).map((document) => document.id);
-    const requestedDocumentIds = [...new Set([...explicitIds, ...aliasIds])];
-    if (mode === "version_compare") {
-      for (const document of DEMO_POLICY_DOCUMENTS.filter((item) => item.versionChainId === "DEMO-CHAIN-FLIGHT-MGMT")) {
-        if (!requestedDocumentIds.includes(document.id)) requestedDocumentIds.push(document.id);
-      }
-    }
+    const aliasMatches = DEMO_POLICY_DOCUMENTS.map((document) => ({ document, ...documentAliasMatches(input, document) }));
+    const specificAliasIds = aliasMatches.filter((item) => item.specific).map((item) => item.document.id);
+    const aliasIds = (specificAliasIds.length ? specificAliasIds : aliasMatches.filter((item) => item.any).map((item) => item.document.id));
+    const requestedDocumentIds = explicitIds.length ? [...new Set(explicitIds)] : [...new Set(aliasIds)];
     const domainSignal = /政策|办法|规定|标准|规范|适航|报备|申报|运行记录|物流|巡检|测绘|航拍|生效|版本/.test(input);
-    const needsClarification = !domainSignal;
+    const parsedDate = request.context?.as_of_date ? { date: request.context.as_of_date, issue: null } : dateFromInput(input);
+    const needsClarification = !domainSignal || Boolean(parsedDate.issue);
     return {
       mode,
       documentTypes,
@@ -94,9 +147,9 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
       subjectTypes,
       scenarios,
       requestedDocumentIds,
-      asOfDate: request.context?.as_of_date ?? dateFromInput(input) ?? AG012_CONFIG.defaultAsOfDate,
+      asOfDate: parsedDate.date ?? this.clock.today(),
       needsClarification,
-      clarificationMessage: needsClarification ? "请说明需要查询的政策、标准或适航主题，并补充业务场景；例如政策要点、版本变化、报备要求或适用性问题。" : null,
+      clarificationMessage: parsedDate.issue ?? (needsClarification ? "请说明需要查询的政策、标准或适航主题，并补充业务场景；例如政策要点、版本变化、报备要求或适用性问题。" : null),
     };
   }
 
@@ -106,11 +159,17 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
 }
 
 export class MockPolicyDataAdapter implements PolicyDataPort {
-  async listDocuments(): Promise<DemoPolicyDocument[]> {
-    return structuredClone(DEMO_POLICY_DOCUMENTS);
+  async searchDocuments(search: PolicyDocumentSearch): Promise<DemoPolicyDocument[]> {
+    const candidates = DEMO_POLICY_DOCUMENTS.filter((document) => search.documentTypes.includes(document.documentType));
+    const directlyMatched = candidates.filter((document) => documentAliasMatches(search.query, document).any);
+    return structuredClone((directlyMatched.length ? directlyMatched : candidates).slice(0, search.limit));
   }
 
   async getDocuments(ids: string[]): Promise<DemoPolicyDocument[]> {
     return structuredClone(DEMO_POLICY_DOCUMENTS.filter((document) => ids.includes(document.id)));
+  }
+
+  async getVersionChains(chainIds: string[]): Promise<DemoPolicyDocument[]> {
+    return structuredClone(DEMO_POLICY_DOCUMENTS.filter((document) => chainIds.includes(document.versionChainId)));
   }
 }

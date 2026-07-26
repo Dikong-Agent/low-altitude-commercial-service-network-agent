@@ -72,7 +72,7 @@ export const PolicyIntentSchema = z.object({
   subjectTypes: z.array(z.string()),
   scenarios: z.array(z.string()),
   requestedDocumentIds: z.array(z.string()),
-  asOfDate: z.string(),
+  asOfDate: z.iso.date(),
   needsClarification: z.boolean(),
   clarificationMessage: z.string().nullable(),
 });

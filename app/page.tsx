@@ -510,7 +510,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.7</p><span>AG-001 / AG-002 / AG-003 / AG-012 可运行 · Mock数据</span></footer>
+      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.8</p><span>AG-001 / AG-002 / AG-003 / AG-012 可运行 · Mock数据</span></footer>
     </main>
   );
 }
