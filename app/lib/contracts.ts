@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-export const AGENT_INTERFACE_VERSION = "v1.5";
+export const AGENT_INTERFACE_VERSION = "v1.6";
 export const MAX_AGENT_INPUT_LENGTH = 2_000;
 export const MAX_AGENT_CONTEXT_BYTES = 12_000;
 
@@ -53,6 +53,17 @@ export const Ag002InvokeRequestSchema = AgentInvokeRequestSchema.extend({
   context: Ag002ContextSchema.optional(),
 });
 export type Ag002InvokeRequest = z.infer<typeof Ag002InvokeRequestSchema>;
+
+export const Ag012ContextSchema = z.object({
+  as_of_date: z.iso.date().optional(),
+  document_ids: z.array(z.string().trim().min(1).max(128)).max(20).optional(),
+}).passthrough();
+
+export const Ag012InvokeRequestSchema = AgentInvokeRequestSchema.extend({
+  agent_id: z.literal("AG-012"),
+  context: Ag012ContextSchema.optional(),
+});
+export type Ag012InvokeRequest = z.infer<typeof Ag012InvokeRequestSchema>;
 
 export const ComparisonIntentViewSchema = z.object({
   product_names: z.array(z.string()),
@@ -239,6 +250,68 @@ export const AgentRecommendationOutputSchema = z.object({
 });
 export type AgentRecommendationOutput = z.infer<typeof AgentRecommendationOutputSchema>;
 
+export const PolicyModeSchema = z.enum(["policy_summary", "policy_qa", "version_compare", "applicability", "business_impact", "airworthiness"]);
+export type PolicyMode = z.infer<typeof PolicyModeSchema>;
+
+export const PolicyTopicSchema = z.enum([
+  "scope", "filing", "operation", "operation_safety", "record_retention", "logistics",
+  "applicability", "timeliness", "version_status", "business_impact", "airworthiness",
+]);
+export type PolicyTopic = z.infer<typeof PolicyTopicSchema>;
+
+export const PolicyCitationSchema = z.object({
+  document_id: z.string(),
+  document_title: z.string(),
+  document_number: z.string(),
+  version: z.string(),
+  locator: z.string(),
+  excerpt: z.string(),
+  relevance: z.number().min(0).max(1),
+  effective_status: z.enum(["effective", "upcoming", "expired"]),
+});
+export type PolicyCitation = z.infer<typeof PolicyCitationSchema>;
+
+export const AgentPolicyOutputSchema = z.object({
+  engine: z.enum(["langgraph-demo", "langgraph-adapter"]),
+  mode: PolicyModeSchema,
+  intent: z.object({
+    document_types: z.array(z.enum(["policy", "standard", "airworthiness_notice"])),
+    topics: z.array(PolicyTopicSchema),
+    query_terms: z.array(z.string()),
+    jurisdictions: z.array(z.string()),
+    subject_types: z.array(z.string()),
+    scenarios: z.array(z.string()),
+    requested_document_ids: z.array(z.string()),
+    as_of_date: z.string(),
+  }),
+  current_version: z.object({
+    document_id: z.string(), title: z.string(), version: z.string(), effective_status: z.enum(["effective", "upcoming", "expired"]),
+    as_of_date: z.string(), explanation: z.string(),
+  }).nullable(),
+  documents: z.array(z.object({
+    id: z.string(), title: z.string(), document_number: z.string(), issuer: z.string(), document_type: z.enum(["policy", "standard", "airworthiness_notice"]),
+    jurisdiction: z.string(), version: z.string(), published_at: z.string(), effective_from: z.string(), effective_to: z.string().nullable(),
+    effective_status: z.enum(["effective", "upcoming", "expired"]), replaces_id: z.string().nullable(), source_type: z.string(),
+  })),
+  answer: z.string(),
+  key_points: z.array(z.string()),
+  changes: z.array(z.object({
+    id: z.string(), topic: z.string(), change_type: z.enum(["added", "removed", "modified", "moved"]),
+    explanation: z.string(), business_impact: z.string(), old_source_ref: z.string(), new_source_ref: z.string(),
+  })),
+  applicability: z.array(z.object({
+    condition: z.string(), assessment: z.enum(["matched", "not_matched", "unknown"]), explanation: z.string(), source_ref: z.string(),
+  })),
+  citations: z.array(PolicyCitationSchema),
+  review_items: z.array(z.string()),
+  capability_coverage: z.array(z.object({
+    requirement_id: z.string(), capability: z.string(), status: z.enum(["mock-demonstrated", "adapter-ready"]),
+  })),
+  data_notice: z.string(),
+  rule_version: z.string(),
+});
+export type AgentPolicyOutput = z.infer<typeof AgentPolicyOutputSchema>;
+
 export const AgentInvokeResponseSchema = z.object({
   request_id: z.string(),
   trace_id: z.string(),
@@ -253,6 +326,7 @@ export const AgentInvokeResponseSchema = z.object({
     comparison: AgentComparisonOutputSchema.optional(),
     manual: AgentManualOutputSchema.optional(),
     recommendation: AgentRecommendationOutputSchema.optional(),
+    policy: AgentPolicyOutputSchema.optional(),
   }),
   trace: z.array(z.object({ name: z.string(), detail: z.string() })),
 });

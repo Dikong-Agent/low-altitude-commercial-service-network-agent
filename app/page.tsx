@@ -2,13 +2,13 @@
 
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AGENTS } from "./lib/agent-registry";
-import type { AgentComparisonOutput, AgentDefinition, AgentId, AgentManualOutput, AgentRecommendationOutput } from "./lib/contracts";
+import type { AgentComparisonOutput, AgentDefinition, AgentId, AgentManualOutput, AgentPolicyOutput, AgentRecommendationOutput } from "./lib/contracts";
 import { AgentGatewayError, invokeAgent } from "./lib/agent-gateway";
 
 const capabilityStats = [
-  { value: "03", label: "可运行 Agent" },
-  { value: "61", label: "已映射能力点" },
-  { value: "03", label: "服务端适配端口" },
+  { value: "04", label: "可运行 Agent" },
+  { value: "117", label: "已映射能力点" },
+  { value: "04", label: "服务端适配端口" },
 ];
 
 const runnableCount = AGENTS.filter((agent) => agent.availability === "runnable").length;
@@ -244,6 +244,62 @@ function RecommendationPanel({ recommendation }: { recommendation: AgentRecommen
   );
 }
 
+function PolicyPanel({ policy }: { policy: AgentPolicyOutput }) {
+  const statusLabels = { effective: "当前有效", upcoming: "待生效", expired: "已失效" } as const;
+  const modeLabels = { policy_summary: "政策摘要", policy_qa: "依据问答", version_compare: "版本对比", applicability: "适用判断", business_impact: "影响分析", airworthiness: "适航咨询" } as const;
+  const assessmentLabels = { matched: "条件匹配", not_matched: "暂不匹配", unknown: "信息待补" } as const;
+  const demonstrated = policy.capability_coverage.filter((item) => item.status === "mock-demonstrated").length;
+  const intentItems = [
+    `模式 · ${modeLabels[policy.mode]}`,
+    `时点 · ${policy.intent.as_of_date}`,
+    ...policy.intent.subject_types.map((item) => `主体 · ${item}`),
+    ...policy.intent.scenarios.map((item) => `场景 · ${item}`),
+    ...policy.intent.topics.map((item) => `主题 · ${item}`),
+  ];
+
+  return (
+    <div className="policy-result">
+      <div className="intent-strip"><span>问题理解</span><div>{intentItems.map((item) => <b key={item}>{item}</b>)}</div></div>
+      {policy.current_version && <div className="policy-current-band">
+        <span>截至 {policy.current_version.as_of_date}</span>
+        <div><small>{policy.current_version.document_id}</small><strong>{policy.current_version.version}</strong><p>{policy.current_version.explanation}</p></div>
+        <b className={`status-${policy.current_version.effective_status}`}>{statusLabels[policy.current_version.effective_status]}</b>
+      </div>}
+      <div className="manual-answer"><span>政策解读</span><p>{policy.answer}</p></div>
+
+      <section className="policy-timeline">
+        <header><strong>版本与材料状态</strong><small>按提问时点动态判断，不以最新发布日期替代当前有效版本</small></header>
+        <div>{policy.documents.map((document) => (
+          <article key={document.id} className={`status-${document.effective_status}`}>
+            <span>{document.effective_from}</span><div><small>{document.document_number} · {document.source_type}</small><strong>{document.title}</strong><p>{document.issuer} · {document.jurisdiction}</p></div><b>{statusLabels[document.effective_status]}</b>
+          </article>
+        ))}</div>
+      </section>
+
+      {policy.changes.length > 0 && <section className="policy-changes">
+        <header><strong>新旧版本主要变化</strong><small>逐项保留新旧条款定位</small></header>
+        <div>{policy.changes.map((change, index) => (
+          <article key={change.id}><span>{String(index + 1).padStart(2, "0")}</span><div><small>{change.change_type.toUpperCase()} · {change.topic}</small><strong>{change.explanation}</strong><p>{change.business_impact}</p><em>{change.old_source_ref} → {change.new_source_ref}</em></div></article>
+        ))}</div>
+      </section>}
+
+      {policy.applicability.length > 0 && <section className="policy-applicability">
+        <header><strong>适用条件拆解</strong><small>辅助判断，不替代主管部门或专业人员确认</small></header>
+        <div>{policy.applicability.map((item) => (
+          <article className={`assessment-${item.assessment}`} key={item.condition}><span>{assessmentLabels[item.assessment]}</span><strong>{item.condition}</strong><p>{item.explanation}</p><small>{item.source_ref}</small></article>
+        ))}</div>
+      </section>}
+
+      {policy.key_points.length > 0 && <section className="policy-key-points"><header><strong>条款要点</strong></header><div>{policy.key_points.map((item, index) => <p key={item}><span>{String(index + 1).padStart(2, "0")}</span>{item}</p>)}</div></section>}
+      <section className="manual-citations policy-citations"><header><strong>政策依据</strong><small>文号 · 版本 · 条款 · 生效状态</small></header><div>{policy.citations.map((citation) => <article key={`${citation.document_id}-${citation.locator}`}><span>{Math.round(citation.relevance * 100)}%</span><div><strong>{citation.document_number} · {citation.version} · {citation.locator} · {statusLabels[citation.effective_status]}</strong><p>{citation.excerpt}</p></div></article>)}</div></section>
+      {policy.review_items.length > 0 && <div className="policy-review-items"><strong>待核实与复核事项</strong>{policy.review_items.map((item) => <p key={item}>! {item}</p>)}</div>}
+      <div className="manual-coverage"><span><b>{policy.capability_coverage.length}</b>项现行能力已对齐</span><p>{demonstrated}项以虚构政策和标准样例演示；适航咨询与内容生成能力保留正式权威资料、AI 中台和专业复核适配边界。</p></div>
+      <p className="data-notice">{policy.data_notice}</p>
+      <span className="engine-label">ENGINE · {policy.engine.toUpperCase()} · {policy.rule_version}</span>
+    </div>
+  );
+}
+
 export default function Home() {
   const [selectedId, setSelectedId] = useState<AgentId>("AG-001");
   const [input, setInput] = useState(AGENTS[0].prompts[0]);
@@ -399,13 +455,14 @@ export default function Home() {
               <div className="welcome-copy"><span className={`mini-symbol tone-${selected.tone}`}>{selected.symbol}</span><h3>{selected.welcome}</h3><p>{selected.demoHint}</p></div>
               {selected.id === "AG-002" && !response && !loading && <div className="manual-source-chip"><span>当前样例文档</span><strong>云巡 X8 无人机用户手册</strong><small>v0.9-demo · 虚构预解析材料</small></div>}
               {selected.id === "AG-003" && !response && !loading && <div className="recommendation-source-chip"><span>当前样例目录</span><strong>7 个虚构产品 · 3 套虚构场景方案</strong><small>仅用于规则推荐与接口演示，不代表真实商城数据</small></div>}
+              {selected.id === "AG-012" && !response && !loading && <div className="policy-source-chip"><span>当前样例知识</span><strong>2 个虚构政策版本 · 1 份虚构行业标准</strong><small>支持版本时效、条款引用和适用条件演示，不代表真实政策库</small></div>}
               {!response && !loading && <div className="prompt-list"><span>推荐演示问题</span>{selected.prompts.map((prompt) => <button type="button" key={prompt} onClick={() => setInput(prompt)}>{prompt}<i>↗</i></button>)}</div>}
               {loading && <div className="thinking-card"><div className="thinking-head"><span className="loading-dots"><i /><i /><i /></span> Agent 正在处理</div><div className="loading-line"><span /></div><p>正在理解问题、调用演示工具并组织可解释结果…</p></div>}
               {error && <div className="error-card"><strong>运行未完成</strong><p>{error}</p></div>}
               {response && (
                 <div className="result-card">
                   <div className="result-kicker"><span>{response.status === "preview" ? "能力预览" : response.status === "needs_review" ? "演示结果 · 需复核" : response.status === "needs_clarification" ? "需要补充或适配" : "演示结果"}</span><b title={response.trace_id}>{response.request_id} · TRACE</b></div><h3>{response.output.title}</h3><p>{response.output.summary}</p>
-                  {response.output.comparison ? <ComparisonPanel comparison={response.output.comparison} /> : response.output.manual ? <ManualPanel manual={response.output.manual} /> : response.output.recommendation ? <RecommendationPanel recommendation={response.output.recommendation} /> : <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>}
+                  {response.output.comparison ? <ComparisonPanel comparison={response.output.comparison} /> : response.output.manual ? <ManualPanel manual={response.output.manual} /> : response.output.recommendation ? <RecommendationPanel recommendation={response.output.recommendation} /> : response.output.policy ? <PolicyPanel policy={response.output.policy} /> : <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>}
                   <div className="evidence-row"><span>依据</span>{response.output.evidence.map((item) => <b key={item}>{item}</b>)}</div>
                   <small>本结果由样例知识与演示数据生成，不代表正式业务结论。</small>
                 </div>
@@ -449,11 +506,11 @@ export default function Home() {
         <div className="architecture-map">
           <div className="layer"><small>EXPERIENCE</small><strong>Agent 能力展厅</strong><span>统一交互工作台</span></div><i>↓</i>
           <div className="layer accent"><small>OUR CORE</small><strong>Agent 应用框架</strong><span>业务流程 · Prompt · 规则 · 评测</span></div><i>↓</i>
-          <div className="adapter-row"><div className="layer"><small>AI PORT</small><strong>AIPlatformPort</strong><span>甲方 AI 中台、OCR与多模态适配</span></div><div className="layer"><small>DATA PORT</small><strong>Business / Document DataPort</strong><span>数据中台、业务系统与文档源适配</span></div></div>
+          <div className="adapter-row"><div className="layer"><small>AI PORT</small><strong>AIPlatformPort</strong><span>甲方 AI 中台、OCR与多模态适配</span></div><div className="layer"><small>DATA PORT</small><strong>Business / Document / Policy DataPort</strong><span>数据中台、业务系统、文档源与政策知识库适配</span></div></div>
         </div>
       </section>
 
-      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.6</p><span>AG-001 / AG-002 / AG-003 可运行 · Mock数据</span></footer>
+      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.7</p><span>AG-001 / AG-002 / AG-003 / AG-012 可运行 · Mock数据</span></footer>
     </main>
   );
 }

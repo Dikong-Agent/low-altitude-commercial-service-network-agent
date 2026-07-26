@@ -2,6 +2,7 @@ import { getAgentDefinition } from "../../../../lib/agent-registry";
 import {
   AGENT_INTERFACE_VERSION,
   Ag002InvokeRequestSchema,
+  Ag012InvokeRequestSchema,
   AgentInvokeRequestSchema,
   AgentInvokeResponseSchema,
   type AgentId,
@@ -10,13 +11,13 @@ import {
 import { invokeAg001 } from "../../../../lib/agents/ag001/workflow";
 import { invokeAg002 } from "../../../../lib/agents/ag002/workflow";
 import { invokeAg003 } from "../../../../lib/agents/ag003/workflow";
+import { invokeAg012 } from "../../../../lib/agents/ag012/workflow";
 import { recordAgentRun } from "../../../../lib/observability";
 import { DependencyUnavailableError } from "../../../../lib/reliability";
 
 const MAX_REQUEST_BYTES = 20_000;
 
-const previewOutputs: Record<Exclude<AgentId, "AG-001" | "AG-002" | "AG-003">, Omit<AgentInvokeResponse["output"], "summary">> = {
-  "AG-012": { title: "政策解读能力预览", points: ["计划围绕适用对象、执行条件和时效开展检索。", "计划输出带来源的政策解释。", "正式业务判断仍需回到最新有效文件并由专业人员复核。"], evidence: ["预览流程定义", "待接入政策知识库"] },
+const previewOutputs: Record<Exclude<AgentId, "AG-001" | "AG-002" | "AG-003" | "AG-012">, Omit<AgentInvokeResponse["output"], "summary">> = {
   "AG-025": { title: "智能客服能力预览", points: ["计划识别业务意图并选择服务路径。", "计划连接知识问答、业务工具和转人工流程。", "正式实现需接入 FAQ、业务工具及人工服务机制。"], evidence: ["预览流程定义", "待接入客服工具"] },
 };
 
@@ -65,7 +66,7 @@ export async function POST(request: Request, context: { params: Promise<{ agentI
     return errorResponse(400, "AGENT_ID_MISMATCH", "agent_id does not match route", traceId);
   }
 
-  if (agent.id === "AG-001" || agent.id === "AG-002" || agent.id === "AG-003") {
+  if (agent.id === "AG-001" || agent.id === "AG-002" || agent.id === "AG-003" || agent.id === "AG-012") {
     try {
       let response: AgentInvokeResponse;
       if (agent.id === "AG-002") {
@@ -76,6 +77,12 @@ export async function POST(request: Request, context: { params: Promise<{ agentI
         response = await invokeAg002(ag002Request.data, traceId);
       } else if (agent.id === "AG-003") {
         response = await invokeAg003(parsed.data, traceId);
+      } else if (agent.id === "AG-012") {
+        const ag012Request = Ag012InvokeRequestSchema.safeParse(parsed.data);
+        if (!ag012Request.success) {
+          return errorResponse(400, "INVALID_AGENT_REQUEST", ag012Request.error.issues[0]?.message ?? "Invalid AG-012 request", traceId);
+        }
+        response = await invokeAg012(ag012Request.data, traceId);
       } else {
         response = await invokeAg001(parsed.data, traceId);
       }

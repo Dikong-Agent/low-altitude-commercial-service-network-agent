@@ -1,6 +1,7 @@
 import { DEMO_PRODUCT_CATALOG } from "../../../lib/agents/ag001/catalog";
 import { DEMO_MANUALS } from "../../../lib/agents/ag002/catalog";
 import { DEMO_SCENARIO_SOLUTIONS } from "../../../lib/agents/ag003/catalog";
+import { DEMO_POLICY_DOCUMENTS } from "../../../lib/agents/ag012/catalog";
 
 export async function GET(request: Request, context: { params: Promise<{ resource: string }> }) {
   const { resource } = await context.params;
@@ -61,6 +62,38 @@ export async function GET(request: Request, context: { params: Promise<{ resourc
       total: items.length,
       connector: { port: "BusinessDataPort", status: "mock-active", target: "正式数据中台及产品商城业务系统接口" },
       notice: "全部场景方案、组合关系和价格均为虚构样例，仅用于 AG-003 开发和阶段测试。",
+    }, { headers: { "Cache-Control": "no-store" } });
+  }
+  if (resource === "policies") {
+    const url = new URL(request.url);
+    const id = url.searchParams.get("id")?.trim();
+    const type = url.searchParams.get("type")?.trim();
+    const items = DEMO_POLICY_DOCUMENTS
+      .filter((document) => (!id || document.id === id) && (!type || document.documentType === type))
+      .map((document) => ({
+        id: document.id,
+        title: document.title,
+        document_number: document.documentNumber,
+        issuer: document.issuer,
+        document_type: document.documentType,
+        jurisdiction: document.jurisdiction,
+        version: document.version,
+        published_at: document.publishedAt,
+        effective_from: document.effectiveFrom,
+        effective_to: document.effectiveTo,
+        replaces_id: document.replacesId,
+        section_count: document.sections.length,
+      }));
+    if (id && items.length === 0) {
+      return Response.json({ code: "POLICY_DOCUMENT_NOT_FOUND", message: `Unknown demo policy: ${id}`, environment: "demo" }, { status: 404, headers: { "Cache-Control": "no-store" } });
+    }
+    return Response.json({
+      environment: "demo",
+      resource,
+      items,
+      total: items.length,
+      connector: { port: "PolicyDataPort", status: "mock-active", target: "正式政策知识库、标准库及适航资料接口" },
+      notice: "全部政策、标准、文号、机构和条款均为虚构样例，仅用于 AG-012 工作流与接口测试。",
     }, { headers: { "Cache-Control": "no-store" } });
   }
   return Response.json({

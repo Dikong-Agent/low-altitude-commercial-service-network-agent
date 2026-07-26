@@ -34,18 +34,18 @@ test("renders the Agent capability showroom", async () => {
   assert.match(html, /五种模式，一套底座/);
   assert.match(html, /AG-001/);
   assert.match(html, /AG-025/);
-  assert.match(html, /V1\.6/);
-  assert.equal((html.match(/<i>RUNNABLE<\/i>/g) ?? []).length, 3);
-  assert.equal((html.match(/<i>PREVIEW<\/i>/g) ?? []).length, 2);
+  assert.match(html, /V1\.7/);
+  assert.equal((html.match(/<i>RUNNABLE<\/i>/g) ?? []).length, 4);
+  assert.equal((html.match(/<i>PREVIEW<\/i>/g) ?? []).length, 1);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
 
 test("exposes the reserved Agent interface", async () => {
   const worker = await loadWorker();
-  const response = await invoke(worker, "AG-012", "演示政策解读");
+  const response = await invoke(worker, "AG-025", "演示智能客服");
   assert.equal(response.status, 200);
   const body = await response.json();
-  assert.equal(body.agent_id, "AG-012");
+  assert.equal(body.agent_id, "AG-025");
   assert.equal(body.environment, "demo");
   assert.equal(body.status, "preview");
   assert.match(body.trace_id, /^TRC-/);
@@ -431,6 +431,108 @@ test("serves the AG-003 mock solution directory through BusinessDataPort", async
   assert.equal(body.connector.port, "BusinessDataPort");
   assert.equal(body.connector.status, "mock-active");
   assert.ok(body.items.length >= 1);
+  assert.match(body.notice, /虚构样例/);
+});
+
+test("runs AG-012 through the policy summary workflow with time-aware citations", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-012", "概括样例低空政策对运营企业提出的三项核心要求");
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-agent-engine"), "langgraph-demo");
+  const body = await response.json();
+  assert.equal(body.status, "completed");
+  assert.equal(body.output.policy.mode, "policy_summary");
+  assert.equal(body.output.policy.current_version.document_id, "DEMO-POLICY-FLIGHT-2025");
+  assert.equal(body.output.policy.current_version.effective_status, "effective");
+  assert.ok(body.output.policy.key_points.length >= 3);
+  assert.ok(body.output.policy.citations.every((item) => item.document_number && item.locator));
+  assert.equal(body.output.policy.capability_coverage.length, 56);
+});
+
+test("AG-012 compares linked policy versions without treating a future version as current", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-012", "新旧政策在飞行活动管理方面有哪些主要变化？");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.output.policy.mode, "version_compare");
+  assert.equal(body.output.policy.current_version.document_id, "DEMO-POLICY-FLIGHT-2025");
+  assert.equal(body.output.policy.changes.length, 4);
+  assert.ok(body.output.policy.documents.some((item) => item.id === "DEMO-POLICY-FLIGHT-2026" && item.effective_status === "upcoming"));
+  assert.ok(body.output.policy.changes.every((item) => item.old_source_ref && item.new_source_ref));
+});
+
+test("AG-012 evaluates future applicability by region, subject, scenario, and effective date", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-012", "我们是样例示范区的物流企业，2026年8月以后开展配送可能要满足哪些条件？");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "needs_review");
+  assert.equal(body.output.policy.mode, "applicability");
+  assert.equal(body.output.policy.intent.as_of_date, "2026-08-01");
+  assert.equal(body.output.policy.current_version.document_id, "DEMO-POLICY-FLIGHT-2026");
+  assert.ok(body.output.policy.applicability.every((item) => item.assessment === "matched"));
+  assert.ok(body.output.policy.review_items.some((item) => /专业人员/.test(item)));
+});
+
+test("AG-012 retrieves the requested standard instead of unrelated policy versions", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-012", "低空物流安全规范对航线风险和应急演练有什么要求？");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "completed");
+  assert.deepEqual(body.output.policy.intent.document_types, ["standard"]);
+  assert.ok(body.output.policy.documents.every((item) => item.document_type === "standard"));
+  assert.ok(body.output.policy.citations.every((item) => item.document_id === "DEMO-STANDARD-LOGISTICS-2026"));
+});
+
+test("AG-012 stops safely when the sample policy library has no supporting clause", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-012", "政策对宠物运输箱颜色有什么规定？");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "needs_clarification");
+  assert.equal(body.output.policy, undefined);
+  assert.match(body.output.summary, /没有找到/);
+});
+
+test("AG-012 preserves the formal airworthiness adapter and review boundary", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-012", "这个型号是否满足当前适航要求？");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "needs_review");
+  assert.equal(body.output.policy, undefined);
+  assert.match(body.output.summary, /没有接入权威适航资料/);
+});
+
+test("an invalid AG-012 provider is isolated from the other Agents", async () => {
+  const previousProvider = process.env.AG012_PROVIDER;
+  process.env.AG012_PROVIDER = "missing-audit-provider";
+  try {
+    const worker = await loadWorker();
+    const failedAgent = await invoke(worker, "AG-012", "概括样例低空政策核心要求");
+    assert.equal(failedAgent.status, 503);
+    const failedBody = await failedAgent.json();
+    assert.equal(failedBody.code, "DEPENDENCY_UNAVAILABLE");
+
+    const healthyAgent = await invoke(worker, "AG-001", "对比云巡 X8 和山岳 T60");
+    assert.equal(healthyAgent.status, 200);
+  } finally {
+    if (previousProvider === undefined) delete process.env.AG012_PROVIDER;
+    else process.env.AG012_PROVIDER = previousProvider;
+  }
+});
+
+test("serves the AG-012 mock policy directory through PolicyDataPort", async () => {
+  const worker = await loadWorker();
+  const response = await worker.fetch(new Request("http://localhost/api/data/policies?type=policy"), env, ctx);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.environment, "demo");
+  assert.equal(body.connector.port, "PolicyDataPort");
+  assert.equal(body.connector.status, "mock-active");
+  assert.equal(body.items.length, 2);
+  assert.ok(body.items.every((item) => item.title.startsWith("样例·")));
   assert.match(body.notice, /虚构样例/);
 });
 
