@@ -3,12 +3,12 @@ import { DEMO_PRODUCT_CATALOG } from "./catalog";
 import type { ComparisonIntent, DemoProduct, HardConstraint, NumericDimension } from "./types";
 
 export interface AIPlatformPort {
-  understandComparisonRequest(request: AgentInvokeRequest): Promise<ComparisonIntent>;
+  understandComparisonRequest(request: AgentInvokeRequest, options?: { signal?: AbortSignal }): Promise<ComparisonIntent>;
 }
 
 export interface BusinessDataPort {
-  listProducts(): Promise<DemoProduct[]>;
-  getProducts(ids: string[]): Promise<DemoProduct[]>;
+  listProducts(options?: { signal?: AbortSignal }): Promise<DemoProduct[]>;
+  getProducts(ids: string[], options?: { signal?: AbortSignal }): Promise<DemoProduct[]>;
 }
 
 const focusKeywords: Array<[NumericDimension, string[]]> = [
@@ -25,10 +25,11 @@ function firstNumber(input: string, pattern: RegExp): number | null {
   return match ? Number(match[1]) : null;
 }
 
-function parseBudget(input: string): number | null {
+function parseBudget(input: string): { value: number | null; ambiguous: boolean } {
   const match = input.match(/预算[^\d]{0,6}(\d+(?:\.\d+)?)\s*(万(?:元)?|元)?/);
-  if (!match) return null;
-  return Math.round(Number(match[1]) * (match[2]?.startsWith("万") ? 10000 : 1));
+  if (!match) return { value: null, ambiguous: false };
+  if (!match[2]) return { value: null, ambiguous: true };
+  return { value: Math.round(Number(match[1]) * (match[2].startsWith("万") ? 10000 : 1)), ambiguous: false };
 }
 
 function addConstraint(list: HardConstraint[], constraint: HardConstraint | null) {
@@ -50,7 +51,7 @@ function parseConstraint(
   return null;
 }
 
-function inferUseCase(input: string): string | null {
+function inferUseCases(input: string): string[] {
   const mappings: Array<[string, string[]]> = [
     ["山区巡检", ["山区", "山地", "复杂地形"]],
     ["电力巡检", ["电力", "电网", "输电", "杆塔"]],
@@ -58,9 +59,11 @@ function inferUseCase(input: string): string | null {
     ["物资投送", ["投送", "运输", "物资"]],
     ["测绘", ["测绘", "勘察", "建模"]],
     ["轻量航拍", ["航拍", "摄影", "视频"]],
-    ["园区巡检", ["园区", "厂区", "巡检"]],
+    ["园区巡检", ["园区", "厂区"]],
   ];
-  return mappings.find(([, keywords]) => keywords.some((keyword) => input.includes(keyword)))?.[0] ?? null;
+  return mappings
+    .filter(([, keywords]) => keywords.some((keyword) => input.includes(keyword)))
+    .map(([useCase]) => useCase);
 }
 
 export class DemoAIPlatformAdapter implements AIPlatformPort {
@@ -74,7 +77,8 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
       if (product.aliases.some((alias) => input.toLowerCase().includes(alias.toLowerCase()))) requestedProductIds.add(product.id);
     }
 
-    const budgetYuan = parseBudget(input);
+    const budget = parseBudget(input);
+    const budgetYuan = budget.value;
     const hardConstraints: HardConstraint[] = [];
     if (budgetYuan !== null) addConstraint(hardConstraints, { dimension: "priceYuan", operator: "lte", value: budgetYuan, label: `预算不超过${Math.round(budgetYuan / 10000)}万元` });
     addConstraint(hardConstraints, parseConstraint(input, "enduranceMinutes", "续航", "(?:续航|航时)", "分钟"));
@@ -90,18 +94,29 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
       if (!focusDimensions.includes(constraint.dimension)) focusDimensions.push(constraint.dimension);
     }
 
-    const useCase = inferUseCase(input);
+    const useCases = inferUseCases(input);
     const hasComparisonSignal = /对比|比较|型号|产品|无人机|推荐|选型|选购/.test(input);
-    const needsClarification = !hasComparisonSignal || (requestedProductIds.size === 0 && !useCase && focusDimensions.length === 0);
+    const singleProductComparison = /对比|比较/.test(input) && requestedProductIds.size === 1;
+    const needsClarification = budget.ambiguous
+      || singleProductComparison
+      || !hasComparisonSignal
+      || (requestedProductIds.size === 0 && useCases.length === 0 && focusDimensions.length === 0);
+    const clarificationMessage = budget.ambiguous
+      ? "预算金额缺少单位，请明确填写“元”或“万元”。"
+      : singleProductComparison
+        ? "当前只识别到一个型号，请至少补充另一个型号，或改为说明用途和选型条件。"
+        : needsClarification
+          ? "请补充要比较的型号，或说明用途、预算、载荷、续航等选型条件。"
+          : null;
 
     return {
       requestedProductIds: [...requestedProductIds],
-      useCase,
+      useCases,
       budgetYuan,
       focusDimensions,
       hardConstraints,
       needsClarification,
-      clarificationMessage: needsClarification ? "请补充要比较的型号，或说明用途、预算、载荷、续航等选型条件。" : null,
+      clarificationMessage,
     };
   }
 }
@@ -116,4 +131,3 @@ export class MockBusinessDataAdapter implements BusinessDataPort {
     return DEMO_PRODUCT_CATALOG.filter((product) => wanted.has(product.id)).map((product) => ({ ...product }));
   }
 }
-

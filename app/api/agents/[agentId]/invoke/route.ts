@@ -1,43 +1,106 @@
-import { AGENTS, type AgentId, type AgentInvokeRequest, type AgentInvokeResponse } from "../../../../lib/contracts";
+import { getAgentDefinition } from "../../../../lib/agent-registry";
+import {
+  AGENT_INTERFACE_VERSION,
+  AgentInvokeRequestSchema,
+  AgentInvokeResponseSchema,
+  type AgentId,
+  type AgentInvokeResponse,
+} from "../../../../lib/contracts";
 import { invokeAg001 } from "../../../../lib/agents/ag001/workflow";
+import { recordAgentRun } from "../../../../lib/observability";
+import { DependencyUnavailableError } from "../../../../lib/reliability";
 
-const demoOutputs: Record<AgentId, Omit<AgentInvokeResponse["output"], "summary">> = {
-  "AG-001": { title: "候选产品选型比较", points: ["已将续航、有效载荷与环境适应性统一为可比较口径。", "候选方案分别适合长航时覆盖与复杂点位精细作业，两者侧重点不同。", "建议结合实际航线、风场和载荷清单完成最终选型复核。"], evidence: ["样例产品参数表", "场景适配规则 v1.0"] },
-  "AG-002": { title: "说明书要点解读", points: ["已定位与问题最相关的操作、安全和故障处理章节。", "建议按环境确认、设备自检、定位状态和任务载荷的顺序进行检查。", "若关键状态异常，应停止任务并按照原厂流程处理，不以演示结果替代安全规范。"], evidence: ["样例说明书 · 安全章节", "样例说明书 · 故障处理"] },
-  "AG-003": { title: "场景化产品推荐建议", points: ["已识别预算、使用场景、环境条件和关键性能约束。", "先以硬条件排除不满足载荷、续航或环境要求的候选产品。", "推荐结果同时给出匹配理由和取舍因素，便于进一步比较。"], evidence: ["样例产品目录", "导购规则与标签库"] },
-  "AG-012": { title: "政策与标准要点解读", points: ["样例材料重点强调主体责任、活动过程管理和安全保障要求。", "政策理解需要同时关注适用对象、执行条件及配套细则。", "正式业务判断应回到最新有效文件，并由相关专业人员复核。"], evidence: ["样例政策材料 · 第一章", "样例政策材料 · 管理要求"] },
-  "AG-025": { title: "客服意图识别与服务建议", points: ["已识别当前问题的业务意图与期望结果。", "可进入知识咨询或业务工具查询路径；正式数据接入后将返回实时结果。", "复杂、低置信度或涉及权益的事项将保留转人工协同入口。"], evidence: ["演示 FAQ", "客服路由规则 v1.0"] },
+const MAX_REQUEST_BYTES = 20_000;
+
+const previewOutputs: Record<Exclude<AgentId, "AG-001">, Omit<AgentInvokeResponse["output"], "summary">> = {
+  "AG-002": { title: "说明书解读能力预览", points: ["计划定位操作、安全和故障处理章节。", "计划按条件和先后关系提炼步骤。", "正式实现需接入文档解析与原文定位能力。"], evidence: ["预览流程定义", "待接入样例说明书"] },
+  "AG-003": { title: "分类导购能力预览", points: ["计划识别预算、场景和性能约束。", "计划以硬条件排除不满足要求的候选。", "正式实现需接入产品标签和推荐规则。"], evidence: ["预览流程定义", "待接入产品目录"] },
+  "AG-012": { title: "政策解读能力预览", points: ["计划围绕适用对象、执行条件和时效开展检索。", "计划输出带来源的政策解释。", "正式业务判断仍需回到最新有效文件并由专业人员复核。"], evidence: ["预览流程定义", "待接入政策知识库"] },
+  "AG-025": { title: "智能客服能力预览", points: ["计划识别业务意图并选择服务路径。", "计划连接知识问答、业务工具和转人工流程。", "正式实现需接入 FAQ、业务工具及人工服务机制。"], evidence: ["预览流程定义", "待接入客服工具"] },
 };
 
+function responseHeaders(traceId: string, engine?: string) {
+  return {
+    "Cache-Control": "no-store",
+    "X-Agent-Interface-Version": AGENT_INTERFACE_VERSION,
+    "X-Trace-Id": traceId,
+    ...(engine ? { "X-Agent-Engine": engine } : {}),
+  };
+}
+
+function errorResponse(status: number, code: string, message: string, traceId: string) {
+  return Response.json({ code, message, trace_id: traceId }, { status, headers: responseHeaders(traceId) });
+}
+
 export async function POST(request: Request, context: { params: Promise<{ agentId: string }> }) {
+  const startedAt = Date.now();
+  const traceId = `TRC-${crypto.randomUUID().toUpperCase()}`;
   const { agentId } = await context.params;
-  const agent = AGENTS.find((item) => item.id === agentId);
-  if (!agent) return Response.json({ message: "Agent not found" }, { status: 404 });
-  let body: AgentInvokeRequest;
+  const agent = getAgentDefinition(agentId);
+  if (!agent) return errorResponse(404, "AGENT_NOT_FOUND", "Agent not found", traceId);
+
+  let rawBody: string;
   try {
-    body = await request.json() as AgentInvokeRequest;
+    rawBody = await request.text();
   } catch {
-    return Response.json({ message: "Invalid JSON body" }, { status: 400 });
+    return errorResponse(400, "INVALID_REQUEST_BODY", "Request body could not be read", traceId);
   }
-  if (body.agent_id !== agent.id) return Response.json({ message: "agent_id does not match route" }, { status: 400 });
-  if (typeof body.input !== "string" || !body.input.trim()) return Response.json({ message: "input is required" }, { status: 400 });
+  if (new TextEncoder().encode(rawBody).length > MAX_REQUEST_BYTES) {
+    return errorResponse(413, "REQUEST_TOO_LARGE", `Request body must not exceed ${MAX_REQUEST_BYTES} bytes`, traceId);
+  }
+
+  let unknownBody: unknown;
+  try {
+    unknownBody = JSON.parse(rawBody);
+  } catch {
+    return errorResponse(400, "INVALID_JSON", "Invalid JSON body", traceId);
+  }
+
+  const parsed = AgentInvokeRequestSchema.safeParse(unknownBody);
+  if (!parsed.success) {
+    return errorResponse(400, "INVALID_AGENT_REQUEST", parsed.error.issues[0]?.message ?? "Invalid Agent request", traceId);
+  }
+  if (parsed.data.agent_id !== agent.id) {
+    return errorResponse(400, "AGENT_ID_MISMATCH", "agent_id does not match route", traceId);
+  }
 
   if (agent.id === "AG-001") {
     try {
-      const response = await invokeAg001({ ...body, input: body.input.trim() });
-      return Response.json(response, { headers: { "X-Agent-Interface-Version": "v1", "X-Agent-Engine": "langgraph-demo" } });
+      const response = await invokeAg001(parsed.data, traceId);
+      recordAgentRun({ traceId, requestId: response.request_id, agentId: agent.id, status: response.status, durationMs: Date.now() - startedAt });
+      return Response.json(response, { headers: responseHeaders(traceId, "langgraph-demo") });
     } catch (error) {
-      console.error("AG-001 workflow failed", error);
-      return Response.json({ message: "AG-001 workflow failed safely" }, { status: 500 });
+      const dependencyFailure = error instanceof DependencyUnavailableError;
+      recordAgentRun({
+        traceId,
+        agentId: agent.id,
+        status: "failed",
+        durationMs: Date.now() - startedAt,
+        errorCode: dependencyFailure ? "DEPENDENCY_UNAVAILABLE" : "WORKFLOW_FAILED",
+      });
+      console.error("AG-001 workflow failed", { traceId, error });
+      return errorResponse(
+        dependencyFailure ? 503 : 500,
+        dependencyFailure ? "DEPENDENCY_UNAVAILABLE" : "AGENT_WORKFLOW_FAILED",
+        dependencyFailure ? "A required Agent dependency is temporarily unavailable" : "AG-001 workflow failed safely",
+        traceId,
+      );
     }
   }
 
-  const demo = demoOutputs[agent.id];
-  const response: AgentInvokeResponse = {
-    request_id: `DEMO-${Date.now().toString().slice(-8)}`,
-    agent_id: agent.id, status: "completed", environment: "demo",
-    output: { ...demo, summary: `已围绕“${body.input}”完成一次演示分析。以下结果用于展示 Agent 的理解、调用与解释能力。` },
+  const preview = previewOutputs[agent.id];
+  const response = AgentInvokeResponseSchema.parse({
+    request_id: `PREVIEW-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+    trace_id: traceId,
+    agent_id: agent.id,
+    status: "preview",
+    environment: "demo",
+    output: {
+      ...preview,
+      summary: `“${parsed.data.input}”仅用于展示该 Agent 的目标交互形态；当前尚未执行真实工作流。`,
+    },
     trace: agent.trace.map((name, index) => ({ name, detail: agent.traceNotes[index] })),
-  };
-  return Response.json(response, { headers: { "X-Agent-Interface-Version": "v1" } });
+  });
+  recordAgentRun({ traceId, requestId: response.request_id, agentId: agent.id, status: response.status, durationMs: Date.now() - startedAt });
+  return Response.json(response, { headers: responseHeaders(traceId) });
 }

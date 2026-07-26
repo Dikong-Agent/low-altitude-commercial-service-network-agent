@@ -1,14 +1,14 @@
-# 景德镇低空商业服务网 Agent 能力展厅 v1.1
+# 景德镇低空商业服务网 Agent 能力展厅 v1.2
 
 面向甲方展示五个标杆业务 Agent 的前端能力展厅与统一演示工作台。
 
 ## 当前包含
 
-- AG-001 低空产品型号对比Agent
-- AG-002 低空产品说明书解读Agent
-- AG-003 低空产品分类导购及推荐Agent
-- AG-012 政策、标准解读Agent
-- AG-025 智能客服Agent
+- AG-001 低空产品型号对比Agent：可运行。
+- AG-002 低空产品说明书解读Agent：能力预览。
+- AG-003 低空产品分类导购及推荐Agent：能力预览。
+- AG-012 政策、标准解读Agent：能力预览。
+- AG-025 智能客服Agent：能力预览。
 
 页面当前明确使用样例知识与演示数据，不代表正式业务数据、正式联调结果或生产验收结论。
 
@@ -16,19 +16,30 @@
 
 - 使用 LangGraphJS 编排需求理解、产品检索、参数归一、约束判断、比较分析和结果校验。
 - 支持指定型号比较，也可按用途、预算、续航、载荷、抗风、交付及质保条件筛选样例产品。
+- 先对完整候选集执行硬约束判断，再限制展示数量，避免遗漏满足条件的型号。
+- 支持复合业务场景；单型号直接比较和缺少单位的预算会进入澄清分支。
 - 输出可切换的横向/纵向参数表、候选评分、优势、短板、场景适配、条件冲突、首选和备选方案。
-- 当输入信息不足时发起追问；当全部候选违反硬约束时拒绝强行推荐。
-- 自动保存最近5条当前浏览器本地演示记录，可回看和复用；该记录不属于正式业务系统数据。
-- 所有产品均为虚构 Mock 数据，通过 `BusinessDataPort` 提供，正式接入时替换数据适配器。
+- 当全部候选违反硬约束时拒绝强行推荐；未通过硬约束的候选不会显示为高分可推荐方案。
+- 自动保存最近5条当前浏览器本地演示记录，可回看和复用。
+- 所有产品均为虚构 Mock 数据，通过 `BusinessDataPort` 提供。
 
-## 接口预留
+## 技术底座
 
-- `GET /api/agents`：Agent目录。
-- `POST /api/agents/:agentId/invoke`：统一Agent调用接口，采用`AgentInvokeRequest`和`AgentInvokeResponse`契约。
-- `GET /api/data/products`：AG-001 Mock产品数据接口，可按`ids`或`scenario`查询。
-- `GET /api/data/:resource`：其他业务数据适配接口占位，未来对接`BusinessDataPort`。
-- `NEXT_PUBLIC_AGENT_API_BASE`：外部Agent服务地址。
-- `NEXT_PUBLIC_DATA_API_BASE`：外部业务数据服务地址。
+- `AgentRequest`、`AgentResponse`及比较结果均使用 Zod 进行运行时校验。
+- `Provider Registry`负责注入`AIPlatformPort`和`BusinessDataPort`，正式接入无需修改核心工作流。
+- 端口调用具备超时、有限重试和熔断保护；前端请求支持超时和切换 Agent 时主动取消。
+- 每次调用分别生成`request_id`和`trace_id`，服务端输出不包含用户问题正文的结构化运行日志。
+- 浏览器会话使用独立随机`session_id`，不在不同用户之间共享演示上下文。
+- 规则版本、权重、场景默认维度及候选数量集中配置在`AG001_CONFIG`。
+
+## 接口
+
+- `GET /api/agents`：Agent目录和可运行/预览状态。
+- `POST /api/agents/:agentId/invoke`：统一Agent调用接口，采用运行时校验的`AgentInvokeRequest`和`AgentInvokeResponse`契约。
+- `GET /api/data/products`：AG-001 Mock产品诊断接口，可按`ids`或`scenario`查询。
+- 未实现的数据资源返回`404`，避免把接口路径错误伪装为空数据。
+- AG-002、AG-003、AG-012、AG-025明确返回`preview`状态，不表示工作流已经实现。
+- `NEXT_PUBLIC_AGENT_API_BASE`只指向我方 Agent BFF；正式业务数据由服务端`BusinessDataPort`访问，不从浏览器直接连接数据中台。
 
 ## 本地运行
 
@@ -48,3 +59,11 @@ pnpm run build
 ```bash
 pnpm run test
 ```
+
+运行全部质量门禁：
+
+```bash
+pnpm run check
+```
+
+当前仍属于 Mock 阶段成果，不代表正式三方联调、真实数据效果或生产验收。

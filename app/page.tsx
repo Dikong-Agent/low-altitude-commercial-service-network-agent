@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { AGENTS, type AgentComparisonOutput, type AgentDefinition, type AgentId } from "./lib/contracts";
-import { invokeAgent } from "./lib/agent-gateway";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { AGENTS } from "./lib/agent-registry";
+import type { AgentComparisonOutput, AgentDefinition, AgentId } from "./lib/contracts";
+import { AgentGatewayError, invokeAgent } from "./lib/agent-gateway";
 
 const capabilityStats = [
   { value: "01", label: "可运行 Agent" },
@@ -18,6 +19,44 @@ interface DemoHistoryItem {
 }
 
 const HISTORY_KEY = "jdz-ag001-demo-history";
+const SESSION_KEY = "jdz-agent-demo-session";
+
+function loadDemoHistory(): DemoHistoryItem[] {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
+    return Array.isArray(saved)
+      ? saved.filter((item): item is DemoHistoryItem => Boolean(item)
+        && typeof item === "object"
+        && typeof item.requestId === "string"
+        && typeof item.input === "string"
+        && typeof item.summary === "string"
+        && typeof item.createdAt === "string").slice(0, 5)
+      : [];
+  } catch {
+    try { localStorage.removeItem(HISTORY_KEY); } catch { /* Browser storage may be unavailable. */ }
+    return [];
+  }
+}
+
+function persistDemoHistory(items: DemoHistoryItem[]): void {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(items)); } catch { /* History is optional device-local state. */ }
+}
+
+function clearDemoHistory(): void {
+  try { localStorage.removeItem(HISTORY_KEY); } catch { /* History is optional device-local state. */ }
+}
+
+function getOrCreateSessionId(): string {
+  try {
+    const existing = sessionStorage.getItem(SESSION_KEY);
+    if (existing) return existing;
+    const created = `showroom-${crypto.randomUUID()}`;
+    sessionStorage.setItem(SESSION_KEY, created);
+    return created;
+  } catch {
+    return `showroom-${crypto.randomUUID()}`;
+  }
+}
 
 function AgentMark({ agent, compact = false }: { agent: AgentDefinition; compact?: boolean }) {
   return <span className={`agent-mark tone-${agent.tone} ${compact ? "compact" : ""}`} aria-hidden="true"><span>{agent.symbol}</span></span>;
@@ -27,7 +66,9 @@ function ComparisonPanel({ comparison }: { comparison: AgentComparisonOutput }) 
   const [tableView, setTableView] = useState<"horizontal" | "vertical">("horizontal");
   const productById = new Map(comparison.products.map((product) => [product.id, product]));
   const intentItems = [
-    comparison.intent.use_case ? `场景 · ${comparison.intent.use_case}` : null,
+    ...(comparison.intent.use_cases.length
+      ? comparison.intent.use_cases.map((useCase) => `场景 · ${useCase}`)
+      : comparison.intent.use_case ? [`场景 · ${comparison.intent.use_case}`] : []),
     comparison.intent.budget_yuan ? `预算 · ${Math.round(comparison.intent.budget_yuan / 10000)}万元` : null,
     ...comparison.intent.focus_dimensions.map((item) => `关注 · ${item}`),
   ].filter((item): item is string => Boolean(item));
@@ -58,11 +99,13 @@ function ComparisonPanel({ comparison }: { comparison: AgentComparisonOutput }) 
             <table className="comparison-table">
               <thead><tr><th>对比维度</th>{comparison.products.map((product) => <th key={product.id}>{product.name.replace("样例·", "")}</th>)}</tr></thead>
               <tbody>{comparison.table.map((row) => (
-                <tr key={row.key}><th>{row.label}</th>{row.values.map((value) => (
-                  <td key={value.product_id} className={row.best_product_ids.includes(value.product_id) ? "best" : ""}>
-                    {value.display}{row.best_product_ids.includes(value.product_id) && <small>优势项</small>}
-                  </td>
-                ))}</tr>
+                <tr key={row.key}><th>{row.label}</th>{comparison.products.map((product) => {
+                  const value = row.values.find((item) => item.product_id === product.id);
+                  const isBest = row.best_product_ids.includes(product.id);
+                  return <td key={product.id} className={isBest ? "best" : ""}>
+                    {value?.display ?? "未提供"}{isBest && <small>优势项</small>}
+                  </td>;
+                })}</tr>
               ))}</tbody>
             </table>
           </div>
@@ -84,7 +127,7 @@ function ComparisonPanel({ comparison }: { comparison: AgentComparisonOutput }) 
       <div className="product-evaluations">
         {comparison.products.map((product) => (
           <article key={product.id} className={product.eligible ? "eligible" : "ineligible"}>
-            <header><div><small>{product.id}</small><strong>{product.name}</strong></div><b>{product.score}<small>/100</small></b></header>
+            <header><div><small>{product.id}</small><strong>{product.name}</strong></div><b>{product.score}<small>/100 · {product.eligible ? "可推荐" : "未通过硬约束"}</small></b></header>
             <p>{product.scenario_fit}</p>
             <div className="evaluation-columns">
               <div><span>优势</span>{product.advantages.length ? product.advantages.map((item) => <p key={item}>＋ {item}</p>) : <p>暂无明显优势项</p>}</div>
@@ -108,22 +151,31 @@ export default function Home() {
   const [response, setResponse] = useState<Awaited<ReturnType<typeof invokeAgent>> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<DemoHistoryItem[]>([]);
+  const [sessionId, setSessionId] = useState("");
+  const requestSequence = useRef(0);
+  const activeController = useRef<AbortController | null>(null);
   const selected = useMemo(() => AGENTS.find((agent) => agent.id === selectedId) ?? AGENTS[0], [selectedId]);
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]") as DemoHistoryItem[];
-      if (Array.isArray(saved)) setHistory(saved.filter((item) => item && typeof item.input === "string").slice(0, 5));
-    } catch {
-      localStorage.removeItem(HISTORY_KEY);
-    }
+    const frame = requestAnimationFrame(() => {
+      setHistory(loadDemoHistory());
+      setSessionId(getOrCreateSessionId());
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      activeController.current?.abort();
+    };
   }, []);
 
   function chooseAgent(agent: AgentDefinition) {
+    requestSequence.current += 1;
+    activeController.current?.abort();
+    activeController.current = null;
     setSelectedId(agent.id);
     setInput(agent.prompts[0]);
     setResponse(null);
     setError(null);
+    setLoading(false);
   }
 
   async function runAgent(event?: FormEvent) {
@@ -132,10 +184,21 @@ export default function Home() {
     setLoading(true);
     setResponse(null);
     setError(null);
+    const sequence = requestSequence.current + 1;
+    requestSequence.current = sequence;
+    activeController.current?.abort();
+    const controller = new AbortController();
+    activeController.current = controller;
+    const selectedAtStart = selected;
     try {
-      const result = await invokeAgent({ agent_id: selected.id, input: input.trim(), session_id: "showroom-demo" });
+      const result = await invokeAgent({
+        agent_id: selectedAtStart.id,
+        input: input.trim(),
+        session_id: sessionId || getOrCreateSessionId(),
+      }, { signal: controller.signal });
+      if (requestSequence.current !== sequence || result.agent_id !== selectedAtStart.id) return;
       setResponse(result);
-      if (selected.id === "AG-001" && result.output.comparison) {
+      if (selectedAtStart.id === "AG-001" && result.output.comparison) {
         const item: DemoHistoryItem = {
           requestId: result.request_id,
           input: input.trim(),
@@ -144,13 +207,24 @@ export default function Home() {
         };
         setHistory((current) => {
           const next = [item, ...current.filter((entry) => entry.input !== item.input)].slice(0, 5);
-          localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+          persistDemoHistory(next);
           return next;
         });
       }
     }
-    catch { setError("Agent 暂时无法完成本次运行，请稍后重试或更换演示问题。"); }
-    finally { setLoading(false); }
+    catch (caught) {
+      if (requestSequence.current !== sequence || controller.signal.aborted) return;
+      const message = caught instanceof AgentGatewayError && caught.code === "DEPENDENCY_UNAVAILABLE"
+        ? "Agent 依赖服务暂时不可用，请稍后重试。"
+        : "Agent 暂时无法完成本次运行，请稍后重试或更换演示问题。";
+      setError(message);
+    }
+    finally {
+      if (requestSequence.current === sequence) {
+        activeController.current = null;
+        setLoading(false);
+      }
+    }
   }
 
   return (
@@ -196,7 +270,7 @@ export default function Home() {
         <div className="agent-grid">
           {AGENTS.map((agent, index) => (
             <article className={`agent-card tone-${agent.tone}`} key={agent.id}>
-              <div className="card-top"><span>CASE 0{index + 1}</span><i>{agent.id === "AG-001" ? "RUNNABLE" : "PREVIEW"}</i></div>
+              <div className="card-top"><span>CASE 0{index + 1}</span><i>{agent.availability === "runnable" ? "RUNNABLE" : "PREVIEW"}</i></div>
               <AgentMark agent={agent} /><div className="agent-id">{agent.id}</div><h3>{agent.name}</h3><p>{agent.description}</p>
               <div className="tags">{agent.capabilities.map((item) => <span key={item}>{item}</span>)}</div>
               <button type="button" onClick={() => { chooseAgent(agent); location.hash = "workbench"; }}>启动演示 <span>↗</span></button>
@@ -227,7 +301,7 @@ export default function Home() {
               {error && <div className="error-card"><strong>运行未完成</strong><p>{error}</p></div>}
               {response && (
                 <div className="result-card">
-                  <div className="result-kicker"><span>演示结果</span><b>{response.request_id}</b></div><h3>{response.output.title}</h3><p>{response.output.summary}</p>
+                  <div className="result-kicker"><span>{response.status === "preview" ? "能力预览" : "演示结果"}</span><b title={response.trace_id}>{response.request_id} · TRACE</b></div><h3>{response.output.title}</h3><p>{response.output.summary}</p>
                   {response.output.comparison ? <ComparisonPanel comparison={response.output.comparison} /> : <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>}
                   <div className="evidence-row"><span>依据</span>{response.output.evidence.map((item) => <b key={item}>{item}</b>)}</div>
                   <small>本结果由样例知识与演示数据生成，不代表正式业务结论。</small>
@@ -235,7 +309,7 @@ export default function Home() {
               )}
               {selected.id === "AG-001" && history.length > 0 && (
                 <div className="comparison-history">
-                  <header><div><strong>本地演示记录</strong><small>仅保存在当前浏览器，可点击复用</small></div><button type="button" onClick={() => { localStorage.removeItem(HISTORY_KEY); setHistory([]); }}>清空</button></header>
+                  <header><div><strong>本地演示记录</strong><small>仅保存在当前浏览器，可点击复用</small></div><button type="button" onClick={() => { clearDemoHistory(); setHistory([]); }}>清空</button></header>
                   <div>{history.map((item) => (
                     <button type="button" key={item.requestId} onClick={() => { setInput(item.input); setResponse(null); setError(null); }}>
                       <span><strong>{item.summary}</strong><small>{item.input}</small></span><time>{item.createdAt}</time>
@@ -268,7 +342,7 @@ export default function Home() {
       </section>
 
       <section className="architecture-section" id="architecture">
-        <div className="architecture-copy"><span>04 / ADAPTER READY</span><h2>今天可演示，<br />明天可接入。</h2><p>页面与 Agent 核心逻辑通过统一契约解耦。正式接口明确后，仅替换适配器，不改变用户体验与业务流程。</p><div className="contract-chips"><span>AgentRequest</span><span>AgentResponse</span><span>trace_id</span><span>evidence</span></div></div>
+        <div className="architecture-copy"><span>04 / ADAPTER READY</span><h2>今天可演示，<br />明天可接入。</h2><p>页面与 Agent 核心逻辑通过运行时契约解耦。正式接口明确后，可通过 Provider Registry 注入正式适配器，不改变核心业务流程。</p><div className="contract-chips"><span>AgentRequest</span><span>AgentResponse</span><span>trace_id</span><span>evidence</span></div></div>
         <div className="architecture-map">
           <div className="layer"><small>EXPERIENCE</small><strong>Agent 能力展厅</strong><span>统一交互工作台</span></div><i>↓</i>
           <div className="layer accent"><small>OUR CORE</small><strong>Agent 应用框架</strong><span>业务流程 · Prompt · 规则 · 评测</span></div><i>↓</i>
@@ -276,7 +350,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.1</p><span>AG-001 可运行 / Mock数据</span></footer>
+      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.2</p><span>AG-001 可运行 / Mock数据</span></footer>
     </main>
   );
 }

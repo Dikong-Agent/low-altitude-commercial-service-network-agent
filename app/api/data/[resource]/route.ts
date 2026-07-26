@@ -4,7 +4,7 @@ export async function GET(request: Request, context: { params: Promise<{ resourc
   const { resource } = await context.params;
   if (resource === "products") {
     const url = new URL(request.url);
-    const ids = new Set(url.searchParams.get("ids")?.split(",").filter(Boolean) ?? []);
+    const ids = new Set((url.searchParams.get("ids")?.split(",") ?? []).map((id) => id.trim()).filter(Boolean).slice(0, 20));
     const scenario = url.searchParams.get("scenario");
     const items = DEMO_PRODUCT_CATALOG.filter((product) =>
       (!ids.size || ids.has(product.id)) && (!scenario || product.scenarios.includes(scenario)),
@@ -18,5 +18,9 @@ export async function GET(request: Request, context: { params: Promise<{ resourc
       notice: "全部产品均为虚构样例数据，仅用于AG-001开发和阶段测试。",
     });
   }
-  return Response.json({ environment: "demo", resource, items: [], connector: { port: "BusinessDataPort", status: "reserved", target: "正式数据中台及业务系统接口" } });
+  return Response.json({
+    code: "DATA_RESOURCE_NOT_FOUND",
+    message: `Unknown business data resource: ${resource}`,
+    environment: "demo",
+  }, { status: 404, headers: { "Cache-Control": "no-store" } });
 }
