@@ -2,13 +2,13 @@
 
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AGENTS } from "./lib/agent-registry";
-import type { AgentComparisonOutput, AgentDefinition, AgentId, AgentManualOutput, AgentPolicyOutput, AgentRecommendationOutput } from "./lib/contracts";
+import type { AgentComparisonOutput, AgentCustomerServiceOutput, AgentDefinition, AgentId, AgentManualOutput, AgentPolicyOutput, AgentRecommendationOutput } from "./lib/contracts";
 import { AgentGatewayError, invokeAgent } from "./lib/agent-gateway";
 
 const capabilityStats = [
-  { value: "04", label: "可运行 Agent" },
-  { value: "117", label: "已映射能力点" },
-  { value: "04", label: "服务端适配端口" },
+  { value: "05", label: "可运行 Agent" },
+  { value: "177", label: "已映射能力点" },
+  { value: "05", label: "服务端适配端口" },
 ];
 
 const runnableCount = AGENTS.filter((agent) => agent.availability === "runnable").length;
@@ -300,6 +300,31 @@ function PolicyPanel({ policy }: { policy: AgentPolicyOutput }) {
   );
 }
 
+function CustomerServicePanel({ customerService }: { customerService: AgentCustomerServiceOutput }) {
+  const routeLabels = { knowledge_answer: "知识答复", business_data: "业务数据查询", specialist_agent: "专业 Agent 路由", human_handoff: "人工协同", clarification: "补充信息" } as const;
+  const domainLabels = { platform: "平台", product_mall: "产品商城", flight_service: "飞行服务", technical_service: "技术服务", commercial_service: "商业服务", unknown: "待识别" } as const;
+  const issueLabels = { general_rule: "平台规则", product: "商品咨询", order: "订单问题", after_sales: "售后问题", service: "服务咨询", complaint: "投诉", finance: "投融资", credit: "信贷", analytics: "运营问数", violation: "违规风险", unknown: "待识别" } as const;
+  const demonstrated = customerService.capability_coverage.filter((item) => item.status === "mock-demonstrated").length;
+  const intentItems = [
+    `路径 · ${routeLabels[customerService.intent.route]}`,
+    `置信度 · ${Math.round(customerService.intent.confidence * 100)}%`,
+    ...customerService.intent.domains.map((item) => `板块 · ${domainLabels[item]}`),
+    ...customerService.intent.issue_types.map((item) => `问题 · ${issueLabels[item]}`),
+  ];
+  return (
+    <div className="customer-service-result">
+      <div className="intent-strip"><span>客服理解</span><div>{intentItems.map((item) => <b key={item}>{item}</b>)}</div></div>
+      <div className="customer-answer"><span>{routeLabels[customerService.intent.route]}</span><p>{customerService.answer}</p></div>
+      {customerService.tool_results.length > 0 && <section className="customer-tools"><header><strong>业务工具结果</strong><small>只按明确实体查询，不扩展读取其他记录</small></header><div>{customerService.tool_results.map((item) => <article className={`tool-${item.status}`} key={`${item.tool}-${item.label}`}><span>{item.status === "found" ? "已找到" : "未找到"}</span><strong>{item.label}</strong><p>{item.value}</p><small>{item.source_ref}</small></article>)}</div></section>}
+      {customerService.knowledge_matches.length > 0 && <section className="customer-knowledge"><header><strong>答复依据</strong><small>虚构 FAQ 与规则样例</small></header><div>{customerService.knowledge_matches.map((item) => <article key={item.id}><span>{Math.round(item.relevance * 100)}%</span><div><strong>{item.title}</strong><p>{item.excerpt}</p><small>{item.source_ref}</small></div></article>)}</div></section>}
+      {customerService.handoff.required && <section className="handoff-card"><header><span>{customerService.handoff.priority.toUpperCase()}</span><strong>建议转接：{customerService.handoff.target_team}</strong><b>尚未执行</b></header><p>{customerService.handoff.reason}</p><div><article><strong>已确认信息</strong>{customerService.handoff.confirmed_information.length ? customerService.handoff.confirmed_information.map((item) => <span key={item}>{item}</span>) : <span>暂无已确认业务实体</span>}</article><article><strong>待处理事项</strong>{customerService.handoff.pending_items.map((item) => <span key={item}>{item}</span>)}</article></div></section>}
+      <div className="manual-coverage"><span><b>{customerService.capability_coverage.length}</b>项现行能力已对齐</span><p>{demonstrated}项使用虚构 FAQ、订单、商品和服务资料演示；高风险判断、跨板块协同、运营问数及真实转接保留正式 AI 中台和业务系统适配边界。</p></div>
+      <p className="data-notice">{customerService.data_notice}</p>
+      <span className="engine-label">ENGINE · {customerService.engine.toUpperCase()} · {customerService.rule_version}</span>
+    </div>
+  );
+}
+
 export default function Home() {
   const [selectedId, setSelectedId] = useState<AgentId>("AG-001");
   const [input, setInput] = useState(AGENTS[0].prompts[0]);
@@ -442,7 +467,7 @@ export default function Home() {
           <aside className="agent-sidebar">
             <div className="panel-title"><span>AGENTS</span><b>{runnableCount} RUNNABLE / {AGENTS.length - runnableCount} PREVIEW</b></div>
             {AGENTS.map((agent) => (
-              <button type="button" key={agent.id} onClick={() => chooseAgent(agent)} className={selected.id === agent.id ? "active" : ""}>
+              <button type="button" key={agent.id} onClick={() => chooseAgent(agent)} className={selected.id === agent.id ? "active" : ""} aria-label={`选择 ${agent.id} ${agent.shortName}`}>
                 <AgentMark agent={agent} compact /><span><small>{agent.id}</small><strong>{agent.shortName}</strong></span><i />
               </button>
             ))}
@@ -456,13 +481,14 @@ export default function Home() {
               {selected.id === "AG-002" && !response && !loading && <div className="manual-source-chip"><span>当前样例文档</span><strong>云巡 X8 无人机用户手册</strong><small>v0.9-demo · 虚构预解析材料</small></div>}
               {selected.id === "AG-003" && !response && !loading && <div className="recommendation-source-chip"><span>当前样例目录</span><strong>7 个虚构产品 · 3 套虚构场景方案</strong><small>仅用于规则推荐与接口演示，不代表真实商城数据</small></div>}
               {selected.id === "AG-012" && !response && !loading && <div className="policy-source-chip"><span>当前样例知识</span><strong>2 个虚构政策版本 · 1 份虚构行业标准</strong><small>支持版本时效、条款引用和适用条件演示，不代表真实政策库</small></div>}
+              {selected.id === "AG-025" && !response && !loading && <div className="customer-service-source-chip"><span>当前客服 Mock</span><strong>6 条 FAQ · 2 个订单 · 2 个商品 · 3 项服务</strong><small>仅用于多意图路由、查询与转人工建议，不执行真实业务操作</small></div>}
               {!response && !loading && <div className="prompt-list"><span>推荐演示问题</span>{selected.prompts.map((prompt) => <button type="button" key={prompt} onClick={() => setInput(prompt)}>{prompt}<i>↗</i></button>)}</div>}
               {loading && <div className="thinking-card"><div className="thinking-head"><span className="loading-dots"><i /><i /><i /></span> Agent 正在处理</div><div className="loading-line"><span /></div><p>正在理解问题、调用演示工具并组织可解释结果…</p></div>}
               {error && <div className="error-card"><strong>运行未完成</strong><p>{error}</p></div>}
               {response && (
                 <div className="result-card">
                   <div className="result-kicker"><span>{response.status === "preview" ? "能力预览" : response.status === "needs_review" ? "演示结果 · 需复核" : response.status === "needs_clarification" ? "需要补充或适配" : "演示结果"}</span><b title={response.trace_id}>{response.request_id} · TRACE</b></div><h3>{response.output.title}</h3><p>{response.output.summary}</p>
-                  {response.output.comparison ? <ComparisonPanel comparison={response.output.comparison} /> : response.output.manual ? <ManualPanel manual={response.output.manual} /> : response.output.recommendation ? <RecommendationPanel recommendation={response.output.recommendation} /> : response.output.policy ? <PolicyPanel policy={response.output.policy} /> : <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>}
+                  {response.output.comparison ? <ComparisonPanel comparison={response.output.comparison} /> : response.output.manual ? <ManualPanel manual={response.output.manual} /> : response.output.recommendation ? <RecommendationPanel recommendation={response.output.recommendation} /> : response.output.policy ? <PolicyPanel policy={response.output.policy} /> : response.output.customer_service ? <CustomerServicePanel customerService={response.output.customer_service} /> : <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>}
                   <div className="evidence-row"><span>依据</span>{response.output.evidence.map((item) => <b key={item}>{item}</b>)}</div>
                   <small>本结果由样例知识与演示数据生成，不代表正式业务结论。</small>
                 </div>
@@ -510,7 +536,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.8</p><span>AG-001 / AG-002 / AG-003 / AG-012 可运行 · Mock数据</span></footer>
+      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.9</p><span>AG-001 / AG-002 / AG-003 / AG-012 / AG-025 全部可运行 · Mock数据</span></footer>
     </main>
   );
 }

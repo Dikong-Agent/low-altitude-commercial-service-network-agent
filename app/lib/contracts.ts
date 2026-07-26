@@ -65,6 +65,18 @@ export const Ag012InvokeRequestSchema = AgentInvokeRequestSchema.extend({
 });
 export type Ag012InvokeRequest = z.infer<typeof Ag012InvokeRequestSchema>;
 
+export const Ag025ContextSchema = z.object({
+  order_id: z.string().trim().min(1).max(64).optional(),
+  product_id: z.string().trim().min(1).max(64).optional(),
+  user_role: z.enum(["buyer", "seller", "operator", "visitor"]).optional(),
+}).passthrough();
+
+export const Ag025InvokeRequestSchema = AgentInvokeRequestSchema.extend({
+  agent_id: z.literal("AG-025"),
+  context: Ag025ContextSchema.optional(),
+});
+export type Ag025InvokeRequest = z.infer<typeof Ag025InvokeRequestSchema>;
+
 export const ComparisonIntentViewSchema = z.object({
   product_names: z.array(z.string()),
   use_case: z.string().nullable(),
@@ -312,6 +324,51 @@ export const AgentPolicyOutputSchema = z.object({
 });
 export type AgentPolicyOutput = z.infer<typeof AgentPolicyOutputSchema>;
 
+export const CustomerServiceDomainSchema = z.enum(["platform", "product_mall", "flight_service", "technical_service", "commercial_service", "unknown"]);
+export const CustomerServiceIssueSchema = z.enum(["general_rule", "product", "order", "after_sales", "service", "complaint", "finance", "credit", "analytics", "violation", "unknown"]);
+export const CustomerServiceRouteSchema = z.enum(["knowledge_answer", "business_data", "specialist_agent", "human_handoff", "clarification"]);
+
+export const AgentCustomerServiceOutputSchema = z.object({
+  engine: z.enum(["langgraph-demo", "langgraph-adapter"]),
+  intent: z.object({
+    domains: z.array(CustomerServiceDomainSchema),
+    issue_types: z.array(CustomerServiceIssueSchema),
+    route: CustomerServiceRouteSchema,
+    confidence: z.number().min(0).max(1),
+    entities: z.object({
+      order_ids: z.array(z.string()),
+      product_models: z.array(z.string()),
+      service_types: z.array(z.string()),
+    }),
+    missing_fields: z.array(z.string()),
+  }),
+  answer: z.string(),
+  knowledge_matches: z.array(z.object({
+    id: z.string(), title: z.string(), excerpt: z.string(), source_ref: z.string(), relevance: z.number().min(0).max(1),
+  })),
+  tool_results: z.array(z.object({
+    tool: z.enum(["order_lookup", "product_lookup", "service_lookup"]),
+    status: z.enum(["found", "not_found", "not_called"]),
+    label: z.string(), value: z.string(), source_ref: z.string(),
+  })),
+  handoff: z.object({
+    required: z.boolean(),
+    target_team: z.string().nullable(),
+    priority: z.enum(["normal", "high", "urgent"]),
+    reason: z.string().nullable(),
+    summary: z.string(),
+    confirmed_information: z.array(z.string()),
+    pending_items: z.array(z.string()),
+    execution_status: z.literal("recommendation_only"),
+  }),
+  capability_coverage: z.array(z.object({
+    requirement_id: z.string(), capability: z.string(), status: z.enum(["mock-demonstrated", "adapter-ready"]),
+  })),
+  data_notice: z.string(),
+  rule_version: z.string(),
+});
+export type AgentCustomerServiceOutput = z.infer<typeof AgentCustomerServiceOutputSchema>;
+
 export const AgentInvokeResponseSchema = z.object({
   request_id: z.string(),
   trace_id: z.string(),
@@ -327,6 +384,7 @@ export const AgentInvokeResponseSchema = z.object({
     manual: AgentManualOutputSchema.optional(),
     recommendation: AgentRecommendationOutputSchema.optional(),
     policy: AgentPolicyOutputSchema.optional(),
+    customer_service: AgentCustomerServiceOutputSchema.optional(),
   }),
   trace: z.array(z.object({ name: z.string(), detail: z.string() })),
 });

@@ -3,23 +3,19 @@ import {
   AGENT_INTERFACE_VERSION,
   Ag002InvokeRequestSchema,
   Ag012InvokeRequestSchema,
+  Ag025InvokeRequestSchema,
   AgentInvokeRequestSchema,
-  AgentInvokeResponseSchema,
-  type AgentId,
   type AgentInvokeResponse,
 } from "../../../../lib/contracts";
 import { invokeAg001 } from "../../../../lib/agents/ag001/workflow";
 import { invokeAg002 } from "../../../../lib/agents/ag002/workflow";
 import { invokeAg003 } from "../../../../lib/agents/ag003/workflow";
 import { invokeAg012 } from "../../../../lib/agents/ag012/workflow";
+import { invokeAg025 } from "../../../../lib/agents/ag025/workflow";
 import { recordAgentRun } from "../../../../lib/observability";
 import { DependencyUnavailableError } from "../../../../lib/reliability";
 
 const MAX_REQUEST_BYTES = 20_000;
-
-const previewOutputs: Record<Exclude<AgentId, "AG-001" | "AG-002" | "AG-003" | "AG-012">, Omit<AgentInvokeResponse["output"], "summary">> = {
-  "AG-025": { title: "智能客服能力预览", points: ["计划识别业务意图并选择服务路径。", "计划连接知识问答、业务工具和转人工流程。", "正式实现需接入 FAQ、业务工具及人工服务机制。"], evidence: ["预览流程定义", "待接入客服工具"] },
-};
 
 function responseHeaders(traceId: string, engine?: string) {
   return {
@@ -66,7 +62,7 @@ export async function POST(request: Request, context: { params: Promise<{ agentI
     return errorResponse(400, "AGENT_ID_MISMATCH", "agent_id does not match route", traceId);
   }
 
-  if (agent.id === "AG-001" || agent.id === "AG-002" || agent.id === "AG-003" || agent.id === "AG-012") {
+  if (agent.id === "AG-001" || agent.id === "AG-002" || agent.id === "AG-003" || agent.id === "AG-012" || agent.id === "AG-025") {
     try {
       let response: AgentInvokeResponse;
       if (agent.id === "AG-002") {
@@ -83,11 +79,17 @@ export async function POST(request: Request, context: { params: Promise<{ agentI
           return errorResponse(400, "INVALID_AGENT_REQUEST", ag012Request.error.issues[0]?.message ?? "Invalid AG-012 request", traceId);
         }
         response = await invokeAg012(ag012Request.data, traceId);
+      } else if (agent.id === "AG-025") {
+        const ag025Request = Ag025InvokeRequestSchema.safeParse(parsed.data);
+        if (!ag025Request.success) {
+          return errorResponse(400, "INVALID_AGENT_REQUEST", ag025Request.error.issues[0]?.message ?? "Invalid AG-025 request", traceId);
+        }
+        response = await invokeAg025(ag025Request.data, traceId);
       } else {
         response = await invokeAg001(parsed.data, traceId);
       }
       recordAgentRun({ traceId, requestId: response.request_id, agentId: agent.id, status: response.status, durationMs: Date.now() - startedAt });
-      const engine = response.output.policy?.engine ?? "langgraph-demo";
+      const engine = response.output.policy?.engine ?? response.output.customer_service?.engine ?? "langgraph-demo";
       return Response.json(response, { headers: responseHeaders(traceId, engine) });
     } catch (error) {
       const dependencyFailure = error instanceof DependencyUnavailableError;
@@ -108,19 +110,5 @@ export async function POST(request: Request, context: { params: Promise<{ agentI
     }
   }
 
-  const preview = previewOutputs[agent.id];
-  const response = AgentInvokeResponseSchema.parse({
-    request_id: `PREVIEW-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-    trace_id: traceId,
-    agent_id: agent.id,
-    status: "preview",
-    environment: "demo",
-    output: {
-      ...preview,
-      summary: `“${parsed.data.input}”仅用于展示该 Agent 的目标交互形态；当前尚未执行真实工作流。`,
-    },
-    trace: agent.trace.map((name, index) => ({ name, detail: agent.traceNotes[index] })),
-  });
-  recordAgentRun({ traceId, requestId: response.request_id, agentId: agent.id, status: response.status, durationMs: Date.now() - startedAt });
-  return Response.json(response, { headers: responseHeaders(traceId) });
+  return errorResponse(409, "AGENT_NOT_RUNNABLE", "Agent is not runnable", traceId);
 }
