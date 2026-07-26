@@ -1,12 +1,12 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { AGENTS, type AgentDefinition, type AgentId } from "./lib/contracts";
+import { AGENTS, type AgentComparisonOutput, type AgentDefinition, type AgentId } from "./lib/contracts";
 import { invokeAgent } from "./lib/agent-gateway";
 
 const capabilityStats = [
-  { value: "05", label: "标杆 Agent" },
-  { value: "05", label: "通用技术模式" },
+  { value: "01", label: "可运行 Agent" },
+  { value: "16", label: "AG-001 能力点" },
   { value: "02", label: "预留适配接口" },
 ];
 
@@ -14,17 +14,75 @@ function AgentMark({ agent, compact = false }: { agent: AgentDefinition; compact
   return <span className={`agent-mark tone-${agent.tone} ${compact ? "compact" : ""}`} aria-hidden="true"><span>{agent.symbol}</span></span>;
 }
 
+function ComparisonPanel({ comparison }: { comparison: AgentComparisonOutput }) {
+  const productById = new Map(comparison.products.map((product) => [product.id, product]));
+  const intentItems = [
+    comparison.intent.use_case ? `场景 · ${comparison.intent.use_case}` : null,
+    comparison.intent.budget_yuan ? `预算 · ${Math.round(comparison.intent.budget_yuan / 10000)}万元` : null,
+    ...comparison.intent.focus_dimensions.map((item) => `关注 · ${item}`),
+  ].filter((item): item is string => Boolean(item));
+
+  return (
+    <div className="comparison-result">
+      <div className="intent-strip">
+        <span>识别条件</span>
+        <div>{intentItems.length ? intentItems.map((item) => <b key={item}>{item}</b>) : <b>通用型号比较</b>}</div>
+      </div>
+
+      <div className={`recommendation-band ${comparison.recommendation.primary_product_id ? "success" : "review"}`}>
+        <span>{comparison.recommendation.primary_product_id ? "首选建议" : "约束结论"}</span>
+        <strong>{comparison.recommendation.primary_product_name ?? "当前无满足全部条件的候选"}</strong>
+        <p>{comparison.recommendation.reason}</p>
+      </div>
+
+      {comparison.table.length > 0 && (
+        <div className="comparison-table-wrap">
+          <table className="comparison-table">
+            <thead><tr><th>对比维度</th>{comparison.products.map((product) => <th key={product.id}>{product.name.replace("样例·", "")}</th>)}</tr></thead>
+            <tbody>{comparison.table.map((row) => (
+              <tr key={row.key}><th>{row.label}</th>{row.values.map((value) => (
+                <td key={value.product_id} className={row.best_product_ids.includes(value.product_id) ? "best" : ""}>
+                  {value.display}{row.best_product_ids.includes(value.product_id) && <small>优势项</small>}
+                </td>
+              ))}</tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="product-evaluations">
+        {comparison.products.map((product) => (
+          <article key={product.id} className={product.eligible ? "eligible" : "ineligible"}>
+            <header><div><small>{product.id}</small><strong>{product.name}</strong></div><b>{product.score}<small>/100</small></b></header>
+            <p>{product.scenario_fit}</p>
+            <div className="evaluation-columns">
+              <div><span>优势</span>{product.advantages.length ? product.advantages.map((item) => <p key={item}>＋ {item}</p>) : <p>暂无明显优势项</p>}</div>
+              <div><span>限制</span>{product.limitations.length ? product.limitations.map((item) => <p key={item}>－ {item}</p>) : <p>未发现硬约束冲突</p>}</div>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {comparison.conflicts.length > 0 && <div className="conflict-box"><strong>条件冲突</strong>{comparison.conflicts.map((item) => <p key={item}>! {item}</p>)}</div>}
+      <p className="data-notice">{comparison.data_notice}</p>
+      <span className="engine-label">ENGINE · {comparison.engine.toUpperCase()} · {productById.size} PRODUCTS</span>
+    </div>
+  );
+}
+
 export default function Home() {
-  const [selectedId, setSelectedId] = useState<AgentId>("AG-012");
-  const [input, setInput] = useState(AGENTS[3].prompts[0]);
+  const [selectedId, setSelectedId] = useState<AgentId>("AG-001");
+  const [input, setInput] = useState(AGENTS[0].prompts[0]);
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<Awaited<ReturnType<typeof invokeAgent>> | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const selected = useMemo(() => AGENTS.find((agent) => agent.id === selectedId) ?? AGENTS[0], [selectedId]);
 
   function chooseAgent(agent: AgentDefinition) {
     setSelectedId(agent.id);
     setInput(agent.prompts[0]);
     setResponse(null);
+    setError(null);
   }
 
   async function runAgent(event?: FormEvent) {
@@ -32,7 +90,9 @@ export default function Home() {
     if (!input.trim() || loading) return;
     setLoading(true);
     setResponse(null);
-    try { setResponse(await invokeAgent({ agent_id: selected.id, input: input.trim() })); }
+    setError(null);
+    try { setResponse(await invokeAgent({ agent_id: selected.id, input: input.trim(), session_id: "showroom-demo" })); }
+    catch { setError("Agent 暂时无法完成本次运行，请稍后重试或更换演示问题。"); }
     finally { setLoading(false); }
   }
 
@@ -79,7 +139,7 @@ export default function Home() {
         <div className="agent-grid">
           {AGENTS.map((agent, index) => (
             <article className={`agent-card tone-${agent.tone}`} key={agent.id}>
-              <div className="card-top"><span>CASE 0{index + 1}</span><i>AVAILABLE</i></div>
+              <div className="card-top"><span>CASE 0{index + 1}</span><i>{agent.id === "AG-001" ? "RUNNABLE" : "PREVIEW"}</i></div>
               <AgentMark agent={agent} /><div className="agent-id">{agent.id}</div><h3>{agent.name}</h3><p>{agent.description}</p>
               <div className="tags">{agent.capabilities.map((item) => <span key={item}>{item}</span>)}</div>
               <button type="button" onClick={() => { chooseAgent(agent); location.hash = "workbench"; }}>启动演示 <span>↗</span></button>
@@ -92,7 +152,7 @@ export default function Home() {
         <div className="section-heading light"><div><span>03 / LIVE WORKBENCH</span><h2>Agent 演示工作台</h2></div><p>使用样例知识与演示数据运行。正式 AI 中台及业务数据将在接口确认后接入。</p></div>
         <div className="workbench-shell">
           <aside className="agent-sidebar">
-            <div className="panel-title"><span>AGENTS</span><b>5 ONLINE</b></div>
+            <div className="panel-title"><span>AGENTS</span><b>1 RUNNABLE / 4 PREVIEW</b></div>
             {AGENTS.map((agent) => (
               <button type="button" key={agent.id} onClick={() => chooseAgent(agent)} className={selected.id === agent.id ? "active" : ""}>
                 <AgentMark agent={agent} compact /><span><small>{agent.id}</small><strong>{agent.shortName}</strong></span><i />
@@ -102,15 +162,16 @@ export default function Home() {
           </aside>
 
           <div className="conversation-panel">
-            <div className="conversation-head"><div><AgentMark agent={selected} compact /><span><small>{selected.id}</small><strong>{selected.name}</strong></span></div><span className="mock-badge">样例数据</span></div>
+            <div className="conversation-head"><div><AgentMark agent={selected} compact /><span><small>{selected.id}</small><strong>{selected.name}</strong></span></div><span className="mock-badge">{selected.id === "AG-001" ? "LangGraph · Mock数据" : "样例预览"}</span></div>
             <div className="conversation-body">
               <div className="welcome-copy"><span className={`mini-symbol tone-${selected.tone}`}>{selected.symbol}</span><h3>{selected.welcome}</h3><p>{selected.demoHint}</p></div>
               {!response && !loading && <div className="prompt-list"><span>推荐演示问题</span>{selected.prompts.map((prompt) => <button type="button" key={prompt} onClick={() => setInput(prompt)}>{prompt}<i>↗</i></button>)}</div>}
               {loading && <div className="thinking-card"><div className="thinking-head"><span className="loading-dots"><i /><i /><i /></span> Agent 正在处理</div><div className="loading-line"><span /></div><p>正在理解问题、调用演示工具并组织可解释结果…</p></div>}
+              {error && <div className="error-card"><strong>运行未完成</strong><p>{error}</p></div>}
               {response && (
                 <div className="result-card">
                   <div className="result-kicker"><span>演示结果</span><b>{response.request_id}</b></div><h3>{response.output.title}</h3><p>{response.output.summary}</p>
-                  <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>
+                  {response.output.comparison ? <ComparisonPanel comparison={response.output.comparison} /> : <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>}
                   <div className="evidence-row"><span>依据</span>{response.output.evidence.map((item) => <b key={item}>{item}</b>)}</div>
                   <small>本结果由样例知识与演示数据生成，不代表正式业务结论。</small>
                 </div>
@@ -134,7 +195,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <div className="trace-metrics"><div><span>接口层</span><strong>READY</strong></div><div><span>数据源</span><strong>DEMO</strong></div></div>
+            <div className="trace-metrics"><div><span>执行引擎</span><strong>{selected.id === "AG-001" ? "LANGGRAPH" : "PREVIEW"}</strong></div><div><span>数据源</span><strong>MOCK</strong></div></div>
           </aside>
         </div>
       </section>
@@ -148,7 +209,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.0</p><span>演示环境 / 样例数据</span></footer>
+      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.1</p><span>AG-001 可运行 / Mock数据</span></footer>
     </main>
   );
 }

@@ -1,4 +1,5 @@
 import { AGENTS, type AgentId, type AgentInvokeRequest, type AgentInvokeResponse } from "../../../../lib/contracts";
+import { invokeAg001 } from "../../../../lib/agents/ag001/workflow";
 
 const demoOutputs: Record<AgentId, Omit<AgentInvokeResponse["output"], "summary">> = {
   "AG-001": { title: "候选产品选型比较", points: ["已将续航、有效载荷与环境适应性统一为可比较口径。", "候选方案分别适合长航时覆盖与复杂点位精细作业，两者侧重点不同。", "建议结合实际航线、风场和载荷清单完成最终选型复核。"], evidence: ["样例产品参数表", "场景适配规则 v1.0"] },
@@ -12,7 +13,25 @@ export async function POST(request: Request, context: { params: Promise<{ agentI
   const { agentId } = await context.params;
   const agent = AGENTS.find((item) => item.id === agentId);
   if (!agent) return Response.json({ message: "Agent not found" }, { status: 404 });
-  const body = await request.json() as AgentInvokeRequest;
+  let body: AgentInvokeRequest;
+  try {
+    body = await request.json() as AgentInvokeRequest;
+  } catch {
+    return Response.json({ message: "Invalid JSON body" }, { status: 400 });
+  }
+  if (body.agent_id !== agent.id) return Response.json({ message: "agent_id does not match route" }, { status: 400 });
+  if (typeof body.input !== "string" || !body.input.trim()) return Response.json({ message: "input is required" }, { status: 400 });
+
+  if (agent.id === "AG-001") {
+    try {
+      const response = await invokeAg001({ ...body, input: body.input.trim() });
+      return Response.json(response, { headers: { "X-Agent-Interface-Version": "v1", "X-Agent-Engine": "langgraph-demo" } });
+    } catch (error) {
+      console.error("AG-001 workflow failed", error);
+      return Response.json({ message: "AG-001 workflow failed safely" }, { status: 500 });
+    }
+  }
+
   const demo = demoOutputs[agent.id];
   const response: AgentInvokeResponse = {
     request_id: `DEMO-${Date.now().toString().slice(-8)}`,

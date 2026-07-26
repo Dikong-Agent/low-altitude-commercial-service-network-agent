@@ -11,10 +11,53 @@ export interface AgentInvokeRequest {
   agent_id: AgentId; input: string; session_id?: string; context?: Record<string, unknown>;
 }
 
+export interface ComparisonIntentView {
+  product_names: string[];
+  use_case: string | null;
+  budget_yuan: number | null;
+  focus_dimensions: string[];
+  hard_constraints: string[];
+}
+
+export interface ComparisonTableRow {
+  key: string;
+  label: string;
+  unit: string;
+  values: Array<{ product_id: string; display: string; raw: number | string | boolean | null }>;
+  best_product_ids: string[];
+}
+
+export interface ComparedProductView {
+  id: string;
+  name: string;
+  category: string;
+  score: number;
+  eligible: boolean;
+  advantages: string[];
+  limitations: string[];
+  scenario_fit: string;
+}
+
+export interface AgentComparisonOutput {
+  engine: "langgraph-demo";
+  intent: ComparisonIntentView;
+  products: ComparedProductView[];
+  table: ComparisonTableRow[];
+  recommendation: {
+    primary_product_id: string | null;
+    primary_product_name: string | null;
+    reason: string;
+    alternative_product_ids: string[];
+  };
+  conflicts: string[];
+  missing_data: string[];
+  data_notice: string;
+}
+
 export interface AgentInvokeResponse {
-  request_id: string; agent_id: AgentId; status: "completed" | "needs_review";
+  request_id: string; agent_id: AgentId; status: "completed" | "needs_review" | "needs_clarification";
   environment: "demo" | "production";
-  output: { title: string; summary: string; points: string[]; evidence: string[] };
+  output: { title: string; summary: string; points: string[]; evidence: string[]; comparison?: AgentComparisonOutput };
   trace: Array<{ name: string; detail: string }>;
 }
 
@@ -24,9 +67,9 @@ export const AGENTS: AgentDefinition[] = [
     description: "理解选型目标，统一产品参数口径，形成差异结论、场景适配判断与选型建议。",
     capabilities: ["结构化比较", "参数归一", "选型解释"], welcome: "把复杂参数，变成清晰的选型判断。",
     demoHint: "描述候选产品和使用场景，我会给出结构化比较与适配建议。",
-    prompts: ["对比两款巡检无人机在续航、载荷和复杂环境适应性上的差异", "预算20万元，园区巡检更应关注哪些选型指标？"],
-    workflow: "产品型号智能比较", trace: ["理解比较目标", "查询样例产品", "统一参数口径", "形成差异判断", "生成选型建议"],
-    traceNotes: ["提取场景与关注指标", "调用 BusinessDataPort", "转换单位与缺失项", "确定性规则 + 语义分析", "输出理由与限制"],
+    prompts: ["对比云巡 X8 和山岳 T60，重点看续航、载荷和抗风能力", "预算20万元，用于园区巡检，交付期不超过30天，推荐哪个型号？", "用于山区电力巡检，载荷至少3公斤、抗风至少13米/秒，有合适型号吗？"],
+    workflow: "LangGraph 产品型号智能比较", trace: ["理解比较目标", "检索候选产品", "统一参数口径", "执行约束与评分", "校验证据并生成建议"],
+    traceNotes: ["提取场景、预算、型号与关注指标", "调用 Mock BusinessDataPort", "统一单位、字段与缺失项", "确定性硬约束 + 可解释排序", "输出依据、限制与数据声明"],
   },
   {
     id: "AG-002", name: "低空产品说明书解读Agent", shortName: "说明书解读", symbol: "析", tone: "blue",
