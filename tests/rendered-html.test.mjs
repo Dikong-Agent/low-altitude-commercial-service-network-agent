@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 async function loadWorker() {
@@ -23,6 +24,32 @@ async function invokeBody(worker, agentId, body) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   }), env, ctx);
+}
+
+function decodeXml(value) {
+  return value
+    .replaceAll("&quot;", '"')
+    .replaceAll("&apos;", "'")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&");
+}
+
+async function currentAg025Capabilities() {
+  const repositoryRoot = new URL("../../../../../", import.meta.url);
+  const catalog = await readFile(new URL("docs/FILE_CATALOG.md", repositoryRoot), "utf8");
+  const relativeMapPath = catalog.match(/`(outputs\/01_当前交付\/功能导图\/[^`]+\.mm)`/)?.[1];
+  assert.ok(relativeMapPath, "FILE_CATALOG must identify the current function map");
+  const xml = await readFile(new URL(relativeMapPath.replaceAll("\\", "/"), repositoryRoot), "utf8");
+  const nodeMatches = [...xml.matchAll(/<node\b[^>]*\bTEXT="([^"]*)"[^>]*>/g)];
+  return nodeMatches.flatMap((match, index) => {
+    const immediateAttributes = xml.slice(match.index + match[0].length, nodeMatches[index + 1]?.index ?? xml.length).split("<node", 1)[0];
+    const agent = immediateAttributes.match(/<attribute\s+NAME="承载Agent"\s+VALUE="([^"]*)"/)?.[1] ?? "";
+    const requirementId = immediateAttributes.match(/<attribute\s+NAME="需求编号"\s+VALUE="([^"]*)"/)?.[1];
+    return agent.includes("AG-025") && requirementId
+      ? [{ requirement_id: decodeXml(requirementId), capability: decodeXml(match[1]) }]
+      : [];
+  });
 }
 
 test("renders the Agent capability showroom", async () => {
@@ -55,12 +82,28 @@ test("runs AG-025 through the multi-intent customer service workflow", async () 
   const orderResult = body.output.customer_service.tool_results.find((item) => item.tool === "order_lookup");
   assert.equal(orderResult.status, "found");
   assert.equal(orderResult.label, "JDZ-DEMO-1001");
-  assert.equal(body.output.customer_service.capability_coverage.length, 60);
+  assert.equal(body.output.customer_service.capability_coverage.length, 61);
   assert.equal(body.output.customer_service.capability_coverage.filter((item) => item.status === "mock-demonstrated").length, 19);
-  assert.equal(body.output.customer_service.capability_coverage.filter((item) => item.status === "adapter-ready").length, 41);
+  assert.equal(body.output.customer_service.capability_coverage.filter((item) => item.status === "adapter-ready").length, 42);
   assert.equal(body.output.customer_service.capability_coverage.find((item) => item.requirement_id === "085-A-006").capability, "订单咨询协同答复");
+  assert.ok(body.output.customer_service.capability_coverage.some((item) => item.capability === "运营问数分析方案生成"));
+  assert.ok(body.output.customer_service.capability_coverage.some((item) => item.capability === "单指标异常关联线索分析"));
   assert.match(body.output.customer_service.data_notice, /Mock|未执行/);
   assert.ok(body.trace.length >= 5);
+});
+
+test("AG-025 capability coverage matches the current authoritative function map", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-025", "平台支持哪些支付方式？");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  const actual = body.output.customer_service.capability_coverage
+    .map(({ requirement_id, capability }) => `${requirement_id}|${capability}`)
+    .sort();
+  const expected = (await currentAg025Capabilities())
+    .map(({ requirement_id, capability }) => `${requirement_id}|${capability}`)
+    .sort();
+  assert.deepEqual(actual, expected);
 });
 
 test("AG-025 routes a generic product request to the specialist Agent", async () => {
@@ -87,6 +130,59 @@ test("AG-025 asks for a unique order number instead of guessing", async () => {
     assert.equal(body.output.customer_service, undefined);
     assert.match(body.output.summary, /订单号|唯一/);
   }
+});
+
+test("AG-025 rejects conflicting order ids from text and request context", async () => {
+  const worker = await loadWorker();
+  const response = await invokeBody(worker, "AG-025", {
+    agent_id: "AG-025",
+    input: "查订单 JDZ-DEMO-1001",
+    context: { order_id: "JDZ-DEMO-1002" },
+  });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "needs_clarification");
+  assert.equal(body.output.customer_service, undefined);
+  assert.match(body.output.summary, /唯一订单号|不一致|确认/);
+});
+
+test("AG-025 respects a negated human handoff request", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-025", "不要转人工客服，只告诉我售后规则");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "completed");
+  assert.equal(body.output.customer_service.handoff.required, false);
+  assert.notEqual(body.output.customer_service.intent.route, "human_handoff");
+});
+
+test("AG-025 reuses a confirmed order within the same session", async () => {
+  const worker = await loadWorker();
+  const sessionId = `session-${crypto.randomUUID()}`;
+  const first = await invokeBody(worker, "AG-025", { agent_id: "AG-025", input: "查订单 JDZ-DEMO-1001", session_id: sessionId });
+  assert.equal(first.status, 200);
+  assert.equal((await first.json()).status, "completed");
+
+  const second = await invokeBody(worker, "AG-025", { agent_id: "AG-025", input: "它现在到哪了？", session_id: sessionId });
+  assert.equal(second.status, 200);
+  const body = await second.json();
+  assert.equal(body.status, "completed");
+  assert.deepEqual(body.output.customer_service.intent.entities.order_ids, ["JDZ-DEMO-1001"]);
+  assert.equal(body.output.customer_service.intent.prior_context_used, true);
+  assert.equal(body.output.customer_service.conversation.turn_count, 2);
+});
+
+test("AG-025 extracts structured complaint elements for human review", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-025", "我要投诉订单 JDZ-DEMO-1001，7月25日物流停滞，诉求是尽快恢复配送");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  const complaint = body.output.customer_service.intent.complaint_elements;
+  assert.equal(body.status, "needs_review");
+  assert.equal(complaint.topic, "物流进度异常");
+  assert.equal(complaint.related_object, "订单 JDZ-DEMO-1001");
+  assert.equal(complaint.occurred_at, "7月25日");
+  assert.equal(complaint.core_request, "尽快恢复配送");
 });
 
 test("AG-025 never substitutes another order when an explicit order does not exist", async () => {

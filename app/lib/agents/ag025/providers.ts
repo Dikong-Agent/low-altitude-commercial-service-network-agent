@@ -1,9 +1,18 @@
 import { DependencyUnavailableError } from "../../reliability";
-import { DemoAIPlatformAdapter, MockCustomerServiceDataAdapter, type AIPlatformPort, type CustomerServiceDataPort } from "./adapters";
+import {
+  DemoAIPlatformAdapter,
+  DemoCustomerConversationAdapter,
+  MockCustomerServiceDataAdapter,
+  type AIPlatformPort,
+  type CustomerConversationPort,
+  type CustomerServiceDataPort,
+} from "./adapters";
+import type { CustomerAccessScope } from "./types";
 
 export interface Ag025Dependencies {
   aiPlatform: AIPlatformPort;
   customerData: CustomerServiceDataPort;
+  conversationData: CustomerConversationPort;
   providerName: string;
   engine: "langgraph-demo" | "langgraph-adapter";
   environment: "demo" | "production";
@@ -15,6 +24,7 @@ const providerFactories = new Map<string, Ag025ProviderFactory>([
   ["demo", () => ({
     aiPlatform: new DemoAIPlatformAdapter(),
     customerData: new MockCustomerServiceDataAdapter(),
+    conversationData: new DemoCustomerConversationAdapter(),
     providerName: "demo",
     engine: "langgraph-demo",
     environment: "demo",
@@ -35,4 +45,13 @@ export function resolveAg025Dependencies(providerName = process.env.AG025_PROVID
   const factory = providerFactories.get(providerName);
   if (!factory) throw new DependencyUnavailableError("ag025.provider", `Unknown AG-025 provider: ${providerName}`);
   return factory();
+}
+
+export function createDemoCustomerAccessScope(): CustomerAccessScope {
+  return {
+    source: "demo",
+    tenantId: "DEMO-TENANT",
+    subjectId: "DEMO-VISITOR",
+    roles: ["visitor"],
+  };
 }

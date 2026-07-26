@@ -1,7 +1,7 @@
 import type { AgentCustomerServiceOutput } from "../../contracts";
 import { AG025_CONFIG } from "./config";
 import type { RankedCustomerKnowledge } from "./adapters";
-import type { CustomerOrderSnapshot, CustomerProductSnapshot, CustomerServiceGuide, CustomerServiceIntent } from "./types";
+import type { CustomerConversationState, CustomerOrderSnapshot, CustomerProductSnapshot, CustomerServiceGuide, CustomerServiceIntent } from "./types";
 
 function targetTeam(intent: CustomerServiceIntent): string {
   if (intent.issueTypes.includes("complaint")) return "投诉与售后人工客服";
@@ -48,6 +48,8 @@ export function buildCustomerServiceOutput(
   products: CustomerProductSnapshot[],
   services: CustomerServiceGuide[],
   engine: AgentCustomerServiceOutput["engine"],
+  sessionId: string | null,
+  conversation: CustomerConversationState | null,
 ): AgentCustomerServiceOutput {
   const required = intent.route === "human_handoff";
   const answer = buildAnswer(intent, knowledge, orders, products, services);
@@ -56,6 +58,10 @@ export function buildCustomerServiceOutput(
     ...intent.productModels.map((id) => `商品：${id}`),
     ...intent.serviceTypes.map((type) => `服务类型：${type}`),
     ...orders.map((order) => `订单状态：${order.statusLabel}（更新于${order.updatedAt}）`),
+    ...(intent.complaintElements?.topic ? [`投诉主题：${intent.complaintElements.topic}`] : []),
+    ...(intent.complaintElements?.relatedObject ? [`投诉对象：${intent.complaintElements.relatedObject}`] : []),
+    ...(intent.complaintElements?.occurredAt ? [`发生时间：${intent.complaintElements.occurredAt}`] : []),
+    ...(intent.complaintElements?.coreRequest ? [`核心诉求：${intent.complaintElements.coreRequest}`] : []),
   ];
   const pendingItems = [
     ...intent.missingFields,
@@ -71,6 +77,14 @@ export function buildCustomerServiceOutput(
       confidence: intent.confidence,
       entities: { order_ids: intent.orderIds, product_models: intent.productModels, service_types: intent.serviceTypes },
       missing_fields: intent.missingFields,
+      prior_context_used: intent.priorContextUsed,
+      conflicts: intent.conflicts,
+      complaint_elements: intent.complaintElements ? {
+        topic: intent.complaintElements.topic,
+        related_object: intent.complaintElements.relatedObject,
+        occurred_at: intent.complaintElements.occurredAt,
+        core_request: intent.complaintElements.coreRequest,
+      } : null,
     },
     answer,
     knowledge_matches: knowledge.map((item) => ({
@@ -97,6 +111,16 @@ export function buildCustomerServiceOutput(
       confirmed_information: confirmedInformation,
       pending_items: pendingItems,
       execution_status: "recommendation_only",
+    },
+    conversation: {
+      session_id: sessionId,
+      turn_count: (conversation?.recentTurns.length ?? 0) + 1,
+      prior_context_used: intent.priorContextUsed,
+      user_problem_summary: `当前问题：${query.slice(0, 300)}`,
+      processing_trace_summary: [
+        ...(conversation?.recentTurns.slice(-2).map((turn, index) => `前序${index + 1}：${turn.assistantSummary}`) ?? []),
+        `本轮：识别${intent.issueTypes.join("、")}问题并选择${intent.route}路径`,
+      ].join("；"),
     },
     capability_coverage: [...AG025_CONFIG.capabilityCoverage],
     data_notice: "FAQ、商品、订单、服务状态和处理规则均为虚构 Mock，仅用于 AG-025 多意图路由与接口演示；未执行退款、转单、信用处理或人工转接。",

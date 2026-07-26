@@ -14,6 +14,37 @@ export interface CustomerServiceIntent {
   clarificationMessage: string | null;
   explicitHumanRequest: boolean;
   highRiskBoundary: boolean;
+  priorContextUsed: boolean;
+  conflicts: string[];
+  complaintElements: CustomerComplaintElements | null;
+}
+
+export interface CustomerComplaintElements {
+  topic: string | null;
+  relatedObject: string | null;
+  occurredAt: string | null;
+  coreRequest: string | null;
+}
+
+export interface CustomerAccessScope {
+  source: "demo" | "trusted-server";
+  tenantId: string | null;
+  subjectId: string | null;
+  roles: string[];
+}
+
+export interface CustomerConversationTurn {
+  userInput: string;
+  assistantSummary: string;
+  status: "completed" | "needs_review" | "needs_clarification" | "preview";
+}
+
+export interface CustomerConversationState {
+  sessionId: string;
+  confirmedOrderIds: string[];
+  confirmedProductModels: string[];
+  confirmedServiceTypes: string[];
+  recentTurns: CustomerConversationTurn[];
 }
 
 export interface CustomerServiceKnowledgeEntry {
@@ -68,6 +99,33 @@ export const CustomerServiceIntentSchema = z.object({
   clarificationMessage: z.string().nullable(),
   explicitHumanRequest: z.boolean(),
   highRiskBoundary: z.boolean(),
+  priorContextUsed: z.boolean(),
+  conflicts: z.array(z.string()),
+  complaintElements: z.object({
+    topic: z.string().nullable(),
+    relatedObject: z.string().nullable(),
+    occurredAt: z.string().nullable(),
+    coreRequest: z.string().nullable(),
+  }).nullable(),
+});
+
+export const CustomerAccessScopeSchema = z.object({
+  source: z.enum(["demo", "trusted-server"]),
+  tenantId: z.string().nullable(),
+  subjectId: z.string().nullable(),
+  roles: z.array(z.string()),
+});
+
+export const CustomerConversationStateSchema = z.object({
+  sessionId: z.string(),
+  confirmedOrderIds: z.array(z.string()),
+  confirmedProductModels: z.array(z.string()),
+  confirmedServiceTypes: z.array(z.string()),
+  recentTurns: z.array(z.object({
+    userInput: z.string(),
+    assistantSummary: z.string(),
+    status: z.enum(["completed", "needs_review", "needs_clarification", "preview"]),
+  })),
 });
 
 export const CustomerServiceKnowledgeEntrySchema = z.object({

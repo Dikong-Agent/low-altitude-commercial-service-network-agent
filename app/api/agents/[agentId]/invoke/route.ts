@@ -12,6 +12,7 @@ import { invokeAg002 } from "../../../../lib/agents/ag002/workflow";
 import { invokeAg003 } from "../../../../lib/agents/ag003/workflow";
 import { invokeAg012 } from "../../../../lib/agents/ag012/workflow";
 import { invokeAg025 } from "../../../../lib/agents/ag025/workflow";
+import { createDemoCustomerAccessScope } from "../../../../lib/agents/ag025/providers";
 import { recordAgentRun } from "../../../../lib/observability";
 import { DependencyUnavailableError } from "../../../../lib/reliability";
 
@@ -84,7 +85,7 @@ export async function POST(request: Request, context: { params: Promise<{ agentI
         if (!ag025Request.success) {
           return errorResponse(400, "INVALID_AGENT_REQUEST", ag025Request.error.issues[0]?.message ?? "Invalid AG-025 request", traceId);
         }
-        response = await invokeAg025(ag025Request.data, traceId);
+        response = await invokeAg025(ag025Request.data, traceId, createDemoCustomerAccessScope());
       } else {
         response = await invokeAg001(parsed.data, traceId);
       }

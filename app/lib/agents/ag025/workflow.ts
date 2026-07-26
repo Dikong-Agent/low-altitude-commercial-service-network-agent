@@ -7,16 +7,19 @@ import {
   type Ag025InvokeRequest,
   type AgentInvokeResponse,
 } from "../../contracts";
-import { executeWithPolicy } from "../../reliability";
+import { DependencyUnavailableError, executeWithPolicy } from "../../reliability";
 import { AG025_CONFIG } from "./config";
 import { buildCustomerServiceOutput } from "./engine";
-import { getAg025ProviderRevision, resolveAg025Dependencies, type Ag025Dependencies } from "./providers";
+import { createDemoCustomerAccessScope, getAg025ProviderRevision, resolveAg025Dependencies, type Ag025Dependencies } from "./providers";
 import {
+  CustomerAccessScopeSchema,
+  CustomerConversationStateSchema,
   CustomerOrderSnapshotSchema,
   CustomerProductSnapshotSchema,
   CustomerServiceGuideSchema,
   CustomerServiceIntentSchema,
   CustomerServiceKnowledgeEntrySchema,
+  type CustomerAccessScope,
 } from "./types";
 
 const TraceStepSchema = z.object({ name: z.string(), detail: z.string() });
@@ -25,6 +28,8 @@ const RankedKnowledgeSchema = z.object({ entry: CustomerServiceKnowledgeEntrySch
 const Ag025GraphState = new StateSchema({
   request: Ag025InvokeRequestSchema,
   traceId: z.string(),
+  accessScope: CustomerAccessScopeSchema,
+  conversation: CustomerConversationStateSchema.nullable().optional(),
   intent: CustomerServiceIntentSchema.optional(),
   knowledge: z.array(CustomerServiceKnowledgeEntrySchema).optional(),
   rankedKnowledge: z.array(RankedKnowledgeSchema).optional(),
@@ -41,11 +46,29 @@ function appendTrace(state: { trace?: Array<{ name: string; detail: string }> },
 }
 
 export function createAg025Workflow(dependencies: Ag025Dependencies) {
+  const loadConversation = async (state: typeof Ag025GraphState.State) => {
+    if (dependencies.environment === "production" && state.accessScope.source !== "trusted-server") {
+      throw new DependencyUnavailableError("ag025.authorization", "Production customer data requires a trusted server access scope");
+    }
+    if (!state.request.session_id) return { conversation: null };
+    const conversation = await executeWithPolicy(
+      "ag025.customer-conversation-load",
+      AG025_CONFIG.reliability.customerData,
+      (signal) => dependencies.conversationData.loadSession(state.request.session_id!, state.accessScope, { signal }),
+    );
+    return {
+      conversation,
+      trace: appendTrace(state, "加载会话上下文", conversation
+        ? `读取${conversation.recentTurns.length}轮会话及已确认业务实体。`
+        : "当前会话暂无已确认业务上下文。"),
+    };
+  };
+
   const understandRequest = async (state: typeof Ag025GraphState.State) => {
     const intent = await executeWithPolicy(
       "ag025.ai-platform-understanding",
       AG025_CONFIG.reliability.aiPlatform,
-      (signal) => dependencies.aiPlatform.understandCustomerRequest(state.request, { signal }),
+      (signal) => dependencies.aiPlatform.understandCustomerRequest(state.request, state.conversation ?? null, { signal }),
     );
     return {
       intent,
@@ -80,15 +103,15 @@ export function createAg025Workflow(dependencies: Ag025Dependencies) {
         (signal) => dependencies.customerData.searchKnowledge(intent, state.request.input, AG025_CONFIG.maxKnowledgeMatches, { signal })),
       intent.orderIds.length
         ? executeWithPolicy("ag025.customer-data-orders", AG025_CONFIG.reliability.customerData,
-          (signal) => dependencies.customerData.getOrders(intent.orderIds, { signal }))
+          (signal) => dependencies.customerData.getOrders(intent.orderIds, state.accessScope, { signal }))
         : Promise.resolve([]),
       intent.productModels.length
         ? executeWithPolicy("ag025.customer-data-products", AG025_CONFIG.reliability.customerData,
-          (signal) => dependencies.customerData.findProducts(intent.productModels, { signal }))
+          (signal) => dependencies.customerData.findProducts(intent.productModels, state.accessScope, { signal }))
         : Promise.resolve([]),
       intent.serviceTypes.length
         ? executeWithPolicy("ag025.customer-data-services", AG025_CONFIG.reliability.customerData,
-          (signal) => dependencies.customerData.getServiceGuides(intent.serviceTypes, { signal }))
+          (signal) => dependencies.customerData.getServiceGuides(intent.serviceTypes, state.accessScope, { signal }))
         : Promise.resolve([]),
     ]);
     return {
@@ -118,6 +141,8 @@ export function createAg025Workflow(dependencies: Ag025Dependencies) {
       state.products ?? [],
       state.services ?? [],
       dependencies.engine,
+      state.request.session_id ?? null,
+      state.conversation ?? null,
     );
     return {
       customerServiceOutput,
@@ -162,20 +187,51 @@ export function createAg025Workflow(dependencies: Ag025Dependencies) {
     return { response, trace: response.trace };
   };
 
+  const saveConversation = async (state: typeof Ag025GraphState.State) => {
+    if (!state.request.session_id || !state.response) return {};
+    const intent = state.intent;
+    const hasConflicts = Boolean(intent?.conflicts.length);
+    const conversation = await executeWithPolicy(
+      "ag025.customer-conversation-save",
+      AG025_CONFIG.reliability.customerData,
+      (signal) => dependencies.conversationData.saveTurn(
+        state.request.session_id!,
+        state.accessScope,
+        {
+          userInput: state.request.input,
+          assistantSummary: state.response!.output.summary,
+          status: state.response!.status,
+        },
+        {
+          confirmedOrderIds: !hasConflicts && intent?.orderIds.length === 1 ? intent.orderIds : [],
+          confirmedProductModels: !hasConflicts && intent?.productModels.length === 1 ? intent.productModels : [],
+          confirmedServiceTypes: !hasConflicts ? intent?.serviceTypes ?? [] : [],
+        },
+        { signal },
+      ),
+    );
+    const trace = appendTrace(state, "保存会话摘要", `已保存最近${conversation.recentTurns.length}轮摘要；正式环境需由业务系统会话存储承载。`);
+    return { conversation, response: { ...state.response, trace }, trace };
+  };
+
   return new StateGraph(Ag025GraphState)
+    .addNode("load_conversation", loadConversation)
     .addNode("understand_request", understandRequest)
     .addNode("clarify", buildClarification)
     .addNode("load_resources", loadResources)
     .addNode("rank_knowledge", rankKnowledge)
     .addNode("compose_answer", composeAnswer)
     .addNode("build_response", buildResponse)
-    .addEdge(START, "understand_request")
+    .addNode("save_conversation", saveConversation)
+    .addEdge(START, "load_conversation")
+    .addEdge("load_conversation", "understand_request")
     .addConditionalEdges("understand_request", (state) => state.intent?.needsClarification ? "clarify" : "load_resources")
-    .addEdge("clarify", END)
+    .addEdge("clarify", "save_conversation")
     .addEdge("load_resources", "rank_knowledge")
     .addEdge("rank_knowledge", "compose_answer")
     .addEdge("compose_answer", "build_response")
-    .addEdge("build_response", END)
+    .addEdge("build_response", "save_conversation")
+    .addEdge("save_conversation", END)
     .compile();
 }
 
@@ -190,8 +246,12 @@ function getDefaultWorkflow() {
   return cachedWorkflow.workflow;
 }
 
-export async function invokeAg025(request: Ag025InvokeRequest, traceId: string): Promise<AgentInvokeResponse> {
-  const result = await getDefaultWorkflow().invoke({ request, traceId, trace: [] });
+export async function invokeAg025(
+  request: Ag025InvokeRequest,
+  traceId: string,
+  accessScope: CustomerAccessScope = createDemoCustomerAccessScope(),
+): Promise<AgentInvokeResponse> {
+  const result = await getDefaultWorkflow().invoke({ request, traceId, accessScope, trace: [] });
   if (!result.response) throw new Error("AG-025 workflow completed without a response");
   return AgentInvokeResponseSchema.parse(result.response);
 }

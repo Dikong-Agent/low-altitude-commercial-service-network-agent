@@ -2,7 +2,17 @@ import type { Ag025InvokeRequest, CustomerServiceDomainSchema, CustomerServiceIs
 import type { z } from "zod/v4";
 import { AG025_CONFIG } from "./config";
 import { DEMO_CUSTOMER_ORDERS, DEMO_CUSTOMER_PRODUCTS, DEMO_CUSTOMER_SERVICE_GUIDES, DEMO_CUSTOMER_SERVICE_KNOWLEDGE } from "./catalog";
-import type { CustomerOrderSnapshot, CustomerProductSnapshot, CustomerServiceGuide, CustomerServiceIntent, CustomerServiceKnowledgeEntry } from "./types";
+import type {
+  CustomerAccessScope,
+  CustomerComplaintElements,
+  CustomerConversationState,
+  CustomerConversationTurn,
+  CustomerOrderSnapshot,
+  CustomerProductSnapshot,
+  CustomerServiceGuide,
+  CustomerServiceIntent,
+  CustomerServiceKnowledgeEntry,
+} from "./types";
 
 type Domain = z.infer<typeof CustomerServiceDomainSchema>;
 type Issue = z.infer<typeof CustomerServiceIssueSchema>;
@@ -13,15 +23,26 @@ export interface RankedCustomerKnowledge {
 }
 
 export interface AIPlatformPort {
-  understandCustomerRequest(request: Ag025InvokeRequest, options?: { signal?: AbortSignal }): Promise<CustomerServiceIntent>;
+  understandCustomerRequest(request: Ag025InvokeRequest, conversation: CustomerConversationState | null, options?: { signal?: AbortSignal }): Promise<CustomerServiceIntent>;
   rankCustomerKnowledge(entries: CustomerServiceKnowledgeEntry[], intent: CustomerServiceIntent, query: string, options?: { signal?: AbortSignal }): Promise<RankedCustomerKnowledge[]>;
 }
 
 export interface CustomerServiceDataPort {
   searchKnowledge(intent: CustomerServiceIntent, query: string, limit: number, options?: { signal?: AbortSignal }): Promise<CustomerServiceKnowledgeEntry[]>;
-  getOrders(ids: string[], options?: { signal?: AbortSignal }): Promise<CustomerOrderSnapshot[]>;
-  findProducts(models: string[], options?: { signal?: AbortSignal }): Promise<CustomerProductSnapshot[]>;
-  getServiceGuides(serviceTypes: string[], options?: { signal?: AbortSignal }): Promise<CustomerServiceGuide[]>;
+  getOrders(ids: string[], accessScope: CustomerAccessScope, options?: { signal?: AbortSignal }): Promise<CustomerOrderSnapshot[]>;
+  findProducts(models: string[], accessScope: CustomerAccessScope, options?: { signal?: AbortSignal }): Promise<CustomerProductSnapshot[]>;
+  getServiceGuides(serviceTypes: string[], accessScope: CustomerAccessScope, options?: { signal?: AbortSignal }): Promise<CustomerServiceGuide[]>;
+}
+
+export interface CustomerConversationPort {
+  loadSession(sessionId: string, accessScope: CustomerAccessScope, options?: { signal?: AbortSignal }): Promise<CustomerConversationState | null>;
+  saveTurn(
+    sessionId: string,
+    accessScope: CustomerAccessScope,
+    turn: CustomerConversationTurn,
+    confirmed: Pick<CustomerConversationState, "confirmedOrderIds" | "confirmedProductModels" | "confirmedServiceTypes">,
+    options?: { signal?: AbortSignal },
+  ): Promise<CustomerConversationState>;
 }
 
 function unique<T>(values: T[]): T[] {
@@ -40,6 +61,45 @@ const modelAliases: Array<[string, RegExp]> = [
   ["DEMO-X8", /云巡\s*X8|X8巡检/i],
   ["DEMO-T60", /山岳\s*T60|T60复合翼/i],
 ];
+
+function sameValues(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((value) => right.includes(value));
+}
+
+function explicitHumanRequest(input: string): boolean {
+  const hasPositiveRequest = /转人工|人工客服|真人客服|找客服人员|人工处理/.test(input);
+  const hasNegation = /(?:不要|不用|无需|暂不|先不|不想|别)(?:给我|帮我|立即|马上|再)?(?:转|找|联系)?(?:人工|真人|客服)|不是(?:要|想)(?:转|找)?人工/.test(input);
+  return hasPositiveRequest && !hasNegation;
+}
+
+function extractComplaintElements(
+  input: string,
+  orderIds: string[],
+  productModels: string[],
+  serviceTypes: string[],
+): CustomerComplaintElements {
+  const topicRules: Array<[string, RegExp]> = [
+    ["物流进度异常", /物流(?:停滞|未更新|不更新|异常)|一直没发货|迟迟未到/],
+    ["退款或售后处理", /退款|退货|换货|售后|维修/],
+    ["服务态度或处理时效", /态度|一直不处理|无人处理|拖延/],
+    ["疑似欺诈或违规", /欺诈|诈骗|虚假|违规/],
+  ];
+  const topic = topicRules.find(([, rule]) => rule.test(input))?.[0] ?? "投诉事项";
+  const relatedObject = orderIds[0]
+    ? `订单 ${orderIds[0]}`
+    : productModels[0]
+      ? `商品 ${productModels[0]}`
+      : serviceTypes[0]
+        ? `${serviceTypes[0]}事项`
+        : null;
+  const occurredAt = input.match(/(?:20\d{2}年)?\d{1,2}月\d{1,2}日|今天|昨天|前天|上周|本周/)?.[0] ?? null;
+  const coreRequest = input.match(/(?:诉求(?:是|为)?|希望|要求|请(?:尽快)?)([^，。；]{2,80})/)?.[1]?.trim() ?? null;
+  return { topic, relatedObject, occurredAt, coreRequest };
+}
+
+function assertDemoAccessScope(accessScope: CustomerAccessScope): void {
+  if (accessScope.source !== "demo") throw new Error("Mock customer data only accepts the isolated demo access scope");
+}
 
 function detectDomains(input: string): Domain[] {
   const domains: Domain[] = [];
@@ -67,28 +127,45 @@ function detectIssues(input: string): Issue[] {
 }
 
 export class DemoAIPlatformAdapter implements AIPlatformPort {
-  async understandCustomerRequest(request: Ag025InvokeRequest): Promise<CustomerServiceIntent> {
+  async understandCustomerRequest(request: Ag025InvokeRequest, conversation: CustomerConversationState | null): Promise<CustomerServiceIntent> {
     const input = request.input.trim();
     const domains = detectDomains(input);
     const issueTypes = detectIssues(input);
-    const explicitHumanRequest = /转人工|人工客服|真人客服|找客服人员|人工处理/.test(input);
+    const wantsHuman = explicitHumanRequest(input);
     const highRiskBoundary = issueTypes.some((issue) => ["finance", "credit", "analytics", "violation"].includes(issue));
-    const orderIds = contextOrderIds(request).length ? contextOrderIds(request) : textOrderIds(input);
-    const productModels = request.context?.product_id
-      ? [request.context.product_id]
-      : modelAliases.filter(([, rule]) => rule.test(input)).map(([id]) => id);
+    const contextOrders = contextOrderIds(request);
+    const inputOrders = textOrderIds(input);
+    const explicitOrders = unique([...contextOrders, ...inputOrders]);
+    const sessionOrders = conversation?.confirmedOrderIds ?? [];
+    const orderIds = explicitOrders.length ? explicitOrders : issueTypes.includes("order") ? sessionOrders : [];
+    const contextProducts = request.context?.product_id ? [request.context.product_id.toUpperCase()] : [];
+    const inputProducts = modelAliases.filter(([, rule]) => rule.test(input)).map(([id]) => id);
+    const explicitProducts = unique([...contextProducts, ...inputProducts]);
+    const sessionProducts = conversation?.confirmedProductModels ?? [];
+    const productModels = explicitProducts.length ? explicitProducts : issueTypes.includes("product") ? sessionProducts : [];
     const serviceTypes = unique([
       ...(/飞行服务|空域|报备|航线/.test(input) ? ["飞行服务"] : []),
       ...(/技术服务|设备故障|技术支持|调试/.test(input) ? ["技术服务"] : []),
       ...(/商业服务|投融资|融资|信贷|贷款/.test(input) ? ["商业服务"] : []),
     ]);
     const missingFields: string[] = [];
-    if (issueTypes.includes("order") && orderIds.length !== 1) missingFields.push(orderIds.length > 1 ? "需要确认唯一订单号" : "订单号");
+    const conflicts: string[] = [];
+    const orderConflict = Boolean(contextOrders.length && inputOrders.length && !sameValues(contextOrders, inputOrders));
+    const productConflict = Boolean(contextProducts.length && inputProducts.length && !sameValues(contextProducts, inputProducts));
+    if (orderConflict) {
+      conflicts.push("正文订单号与上下文订单号不一致");
+      missingFields.push("正文与上下文中的唯一订单号");
+    }
+    if (productConflict) {
+      conflicts.push("正文商品型号与上下文商品型号不一致");
+      missingFields.push("正文与上下文中的唯一商品型号");
+    }
+    if (!orderConflict && issueTypes.includes("order") && orderIds.length !== 1) missingFields.push(orderIds.length > 1 ? "需要确认唯一订单号" : "订单号");
     const unknown = issueTypes.length === 1 && issueTypes[0] === "unknown";
     if (unknown) missingFields.push("具体问题或业务板块");
 
     let route: CustomerServiceIntent["route"] = "knowledge_answer";
-    if (explicitHumanRequest || issueTypes.includes("complaint") || highRiskBoundary) route = "human_handoff";
+    if (wantsHuman || issueTypes.includes("complaint") || highRiskBoundary) route = "human_handoff";
     else if (missingFields.length) route = "clarification";
     else if (issueTypes.includes("order") || productModels.length) route = "business_data";
     else if (issueTypes.includes("product") || issueTypes.includes("service")) route = "specialist_agent";
@@ -96,11 +173,15 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
 
     const needsClarification = route === "clarification";
     const confidence = unknown ? 0.25 : domains.includes("unknown") ? 0.58 : Math.min(0.96, 0.74 + Math.min(issueTypes.length, 2) * 0.08 + (orderIds.length || productModels.length ? 0.06 : 0));
+    const priorContextUsed = Boolean(conversation && !explicitOrders.length && !explicitProducts.length && (orderIds.length || productModels.length));
+    const complaintElements = issueTypes.includes("complaint")
+      ? extractComplaintElements(input, orderIds, productModels, serviceTypes)
+      : null;
     return {
       domains, issueTypes, route, confidence, orderIds, productModels, serviceTypes, missingFields,
       needsClarification,
       clarificationMessage: needsClarification ? `请补充${missingFields.join("、")}，我再选择正确的客服处理路径。` : null,
-      explicitHumanRequest, highRiskBoundary,
+      explicitHumanRequest: wantsHuman, highRiskBoundary, priorContextUsed, conflicts, complaintElements,
     };
   }
 
@@ -122,15 +203,57 @@ export class MockCustomerServiceDataAdapter implements CustomerServiceDataPort {
     return structuredClone((matches.length ? matches : DEMO_CUSTOMER_SERVICE_KNOWLEDGE.filter((entry) => entry.issueType === "general_rule")).slice(0, limit));
   }
 
-  async getOrders(ids: string[]): Promise<CustomerOrderSnapshot[]> {
+  async getOrders(ids: string[], accessScope: CustomerAccessScope): Promise<CustomerOrderSnapshot[]> {
+    assertDemoAccessScope(accessScope);
     return structuredClone(DEMO_CUSTOMER_ORDERS.filter((order) => ids.includes(order.id)));
   }
 
-  async findProducts(models: string[]): Promise<CustomerProductSnapshot[]> {
+  async findProducts(models: string[], accessScope: CustomerAccessScope): Promise<CustomerProductSnapshot[]> {
+    assertDemoAccessScope(accessScope);
     return structuredClone(DEMO_CUSTOMER_PRODUCTS.filter((product) => models.includes(product.id) || models.some((model) => product.name.includes(model))));
   }
 
-  async getServiceGuides(serviceTypes: string[]): Promise<CustomerServiceGuide[]> {
+  async getServiceGuides(serviceTypes: string[], accessScope: CustomerAccessScope): Promise<CustomerServiceGuide[]> {
+    assertDemoAccessScope(accessScope);
     return structuredClone(DEMO_CUSTOMER_SERVICE_GUIDES.filter((guide) => serviceTypes.includes(guide.serviceType)));
+  }
+}
+
+const MAX_DEMO_SESSIONS = 500;
+const MAX_DEMO_TURNS = 6;
+
+export class DemoCustomerConversationAdapter implements CustomerConversationPort {
+  private readonly sessions = new Map<string, CustomerConversationState>();
+
+  private key(sessionId: string, accessScope: CustomerAccessScope): string {
+    return [accessScope.source, accessScope.tenantId ?? "-", accessScope.subjectId ?? "-", sessionId].join(":");
+  }
+
+  async loadSession(sessionId: string, accessScope: CustomerAccessScope): Promise<CustomerConversationState | null> {
+    const state = this.sessions.get(this.key(sessionId, accessScope));
+    return state ? structuredClone(state) : null;
+  }
+
+  async saveTurn(
+    sessionId: string,
+    accessScope: CustomerAccessScope,
+    turn: CustomerConversationTurn,
+    confirmed: Pick<CustomerConversationState, "confirmedOrderIds" | "confirmedProductModels" | "confirmedServiceTypes">,
+  ): Promise<CustomerConversationState> {
+    const key = this.key(sessionId, accessScope);
+    const previous = this.sessions.get(key);
+    const state: CustomerConversationState = {
+      sessionId,
+      confirmedOrderIds: unique([...(previous?.confirmedOrderIds ?? []), ...confirmed.confirmedOrderIds]),
+      confirmedProductModels: unique([...(previous?.confirmedProductModels ?? []), ...confirmed.confirmedProductModels]),
+      confirmedServiceTypes: unique([...(previous?.confirmedServiceTypes ?? []), ...confirmed.confirmedServiceTypes]),
+      recentTurns: [...(previous?.recentTurns ?? []), turn].slice(-MAX_DEMO_TURNS),
+    };
+    if (!this.sessions.has(key) && this.sessions.size >= MAX_DEMO_SESSIONS) {
+      const oldestKey = this.sessions.keys().next().value;
+      if (oldestKey) this.sessions.delete(oldestKey);
+    }
+    this.sessions.set(key, state);
+    return structuredClone(state);
   }
 }

@@ -341,6 +341,14 @@ export const AgentCustomerServiceOutputSchema = z.object({
       service_types: z.array(z.string()),
     }),
     missing_fields: z.array(z.string()),
+    prior_context_used: z.boolean(),
+    conflicts: z.array(z.string()),
+    complaint_elements: z.object({
+      topic: z.string().nullable(),
+      related_object: z.string().nullable(),
+      occurred_at: z.string().nullable(),
+      core_request: z.string().nullable(),
+    }).nullable(),
   }),
   answer: z.string(),
   knowledge_matches: z.array(z.object({
@@ -360,6 +368,13 @@ export const AgentCustomerServiceOutputSchema = z.object({
     confirmed_information: z.array(z.string()),
     pending_items: z.array(z.string()),
     execution_status: z.literal("recommendation_only"),
+  }),
+  conversation: z.object({
+    session_id: z.string().nullable(),
+    turn_count: z.number().int().nonnegative(),
+    prior_context_used: z.boolean(),
+    user_problem_summary: z.string(),
+    processing_trace_summary: z.string(),
   }),
   capability_coverage: z.array(z.object({
     requirement_id: z.string(), capability: z.string(), status: z.enum(["mock-demonstrated", "adapter-ready"]),

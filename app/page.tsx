@@ -7,7 +7,7 @@ import { AgentGatewayError, invokeAgent } from "./lib/agent-gateway";
 
 const capabilityStats = [
   { value: "05", label: "可运行 Agent" },
-  { value: "177", label: "已映射能力点" },
+  { value: "178", label: "已映射能力点" },
   { value: "05", label: "服务端适配端口" },
 ];
 
@@ -310,11 +310,21 @@ function CustomerServicePanel({ customerService }: { customerService: AgentCusto
     `置信度 · ${Math.round(customerService.intent.confidence * 100)}%`,
     ...customerService.intent.domains.map((item) => `板块 · ${domainLabels[item]}`),
     ...customerService.intent.issue_types.map((item) => `问题 · ${issueLabels[item]}`),
+    ...(customerService.intent.prior_context_used ? ["上下文 · 已复用前序会话"] : []),
   ];
+  const complaint = customerService.intent.complaint_elements;
+  const complaintItems = complaint ? [
+    complaint.topic && `问题主题：${complaint.topic}`,
+    complaint.related_object && `涉及对象：${complaint.related_object}`,
+    complaint.occurred_at && `发生时间：${complaint.occurred_at}`,
+    complaint.core_request && `核心诉求：${complaint.core_request}`,
+  ].filter((item): item is string => Boolean(item)) : [];
   return (
     <div className="customer-service-result">
       <div className="intent-strip"><span>客服理解</span><div>{intentItems.map((item) => <b key={item}>{item}</b>)}</div></div>
       <div className="customer-answer"><span>{routeLabels[customerService.intent.route]}</span><p>{customerService.answer}</p></div>
+      {complaintItems.length > 0 && <section className="customer-tools"><header><strong>投诉要素理解</strong><small>主题 · 对象 · 时间 · 核心诉求</small></header><div>{complaintItems.map((item) => <article key={item}><span>已识别</span><p>{item}</p></article>)}</div></section>}
+      {customerService.conversation.session_id && <section className="customer-knowledge"><header><strong>会话上下文摘要</strong><small>{customerService.conversation.turn_count} 轮 · {customerService.conversation.prior_context_used ? "本轮已复用前序信息" : "本轮未复用前序实体"}</small></header><div><article><span>{String(customerService.conversation.turn_count).padStart(2, "0")}</span><div><strong>{customerService.conversation.user_problem_summary}</strong><p>{customerService.conversation.processing_trace_summary}</p></div></article></div></section>}
       {customerService.tool_results.length > 0 && <section className="customer-tools"><header><strong>业务工具结果</strong><small>只按明确实体查询，不扩展读取其他记录</small></header><div>{customerService.tool_results.map((item) => <article className={`tool-${item.status}`} key={`${item.tool}-${item.label}`}><span>{item.status === "found" ? "已找到" : "未找到"}</span><strong>{item.label}</strong><p>{item.value}</p><small>{item.source_ref}</small></article>)}</div></section>}
       {customerService.knowledge_matches.length > 0 && <section className="customer-knowledge"><header><strong>答复依据</strong><small>虚构 FAQ 与规则样例</small></header><div>{customerService.knowledge_matches.map((item) => <article key={item.id}><span>{Math.round(item.relevance * 100)}%</span><div><strong>{item.title}</strong><p>{item.excerpt}</p><small>{item.source_ref}</small></div></article>)}</div></section>}
       {customerService.handoff.required && <section className="handoff-card"><header><span>{customerService.handoff.priority.toUpperCase()}</span><strong>建议转接：{customerService.handoff.target_team}</strong><b>尚未执行</b></header><p>{customerService.handoff.reason}</p><div><article><strong>已确认信息</strong>{customerService.handoff.confirmed_information.length ? customerService.handoff.confirmed_information.map((item) => <span key={item}>{item}</span>) : <span>暂无已确认业务实体</span>}</article><article><strong>待处理事项</strong>{customerService.handoff.pending_items.map((item) => <span key={item}>{item}</span>)}</article></div></section>}
