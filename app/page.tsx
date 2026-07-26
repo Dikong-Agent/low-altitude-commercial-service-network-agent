@@ -15,6 +15,7 @@ function AgentMark({ agent, compact = false }: { agent: AgentDefinition; compact
 }
 
 function ComparisonPanel({ comparison }: { comparison: AgentComparisonOutput }) {
+  const [tableView, setTableView] = useState<"horizontal" | "vertical">("horizontal");
   const productById = new Map(comparison.products.map((product) => [product.id, product]));
   const intentItems = [
     comparison.intent.use_case ? `场景 · ${comparison.intent.use_case}` : null,
@@ -35,20 +36,41 @@ function ComparisonPanel({ comparison }: { comparison: AgentComparisonOutput }) 
         <p>{comparison.recommendation.reason}</p>
       </div>
 
-      {comparison.table.length > 0 && (
-        <div className="comparison-table-wrap">
-          <table className="comparison-table">
-            <thead><tr><th>对比维度</th>{comparison.products.map((product) => <th key={product.id}>{product.name.replace("样例·", "")}</th>)}</tr></thead>
-            <tbody>{comparison.table.map((row) => (
-              <tr key={row.key}><th>{row.label}</th>{row.values.map((value) => (
-                <td key={value.product_id} className={row.best_product_ids.includes(value.product_id) ? "best" : ""}>
-                  {value.display}{row.best_product_ids.includes(value.product_id) && <small>优势项</small>}
-                </td>
-              ))}</tr>
-            ))}</tbody>
-          </table>
+      {comparison.table.length > 0 && <>
+        <div className="table-view-switch" aria-label="对比表布局">
+          <span>参数对比</span>
+          <div>
+            <button type="button" aria-pressed={tableView === "horizontal"} onClick={() => setTableView("horizontal")}>横向表</button>
+            <button type="button" aria-pressed={tableView === "vertical"} onClick={() => setTableView("vertical")}>纵向表</button>
+          </div>
         </div>
-      )}
+        {tableView === "horizontal" ? (
+          <div className="comparison-table-wrap">
+            <table className="comparison-table">
+              <thead><tr><th>对比维度</th>{comparison.products.map((product) => <th key={product.id}>{product.name.replace("样例·", "")}</th>)}</tr></thead>
+              <tbody>{comparison.table.map((row) => (
+                <tr key={row.key}><th>{row.label}</th>{row.values.map((value) => (
+                  <td key={value.product_id} className={row.best_product_ids.includes(value.product_id) ? "best" : ""}>
+                    {value.display}{row.best_product_ids.includes(value.product_id) && <small>优势项</small>}
+                  </td>
+                ))}</tr>
+              ))}</tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="vertical-comparison-list">
+            {comparison.products.map((product) => (
+              <article key={product.id}>
+                <header><small>{product.id}</small><strong>{product.name}</strong></header>
+                <div>{comparison.table.map((row) => {
+                  const value = row.values.find((item) => item.product_id === product.id);
+                  return <p key={row.key}><span>{row.label}</span><b className={row.best_product_ids.includes(product.id) ? "best" : ""}>{value?.display ?? "未提供"}</b></p>;
+                })}</div>
+              </article>
+            ))}
+          </div>
+        )}
+      </>}
 
       <div className="product-evaluations">
         {comparison.products.map((product) => (
