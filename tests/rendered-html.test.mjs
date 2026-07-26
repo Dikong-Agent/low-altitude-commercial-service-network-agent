@@ -34,9 +34,9 @@ test("renders the Agent capability showroom", async () => {
   assert.match(html, /五种模式，一套底座/);
   assert.match(html, /AG-001/);
   assert.match(html, /AG-025/);
-  assert.match(html, /V1\.4/);
-  assert.equal((html.match(/<i>RUNNABLE<\/i>/g) ?? []).length, 2);
-  assert.equal((html.match(/<i>PREVIEW<\/i>/g) ?? []).length, 3);
+  assert.match(html, /V1\.5/);
+  assert.equal((html.match(/<i>RUNNABLE<\/i>/g) ?? []).length, 3);
+  assert.equal((html.match(/<i>PREVIEW<\/i>/g) ?? []).length, 2);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
 
@@ -256,6 +256,99 @@ test("serves the AG-002 mock manual directory through DocumentDataPort", async (
   const missing = await worker.fetch(new Request("http://localhost/api/data/manuals?id=UNKNOWN"), env, ctx);
   assert.equal(missing.status, 404);
   assert.equal((await missing.json()).code, "DOCUMENT_NOT_FOUND");
+});
+
+test("runs AG-003 through the scenario-solution recommendation workflow", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-003", "需要一套山区电力巡检方案，强调抗风和长续航，如何选？");
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-agent-engine"), "langgraph-demo");
+  const body = await response.json();
+  assert.equal(body.status, "completed");
+  assert.equal(body.output.recommendation.mode, "scenario_solution");
+  assert.equal(body.output.recommendation.recommendation.primary_id, "DEMO-SOLUTION-MOUNTAIN-POWER");
+  assert.equal(body.output.recommendation.capability_coverage.length, 32);
+  assert.equal(body.output.recommendation.capability_coverage.filter((item) => item.status === "mock-demonstrated").length, 12);
+  assert.equal(body.output.recommendation.capability_coverage.filter((item) => item.status === "adapter-ready").length, 20);
+  assert.match(body.output.recommendation.data_notice, /虚构 Mock 数据/);
+  assert.ok(body.trace.length >= 6);
+});
+
+test("AG-003 recommends an eligible entry product within a hard budget", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-003", "为新手推荐适合航拍入门的产品，预算不超过3万元");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "completed");
+  assert.equal(body.output.recommendation.mode, "product_search");
+  assert.equal(body.output.recommendation.recommendation.primary_id, "DEMO-C1");
+  const primary = body.output.recommendation.product_candidates.find((item) => item.id === "DEMO-C1");
+  assert.equal(primary.eligible, true);
+  assert.ok(primary.price_yuan <= 30_000);
+});
+
+test("AG-003 corrects a product search term and ranks the matching model", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-003", "帮我搜索云训X8，重点看长续航和抗风");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "completed");
+  assert.deepEqual(body.output.recommendation.intent.corrected_terms, [{ from: "云训x8", to: "云巡X8" }]);
+  assert.equal(body.output.recommendation.recommendation.primary_id, "DEMO-X8");
+});
+
+test("AG-003 refuses a forced recommendation when all candidates conflict", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-003", "推荐适合航拍的产品，预算不超过1万元");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "needs_review");
+  assert.equal(body.output.recommendation.recommendation.primary_id, null);
+  assert.ok(body.output.recommendation.gaps.some((item) => /预算/.test(item)));
+});
+
+test("AG-003 clarifies vague requests and stops at image/C2C adapter boundaries", async () => {
+  const worker = await loadWorker();
+  const vague = await invoke(worker, "AG-003", "你好");
+  assert.equal(vague.status, 200);
+  assert.equal((await vague.json()).status, "needs_clarification");
+
+  for (const input of ["上传一张图片帮我找相似商品", "按卖家信用推荐同城二手无人机"]) {
+    const response = await invoke(worker, "AG-003", input);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.status, "needs_clarification");
+    assert.equal(body.output.recommendation, undefined);
+    assert.match(body.output.summary, /不能/);
+  }
+});
+
+test("an invalid AG-003 provider is isolated from the other Agents", async () => {
+  const worker = await loadWorker();
+  const previousProvider = process.env.AG003_PROVIDER;
+  process.env.AG003_PROVIDER = "missing-audit-provider";
+  try {
+    const healthyAgent = await invoke(worker, "AG-001", "对比云巡 X8 和山岳 T60");
+    assert.equal(healthyAgent.status, 200);
+    const failedAgent = await invoke(worker, "AG-003", "推荐适合航拍的产品");
+    assert.equal(failedAgent.status, 503);
+    assert.equal((await failedAgent.json()).code, "DEPENDENCY_UNAVAILABLE");
+  } finally {
+    if (previousProvider === undefined) delete process.env.AG003_PROVIDER;
+    else process.env.AG003_PROVIDER = previousProvider;
+  }
+});
+
+test("serves the AG-003 mock solution directory through BusinessDataPort", async () => {
+  const worker = await loadWorker();
+  const response = await worker.fetch(new Request("http://localhost/api/data/solutions?scenario=%E5%B1%B1%E5%8C%BA%E5%B7%A1%E6%A3%80"), env, ctx);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.environment, "demo");
+  assert.equal(body.connector.port, "BusinessDataPort");
+  assert.equal(body.connector.status, "mock-active");
+  assert.ok(body.items.length >= 1);
+  assert.match(body.notice, /虚构样例/);
 });
 
 test("AG-001 evaluates hard constraints before limiting candidates", async () => {

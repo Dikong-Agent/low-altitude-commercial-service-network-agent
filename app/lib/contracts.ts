@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-export const AGENT_INTERFACE_VERSION = "v1.3";
+export const AGENT_INTERFACE_VERSION = "v1.4";
 export const MAX_AGENT_INPUT_LENGTH = 2_000;
 export const MAX_AGENT_CONTEXT_BYTES = 12_000;
 
@@ -181,6 +181,57 @@ export const AgentManualOutputSchema = z.object({
 });
 export type AgentManualOutput = z.infer<typeof AgentManualOutputSchema>;
 
+export const RecommendationModeSchema = z.enum(["scenario_solution", "product_search", "image_search", "c2c_recommendation"]);
+export type RecommendationMode = z.infer<typeof RecommendationModeSchema>;
+
+export const RecommendationCandidateSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  candidate_type: z.enum(["scenario_solution", "product"]),
+  category: z.string(),
+  score: z.number().min(0).max(100),
+  eligible: z.boolean(),
+  price_yuan: z.number().nonnegative(),
+  matched_tags: z.array(z.string()),
+  limitations: z.array(z.string()),
+  reason: z.string(),
+  source: z.string(),
+});
+export type RecommendationCandidate = z.infer<typeof RecommendationCandidateSchema>;
+
+export const AgentRecommendationOutputSchema = z.object({
+  engine: z.enum(["langgraph-demo", "langgraph-adapter"]),
+  mode: RecommendationModeSchema,
+  intent: z.object({
+    use_cases: z.array(z.string()),
+    budget_yuan: z.number().nonnegative().nullable(),
+    focus_tags: z.array(z.string()),
+    query_terms: z.array(z.string()),
+    corrected_terms: z.array(z.object({ from: z.string(), to: z.string() })),
+    experience_level: z.enum(["beginner", "professional", "unspecified"]),
+    hard_constraints: z.array(z.string()),
+  }),
+  solution_candidates: z.array(RecommendationCandidateSchema),
+  product_candidates: z.array(RecommendationCandidateSchema),
+  recommendation: z.object({
+    primary_id: z.string().nullable(),
+    primary_name: z.string().nullable(),
+    primary_type: z.enum(["scenario_solution", "product"]).nullable(),
+    reason: z.string(),
+    alternative_ids: z.array(z.string()),
+  }),
+  gaps: z.array(z.string()),
+  missing_data: z.array(z.string()),
+  capability_coverage: z.array(z.object({
+    requirement_id: z.string(),
+    capability: z.string(),
+    status: z.enum(["mock-demonstrated", "adapter-ready"]),
+  })),
+  data_notice: z.string(),
+  rule_version: z.string(),
+});
+export type AgentRecommendationOutput = z.infer<typeof AgentRecommendationOutputSchema>;
+
 export const AgentInvokeResponseSchema = z.object({
   request_id: z.string(),
   trace_id: z.string(),
@@ -194,6 +245,7 @@ export const AgentInvokeResponseSchema = z.object({
     evidence: z.array(z.string()),
     comparison: AgentComparisonOutputSchema.optional(),
     manual: AgentManualOutputSchema.optional(),
+    recommendation: AgentRecommendationOutputSchema.optional(),
   }),
   trace: z.array(z.object({ name: z.string(), detail: z.string() })),
 });

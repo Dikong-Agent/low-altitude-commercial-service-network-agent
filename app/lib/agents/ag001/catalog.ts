@@ -43,5 +43,11 @@ export const DEMO_PRODUCT_CATALOG: DemoProduct[] = [
     operatingTemperature: "0℃～40℃", deliveryDays: 7, warrantyMonths: 12, trainingIncluded: false,
     source: "Mock产品参数库 v1.0 / DEMO-A2", updatedAt: "2026-07-26",
   },
+  {
+    id: "DEMO-C1", name: "样例·晴空 C1", aliases: ["晴空 C1", "晴空C1", "C1"], category: "入门航拍无人机",
+    description: "面向初次使用者、轻量航拍和培训展示的入门样例机型。", scenarios: ["轻量航拍", "培训教学"],
+    priceYuan: 26800, enduranceMinutes: 28, payloadKg: 0.5, windResistanceMps: 7, ingressProtection: "IP42",
+    operatingTemperature: "0℃～40℃", deliveryDays: 5, warrantyMonths: 12, trainingIncluded: true,
+    source: "Mock产品参数库 v1.1 / DEMO-C1", updatedAt: "2026-07-26",
+  },
 ];
-

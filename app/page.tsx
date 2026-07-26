@@ -2,12 +2,12 @@
 
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AGENTS } from "./lib/agent-registry";
-import type { AgentComparisonOutput, AgentDefinition, AgentId, AgentManualOutput } from "./lib/contracts";
+import type { AgentComparisonOutput, AgentDefinition, AgentId, AgentManualOutput, AgentRecommendationOutput } from "./lib/contracts";
 import { AgentGatewayError, invokeAgent } from "./lib/agent-gateway";
 
 const capabilityStats = [
-  { value: "02", label: "可运行 Agent" },
-  { value: "29", label: "已映射能力点" },
+  { value: "03", label: "可运行 Agent" },
+  { value: "61", label: "已映射能力点" },
   { value: "03", label: "服务端适配端口" },
 ];
 
@@ -194,6 +194,46 @@ function ManualPanel({ manual }: { manual: AgentManualOutput }) {
   );
 }
 
+function RecommendationPanel({ recommendation }: { recommendation: AgentRecommendationOutput }) {
+  const candidates = [...recommendation.solution_candidates, ...recommendation.product_candidates];
+  const intentItems = [
+    ...recommendation.intent.use_cases.map((item) => `场景 · ${item}`),
+    recommendation.intent.budget_yuan ? `预算 · ${(recommendation.intent.budget_yuan / 10_000).toFixed(1)}万元` : null,
+    ...recommendation.intent.focus_tags.map((item) => `关注 · ${item}`),
+    ...recommendation.intent.query_terms.map((item) => `搜索 · ${item}`),
+    recommendation.intent.experience_level === "beginner" ? "用户 · 新手" : null,
+  ].filter((item): item is string => Boolean(item));
+  const demonstrated = recommendation.capability_coverage.filter((item) => item.status === "mock-demonstrated").length;
+
+  return (
+    <div className="recommendation-result">
+      <div className="intent-strip"><span>导购理解</span><div>{intentItems.map((item) => <b key={item}>{item}</b>)}</div></div>
+      {recommendation.intent.corrected_terms.length > 0 && <div className="correction-note"><span>搜索词纠错</span>{recommendation.intent.corrected_terms.map((item) => <b key={item.from}>{item.from} → {item.to}</b>)}</div>}
+      <div className={`recommendation-band ${recommendation.recommendation.primary_id ? "success" : "review"}`}>
+        <span>{recommendation.recommendation.primary_id ? "首选建议" : "约束结论"}</span>
+        <strong>{recommendation.recommendation.primary_name ?? "当前无满足全部条件的候选"}</strong>
+        <p>{recommendation.recommendation.reason}</p>
+      </div>
+      <section className="candidate-section">
+        <header><strong>{recommendation.mode === "scenario_solution" ? "场景方案候选" : "商品候选"}</strong><small>先执行硬条件，再按相关性排序</small></header>
+        <div>{candidates.map((candidate, index) => (
+          <article className={candidate.eligible ? "eligible" : "ineligible"} key={candidate.id}>
+            <div className="candidate-rank"><span>0{index + 1}</span><b>{candidate.score}<small>/100</small></b></div>
+            <div className="candidate-copy"><small>{candidate.id} · {candidate.category}</small><strong>{candidate.name}</strong><p>{candidate.reason}</p>
+              <div>{candidate.matched_tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+              <em>样例价 ¥{candidate.price_yuan.toLocaleString("zh-CN")} · {candidate.eligible ? "通过当前硬条件" : "未通过当前硬条件"}</em>
+            </div>
+          </article>
+        ))}</div>
+      </section>
+      {recommendation.gaps.length > 0 && <div className="recommendation-gaps"><strong>差距与待确认事项</strong>{recommendation.gaps.slice(0, 5).map((item) => <p key={item}>! {item}</p>)}</div>}
+      <div className="manual-coverage"><span><b>{recommendation.capability_coverage.length}</b>项现行能力已对齐</span><p>{demonstrated}项使用 Mock 目录演示；其余图片找货与 C2C 个性化能力仅预留正式 AI 中台和业务数据适配接口。</p></div>
+      <p className="data-notice">{recommendation.data_notice}</p>
+      <span className="engine-label">ENGINE · {recommendation.engine.toUpperCase()} · {recommendation.rule_version}</span>
+    </div>
+  );
+}
+
 export default function Home() {
   const [selectedId, setSelectedId] = useState<AgentId>("AG-001");
   const [input, setInput] = useState(AGENTS[0].prompts[0]);
@@ -348,13 +388,14 @@ export default function Home() {
             <div className="conversation-body">
               <div className="welcome-copy"><span className={`mini-symbol tone-${selected.tone}`}>{selected.symbol}</span><h3>{selected.welcome}</h3><p>{selected.demoHint}</p></div>
               {selected.id === "AG-002" && !response && !loading && <div className="manual-source-chip"><span>当前样例文档</span><strong>云巡 X8 无人机用户手册</strong><small>v0.9-demo · 虚构预解析材料</small></div>}
+              {selected.id === "AG-003" && !response && !loading && <div className="recommendation-source-chip"><span>当前样例目录</span><strong>7 个虚构产品 · 3 套虚构场景方案</strong><small>仅用于规则推荐与接口演示，不代表真实商城数据</small></div>}
               {!response && !loading && <div className="prompt-list"><span>推荐演示问题</span>{selected.prompts.map((prompt) => <button type="button" key={prompt} onClick={() => setInput(prompt)}>{prompt}<i>↗</i></button>)}</div>}
               {loading && <div className="thinking-card"><div className="thinking-head"><span className="loading-dots"><i /><i /><i /></span> Agent 正在处理</div><div className="loading-line"><span /></div><p>正在理解问题、调用演示工具并组织可解释结果…</p></div>}
               {error && <div className="error-card"><strong>运行未完成</strong><p>{error}</p></div>}
               {response && (
                 <div className="result-card">
-                  <div className="result-kicker"><span>{response.status === "preview" ? "能力预览" : response.status === "needs_review" ? "演示结果 · 需复核" : "演示结果"}</span><b title={response.trace_id}>{response.request_id} · TRACE</b></div><h3>{response.output.title}</h3><p>{response.output.summary}</p>
-                  {response.output.comparison ? <ComparisonPanel comparison={response.output.comparison} /> : response.output.manual ? <ManualPanel manual={response.output.manual} /> : <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>}
+                  <div className="result-kicker"><span>{response.status === "preview" ? "能力预览" : response.status === "needs_review" ? "演示结果 · 需复核" : response.status === "needs_clarification" ? "需要补充或适配" : "演示结果"}</span><b title={response.trace_id}>{response.request_id} · TRACE</b></div><h3>{response.output.title}</h3><p>{response.output.summary}</p>
+                  {response.output.comparison ? <ComparisonPanel comparison={response.output.comparison} /> : response.output.manual ? <ManualPanel manual={response.output.manual} /> : response.output.recommendation ? <RecommendationPanel recommendation={response.output.recommendation} /> : <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>}
                   <div className="evidence-row"><span>依据</span>{response.output.evidence.map((item) => <b key={item}>{item}</b>)}</div>
                   <small>本结果由样例知识与演示数据生成，不代表正式业务结论。</small>
                 </div>
@@ -371,7 +412,7 @@ export default function Home() {
               )}
             </div>
             <form className="composer" onSubmit={runAgent}>
-              <button type="button" className="attach-button" title="演示阶段使用预置样例材料，暂不接收文件上传" aria-label="样例材料上传暂未开放" disabled>＋</button>
+              <button type="button" className="attach-button" title={selected.id === "AG-003" ? "图片找货需等待正式视觉能力与商品数据接入" : "演示阶段使用预置样例材料，暂不接收文件上传"} aria-label="样例材料上传暂未开放" disabled>＋</button>
               <input value={input} onChange={(event) => setInput(event.target.value)} aria-label="向 Agent 提问" placeholder="输入一个业务问题…" />
               <button type="submit" className="send-button" disabled={loading || !input.trim()} aria-label="发送">↑</button>
               <div className="composer-meta"><span>ENTER 发送</span><b>演示接口已连接</b></div>
@@ -402,7 +443,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.4</p><span>AG-001 / AG-002 可运行 · Mock数据</span></footer>
+      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.5</p><span>AG-001 / AG-002 / AG-003 可运行 · Mock数据</span></footer>
     </main>
   );
 }
