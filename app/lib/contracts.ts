@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-export const AGENT_INTERFACE_VERSION = "v1.2";
+export const AGENT_INTERFACE_VERSION = "v1.3";
 export const MAX_AGENT_INPUT_LENGTH = 2_000;
 export const MAX_AGENT_CONTEXT_BYTES = 12_000;
 
@@ -43,6 +43,16 @@ export const AgentInvokeRequestSchema = z.object({
   context: AgentContextSchema.optional(),
 }).strict();
 export type AgentInvokeRequest = z.infer<typeof AgentInvokeRequestSchema>;
+
+export const Ag002ContextSchema = z.object({
+  document_id: z.string().trim().min(1).max(128).optional(),
+}).passthrough();
+
+export const Ag002InvokeRequestSchema = AgentInvokeRequestSchema.extend({
+  agent_id: z.literal("AG-002"),
+  context: Ag002ContextSchema.optional(),
+});
+export type Ag002InvokeRequest = z.infer<typeof Ag002InvokeRequestSchema>;
 
 export const ComparisonIntentViewSchema = z.object({
   product_names: z.array(z.string()),
@@ -135,14 +145,14 @@ export const ManualGlossaryItemSchema = z.object({
 export type ManualGlossaryItem = z.infer<typeof ManualGlossaryItemSchema>;
 
 export const AgentManualOutputSchema = z.object({
-  engine: z.literal("langgraph-demo"),
+  engine: z.enum(["langgraph-demo", "langgraph-adapter"]),
   document: z.object({
     id: z.string(),
     title: z.string(),
     product_name: z.string(),
     version: z.string(),
     updated_at: z.string(),
-    source_type: z.literal("虚构样例说明书"),
+    source_type: z.string(),
   }),
   intent: z.object({
     topics: z.array(ManualTopicSchema),
@@ -159,7 +169,7 @@ export const AgentManualOutputSchema = z.object({
     tables: z.number().int().nonnegative(),
     figures: z.number().int().nonnegative(),
     scanned_pages: z.number().int().nonnegative(),
-    recognition_mode: z.literal("demo-preparsed"),
+    recognition_mode: z.enum(["demo-preparsed", "ocr-layout", "multimodal-layout"]),
   }),
   capability_coverage: z.array(z.object({
     requirement_id: z.string(),

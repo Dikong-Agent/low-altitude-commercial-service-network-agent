@@ -1,25 +1,39 @@
 import type { AgentInvokeRequest, ManualTopic } from "../../contracts";
+import { DependencyUnavailableError } from "../../reliability";
 import { DEMO_MANUALS } from "./catalog";
 import { AG002_CONFIG } from "./config";
-import type { DemoManualAsset, ManualIntent, ParsedManual } from "./types";
+import { rankManualSections } from "./engine";
+import {
+  DemoManualContentSchema,
+  type ManualDocumentSource,
+  type ManualIntent,
+  type ParsedManual,
+  type RankedManualSection,
+} from "./types";
 
 export interface AIPlatformPort {
   understandManualRequest(request: AgentInvokeRequest, options?: { signal?: AbortSignal }): Promise<ManualIntent>;
-  parseManualDocument(document: DemoManualAsset, options?: { signal?: AbortSignal }): Promise<ParsedManual>;
+  parseManualDocument(document: ManualDocumentSource, options?: { signal?: AbortSignal }): Promise<ParsedManual>;
+  retrieveManualEvidence(
+    document: ParsedManual,
+    intent: ManualIntent,
+    query: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<RankedManualSection[]>;
 }
 
 export interface DocumentDataPort {
-  listDocuments(options?: { signal?: AbortSignal }): Promise<DemoManualAsset[]>;
-  getDocument(id: string, options?: { signal?: AbortSignal }): Promise<DemoManualAsset | null>;
+  listDocuments(options?: { signal?: AbortSignal }): Promise<ManualDocumentSource[]>;
+  getDocument(id: string, options?: { signal?: AbortSignal }): Promise<ManualDocumentSource | null>;
 }
 
 const topicRules: Array<[ManualTopic, RegExp]> = [
   ["troubleshooting", /故障|漂移|异常|告警|排查|无法|失控(?!保护)|断联/],
   ["compliance", /合规|法规|空域|禁飞|限飞|审批|申报|资质/],
   ["safety", /安全|风险|危险|注意|禁忌|禁止|不得|飞行前/],
-  ["operation", /步骤|怎么|如何|操作|检查|开机|飞行|充电|维护|保养|返航(?!点)/],
-  ["terminology", /术语|解释|什么意思|通俗|GNSS|RTH|IMU|返航点|失控保护|Failsafe/i],
-  ["overview", /核心功能|主要功能|概括|摘要|关键内容|产品介绍/],
+  ["operation", /操作步骤|操作方法|使用步骤|步骤|检查|开机|飞行|起飞|降落|充电|维护|保养|返航(?!点)/],
+  ["terminology", /术语|解释|什么意思|含义|通俗|GNSS|RTH|IMU|返航点|失控保护|Failsafe/i],
+  ["overview", /核心功能|主要功能|适用边界|使用限制|关键内容|产品介绍|说明书.{0,6}(摘要|概括)|(摘要|概括).{0,6}(说明书|手册)/],
 ];
 
 const scenarioRules: Array<[string, RegExp]> = [
@@ -41,9 +55,25 @@ const knownTerms: Array<[string, RegExp]> = [
 ];
 
 function manualIdFromContext(request: AgentInvokeRequest): string {
-  return typeof request.context?.document_id === "string" && request.context.document_id.trim()
-    ? request.context.document_id.trim()
-    : AG002_CONFIG.defaultManualId;
+  const documentId = request.context?.document_id;
+  return typeof documentId === "string" && documentId.trim() ? documentId.trim() : AG002_CONFIG.defaultManualId;
+}
+
+function toDocumentSource(manual: (typeof DEMO_MANUALS)[number]): ManualDocumentSource {
+  return {
+    id: manual.id,
+    title: manual.title,
+    productName: manual.productName,
+    version: manual.version,
+    updatedAt: manual.updatedAt,
+    aliases: [...manual.aliases],
+    sourceType: "虚构样例说明书",
+    artifact: {
+      kind: "inline-demo",
+      mimeType: "application/vnd.jdz.manual+json",
+      content: JSON.stringify({ structure: manual.structure, sections: manual.sections }),
+    },
+  };
 }
 
 export class DemoAIPlatformAdapter implements AIPlatformPort {
@@ -53,7 +83,6 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
     const scenarios = scenarioRules.filter(([, rule]) => rule.test(input)).map(([scenario]) => scenario);
     const terms = knownTerms.filter(([, rule]) => rule.test(input)).map(([term]) => term);
 
-    if (/说明书|手册/.test(input) && topics.length === 0) topics.push("overview");
     if (/飞行前|起飞前/.test(input)) {
       if (!topics.includes("operation")) topics.push("operation");
       if (!topics.includes("safety")) topics.push("safety");
@@ -73,31 +102,43 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
     };
   }
 
-  async parseManualDocument(document: DemoManualAsset): Promise<ParsedManual> {
+  async parseManualDocument(document: ManualDocumentSource): Promise<ParsedManual> {
+    if (document.artifact.kind !== "inline-demo") {
+      throw new DependencyUnavailableError("ag002.ai-platform-document-parse", "Demo adapter cannot parse remote documents");
+    }
+    let unknownContent: unknown;
+    try {
+      unknownContent = JSON.parse(document.artifact.content);
+    } catch (error) {
+      throw new DependencyUnavailableError("ag002.ai-platform-document-parse", "Demo manual content is invalid JSON", { cause: error });
+    }
+    const content = DemoManualContentSchema.parse(unknownContent);
     return {
-      ...document,
-      structure: { ...document.structure },
-      sections: document.sections.map((section) => ({
-        ...section,
-        topics: [...section.topics],
-        scenarios: [...section.scenarios],
-        imageCaptions: [...section.imageCaptions],
-        steps: section.steps.map((step) => ({ ...step })),
-        risks: section.risks.map((risk) => ({ ...risk })),
-        glossary: section.glossary.map((item) => ({ ...item, aliases: [...item.aliases] })),
-      })),
+      id: document.id,
+      title: document.title,
+      productName: document.productName,
+      version: document.version,
+      updatedAt: document.updatedAt,
+      aliases: [...document.aliases],
+      sourceType: document.sourceType,
+      structure: { ...content.structure },
+      sections: content.sections,
       recognitionMode: "demo-preparsed",
     };
+  }
+
+  async retrieveManualEvidence(document: ParsedManual, intent: ManualIntent, query: string): Promise<RankedManualSection[]> {
+    return rankManualSections(document, intent, query);
   }
 }
 
 export class MockDocumentDataAdapter implements DocumentDataPort {
-  async listDocuments(): Promise<DemoManualAsset[]> {
-    return DEMO_MANUALS.map((manual) => ({ ...manual, structure: { ...manual.structure }, sections: [...manual.sections] }));
+  async listDocuments(): Promise<ManualDocumentSource[]> {
+    return DEMO_MANUALS.map(toDocumentSource);
   }
 
-  async getDocument(id: string): Promise<DemoManualAsset | null> {
+  async getDocument(id: string): Promise<ManualDocumentSource | null> {
     const document = DEMO_MANUALS.find((manual) => manual.id === id);
-    return document ? { ...document, structure: { ...document.structure }, sections: [...document.sections] } : null;
+    return document ? toDocumentSource(document) : null;
   }
 }

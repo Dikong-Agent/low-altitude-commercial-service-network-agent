@@ -105,7 +105,7 @@ export const DEMO_MANUALS: DemoManualAsset[] = [
       },
       {
         id: "x8-maintenance", title: "7.1 日常维护与检查", pageStart: 42, pageEnd: 45,
-        topics: ["operation", "safety", "overview"], scenarios: ["维护", "保养"],
+        topics: ["operation", "safety"], scenarios: ["维护", "保养"],
         text: "每次作业后清洁机体和传感器表面，检查桨叶、电机和连接件。累计飞行50小时后执行周期检查。不得使用高压水流或腐蚀性清洁剂。",
         plainLanguage: "每次飞行后做清洁和外观检查，累计50小时做周期检查；清洁时避免高压水和腐蚀性液体。",
         imageCaptions: ["图7-1：视觉传感器清洁区域"], glossary: [],
@@ -119,4 +119,3 @@ export const DEMO_MANUALS: DemoManualAsset[] = [
     ],
   },
 ];
-

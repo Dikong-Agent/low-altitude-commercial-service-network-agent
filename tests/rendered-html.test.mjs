@@ -34,7 +34,7 @@ test("renders the Agent capability showroom", async () => {
   assert.match(html, /五种模式，一套底座/);
   assert.match(html, /AG-001/);
   assert.match(html, /AG-025/);
-  assert.match(html, /V1\.3/);
+  assert.match(html, /V1\.4/);
   assert.equal((html.match(/<i>RUNNABLE<\/i>/g) ?? []).length, 2);
   assert.equal((html.match(/<i>PREVIEW<\/i>/g) ?? []).length, 3);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
@@ -117,9 +117,24 @@ test("runs AG-002 through the LangGraph manual interpretation workflow", async (
   assert.ok(body.output.manual.risk_markers.some((item) => item.level === "prohibited"));
   assert.ok(body.output.manual.risk_markers.some((item) => item.level === "compliance"));
   assert.equal(body.output.manual.capability_coverage.length, 13);
+  assert.deepEqual(body.output.manual.capability_coverage.map((item) => item.capability), [
+    "安全事项要点提取",
+    "安全风险提示生成",
+    "禁止操作提示生成",
+    "合规要求场景提示生成",
+    "说明书操作步骤通俗解读",
+    "专业术语转换",
+    "说明书场景语义检索",
+    "场景化操作指引生成",
+    "操作步骤摘要",
+    "故障排查路径摘要",
+    "产品核心能力与适用边界摘要",
+    "说明书图示含义解读",
+    "说明书章节与图表关系理解",
+  ]);
   assert.deepEqual(
     body.output.manual.capability_coverage.filter((item) => item.status === "adapter-ready").map((item) => item.capability),
-    ["说明书图文语义识别"],
+    ["说明书场景语义检索", "说明书图示含义解读", "说明书章节与图表关系理解"],
   );
   assert.ok(body.trace.length >= 7);
 });
@@ -161,6 +176,39 @@ test("AG-002 explains requested terminology without forcing an operational concl
   assert.ok(body.output.manual.glossary.every((item) => /第\d+/.test(item.source_ref)));
 });
 
+test("AG-002 composes a terminology answer from the requested term rather than a nearby operation scenario", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-002", "RTH是什么意思？");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "completed");
+  assert.match(body.output.manual.answer, /^RTH：/);
+  assert.doesNotMatch(body.output.manual.answer, /失控保护不是万能保险/);
+  assert.equal(body.output.manual.citations[0].section_id, "x8-overview");
+});
+
+test("AG-002 does not mix maintenance content into a core capability summary", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-002", "概括核心功能");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "completed");
+  assert.deepEqual(body.output.manual.citations.map((item) => item.section_id), ["x8-overview"]);
+  assert.doesNotMatch(body.output.manual.answer, /累计50小时/);
+});
+
+test("AG-002 stops safely when the sample manual has no direct evidence", async () => {
+  const worker = await loadWorker();
+  for (const input of ["如何升级固件？", "固件升级有哪些操作步骤？", "如何连接遥控器？", "帮我查询订单怎么退款"]) {
+    const response = await invoke(worker, "AG-002", input);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.status, "needs_clarification");
+    assert.equal(body.output.manual, undefined);
+    assert.match(body.output.summary, /请说明想了解|没有找到/);
+  }
+});
+
 test("AG-002 asks for clarification and rejects unknown document ids safely", async () => {
   const worker = await loadWorker();
   const vague = await invoke(worker, "AG-002", "你好");
@@ -172,6 +220,26 @@ test("AG-002 asks for clarification and rejects unknown document ids safely", as
   const missingBody = await missing.json();
   assert.equal(missingBody.status, "needs_clarification");
   assert.match(missingBody.output.summary, /没有找到指定文档/);
+
+  const malformed = await invokeBody(worker, "AG-002", { agent_id: "AG-002", input: "概括核心功能", context: { document_id: 123 } });
+  assert.equal(malformed.status, 400);
+  assert.equal((await malformed.json()).code, "INVALID_AGENT_REQUEST");
+});
+
+test("an invalid AG-002 provider is isolated from the rest of the site", async () => {
+  const worker = await loadWorker();
+  const previousProvider = process.env.AG002_PROVIDER;
+  process.env.AG002_PROVIDER = "missing-audit-provider";
+  try {
+    const healthyAgent = await invoke(worker, "AG-001", "对比云巡 X8 和山岳 T60");
+    assert.equal(healthyAgent.status, 200);
+    const failedAgent = await invoke(worker, "AG-002", "概括核心功能");
+    assert.equal(failedAgent.status, 503);
+    assert.equal((await failedAgent.json()).code, "DEPENDENCY_UNAVAILABLE");
+  } finally {
+    if (previousProvider === undefined) delete process.env.AG002_PROVIDER;
+    else process.env.AG002_PROVIDER = previousProvider;
+  }
 });
 
 test("serves the AG-002 mock manual directory through DocumentDataPort", async () => {

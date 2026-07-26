@@ -1,6 +1,7 @@
 import { getAgentDefinition } from "../../../../lib/agent-registry";
 import {
   AGENT_INTERFACE_VERSION,
+  Ag002InvokeRequestSchema,
   AgentInvokeRequestSchema,
   AgentInvokeResponseSchema,
   type AgentId,
@@ -65,9 +66,17 @@ export async function POST(request: Request, context: { params: Promise<{ agentI
   }
 
   if (agent.id === "AG-001" || agent.id === "AG-002") {
-    const workflowRunner = agent.id === "AG-001" ? invokeAg001 : invokeAg002;
     try {
-      const response = await workflowRunner(parsed.data, traceId);
+      let response: AgentInvokeResponse;
+      if (agent.id === "AG-002") {
+        const ag002Request = Ag002InvokeRequestSchema.safeParse(parsed.data);
+        if (!ag002Request.success) {
+          return errorResponse(400, "INVALID_AGENT_REQUEST", ag002Request.error.issues[0]?.message ?? "Invalid AG-002 request", traceId);
+        }
+        response = await invokeAg002(ag002Request.data, traceId);
+      } else {
+        response = await invokeAg001(parsed.data, traceId);
+      }
       recordAgentRun({ traceId, requestId: response.request_id, agentId: agent.id, status: response.status, durationMs: Date.now() - startedAt });
       return Response.json(response, { headers: responseHeaders(traceId, "langgraph-demo") });
     } catch (error) {

@@ -17,7 +17,7 @@ export const AGENTS: AgentDefinition[] = [
     demoHint: "当前使用虚构样例说明书，可运行摘要、步骤、故障排查、术语转换、风险标注和原文定位。",
     prompts: ["飞行前需要完成哪些安全检查？请按顺序说明", "设备出现定位漂移时，应优先检查哪些项目？", "用通俗的话解释GNSS、返航点和失控保护，并标出原文位置", "概括核心功能、安全事项和合规要求"],
     workflow: "LangGraph 产品说明书智能解读", trace: ["识别问题类型", "加载样例说明书", "解析文档结构", "定位相关章节", "生成通俗化指引", "核验风险与依据", "输出带依据解读"],
-    traceNotes: ["操作 / 故障 / 安全 / 术语 / 合规", "调用 DocumentDataPort", "Mock 预解析，正式接入 AIPlatformPort", "语义检索并重排证据", "保留先后、条件和原文位置", "标注风险、禁忌和复核边界", "输出章节页码与数据声明"],
+    traceNotes: ["操作 / 故障 / 安全 / 术语 / 合规", "调用 DocumentDataPort", "Mock 预解析，正式接入 AIPlatformPort", "样例规则检索；正式语义检索待中台接入", "保留先后、条件和原文位置", "标注风险、禁忌和复核边界", "输出章节页码与数据声明"],
   },
   {
     id: "AG-003", name: "低空产品分类导购及推荐Agent", shortName: "分类导购", symbol: "荐", tone: "violet", availability: "preview",

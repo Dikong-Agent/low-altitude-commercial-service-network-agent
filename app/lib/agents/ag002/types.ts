@@ -55,13 +55,36 @@ export interface DemoManualAsset {
   sections: ManualSourceSection[];
 }
 
-export interface ParsedManual extends DemoManualAsset {
-  recognitionMode: "demo-preparsed";
+export interface ManualDocumentSource {
+  id: string;
+  title: string;
+  productName: string;
+  version: string;
+  updatedAt: string;
+  aliases: string[];
+  sourceType: string;
+  artifact:
+    | { kind: "inline-demo"; mimeType: "application/vnd.jdz.manual+json"; content: string }
+    | { kind: "remote-document"; mimeType: string; uri: string; checksum: string | null };
+}
+
+export interface ParsedManual {
+  id: string;
+  title: string;
+  productName: string;
+  version: string;
+  updatedAt: string;
+  aliases: string[];
+  sourceType: string;
+  structure: { chapters: number; tables: number; figures: number; scannedPages: number };
+  sections: ManualSourceSection[];
+  recognitionMode: "demo-preparsed" | "ocr-layout" | "multimodal-layout";
 }
 
 export interface RankedManualSection {
   section: ManualSourceSection;
   relevance: number;
+  matchReasons: string[];
 }
 
 export const ManualIntentSchema = z.object({
@@ -92,13 +115,39 @@ export const ManualSourceSectionSchema = z.object({
   glossary: z.array(ManualSourceGlossaryItemSchema),
 });
 
-export const DemoManualAssetSchema = z.object({
-  id: z.string(), title: z.string(), productName: z.string(), version: z.string(), updatedAt: z.string(), aliases: z.array(z.string()),
-  structure: z.object({ chapters: z.number().int(), tables: z.number().int(), figures: z.number().int(), scannedPages: z.number().int() }),
+const ManualStructureSchema = z.object({
+  chapters: z.number().int().nonnegative(), tables: z.number().int().nonnegative(),
+  figures: z.number().int().nonnegative(), scannedPages: z.number().int().nonnegative(),
+});
+
+export const DemoManualContentSchema = z.object({
+  structure: ManualStructureSchema,
   sections: z.array(ManualSourceSectionSchema),
 });
 
-export const ParsedManualSchema = DemoManualAssetSchema.extend({ recognitionMode: z.literal("demo-preparsed") });
+export const DemoManualAssetSchema = z.object({
+  id: z.string(), title: z.string(), productName: z.string(), version: z.string(), updatedAt: z.string(), aliases: z.array(z.string()),
+  structure: ManualStructureSchema,
+  sections: z.array(ManualSourceSectionSchema),
+});
 
-export const RankedManualSectionSchema = z.object({ section: ManualSourceSectionSchema, relevance: z.number().min(0).max(1) });
+export const ManualDocumentSourceSchema = z.object({
+  id: z.string(), title: z.string(), productName: z.string(), version: z.string(), updatedAt: z.string(), aliases: z.array(z.string()),
+  sourceType: z.string(),
+  artifact: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("inline-demo"), mimeType: z.literal("application/vnd.jdz.manual+json"), content: z.string() }),
+    z.object({ kind: z.literal("remote-document"), mimeType: z.string(), uri: z.string(), checksum: z.string().nullable() }),
+  ]),
+});
 
+export const ParsedManualSchema = z.object({
+  id: z.string(), title: z.string(), productName: z.string(), version: z.string(), updatedAt: z.string(), aliases: z.array(z.string()),
+  sourceType: z.string(), structure: ManualStructureSchema, sections: z.array(ManualSourceSectionSchema),
+  recognitionMode: z.enum(["demo-preparsed", "ocr-layout", "multimodal-layout"]),
+});
+
+export const RankedManualSectionSchema = z.object({
+  section: ManualSourceSectionSchema,
+  relevance: z.number().min(0).max(1),
+  matchReasons: z.array(z.string()),
+});

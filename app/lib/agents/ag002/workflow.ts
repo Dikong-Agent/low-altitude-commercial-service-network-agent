@@ -10,10 +10,10 @@ import {
 } from "../../contracts";
 import { executeWithPolicy } from "../../reliability";
 import { AG002_CONFIG } from "./config";
-import { buildManualOutput, rankManualSections } from "./engine";
-import { resolveAg002Dependencies, type Ag002Dependencies } from "./providers";
+import { buildManualOutput } from "./engine";
+import { getAg002ProviderRevision, resolveAg002Dependencies, type Ag002Dependencies } from "./providers";
 import {
-  DemoManualAssetSchema,
+  ManualDocumentSourceSchema,
   ManualIntentSchema,
   ParsedManualSchema,
   RankedManualSectionSchema,
@@ -25,7 +25,7 @@ const Ag002GraphState = new StateSchema({
   request: AgentInvokeRequestSchema,
   traceId: z.string(),
   intent: ManualIntentSchema.optional(),
-  manualAsset: DemoManualAssetSchema.optional(),
+  manualSource: ManualDocumentSourceSchema.optional(),
   documentMissing: z.boolean().optional(),
   parsedManual: ParsedManualSchema.optional(),
   rankedSections: z.array(RankedManualSectionSchema).optional(),
@@ -83,16 +83,16 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
   };
 
   const loadDocument = async (state: typeof Ag002GraphState.State) => {
-    const manualAsset = await executeWithPolicy(
+    const manualSource = await executeWithPolicy(
       "ag002.document-data",
       AG002_CONFIG.reliability.documentData,
       (signal) => dependencies.documentData.getDocument(state.intent!.manualId, { signal }),
     );
     return {
-      manualAsset: manualAsset ?? undefined,
-      documentMissing: !manualAsset,
-      trace: appendTrace(state, "加载样例说明书", manualAsset
-        ? `通过 ${dependencies.providerName} DocumentDataPort 加载${manualAsset.title}。`
+      manualSource: manualSource ?? undefined,
+      documentMissing: !manualSource,
+      trace: appendTrace(state, "加载样例说明书", manualSource
+        ? `通过 ${dependencies.providerName} DocumentDataPort 加载${manualSource.title}。`
         : `未找到文档 ${state.intent!.manualId}。`),
     };
   };
@@ -119,7 +119,7 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
     const parsedManual = await executeWithPolicy(
       "ag002.ai-platform-document-parse",
       AG002_CONFIG.reliability.aiPlatform,
-      (signal) => dependencies.aiPlatform.parseManualDocument(state.manualAsset!, { signal }),
+      (signal) => dependencies.aiPlatform.parseManualDocument(state.manualSource!, { signal }),
     );
     return {
       parsedManual,
@@ -127,12 +127,36 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
     };
   };
 
-  const retrieveEvidence = (state: typeof Ag002GraphState.State) => {
-    const rankedSections = rankManualSections(state.parsedManual!, state.intent!, state.request.input);
+  const retrieveEvidence = async (state: typeof Ag002GraphState.State) => {
+    const rankedSections = await executeWithPolicy(
+      "ag002.ai-platform-retrieval",
+      AG002_CONFIG.reliability.aiPlatform,
+      (signal) => dependencies.aiPlatform.retrieveManualEvidence(state.parsedManual!, state.intent!, state.request.input, { signal }),
+    );
     return {
       rankedSections,
-      trace: appendTrace(state, "定位相关章节", `语义检索并重排${rankedSections.length}个相关章节，保留页码和章节定位。`),
+      trace: appendTrace(state, "定位相关章节", rankedSections.length
+        ? `${dependencies.providerName === "demo" ? "样例标签与规则" : "语义"}检索并重排${rankedSections.length}个相关章节，保留页码和章节定位。`
+        : "没有检索到与问题直接相关且可引用的说明书章节。"),
     };
+  };
+
+  const buildNoEvidence = (state: typeof Ag002GraphState.State) => {
+    const response: AgentInvokeResponse = {
+      request_id: `AG002-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+      trace_id: state.traceId,
+      agent_id: "AG-002",
+      status: "needs_clarification",
+      environment: "demo",
+      output: {
+        title: "说明书中未找到可靠依据",
+        summary: "当前样例说明书中没有找到与该问题直接相关的内容，请换一种描述或选择已收录的说明书场景。",
+        points: ["可以询问飞行前检查、充电、维护或定位漂移。", "也可以询问 GNSS、RTH、返航点、IMU 或失控保护等术语。"],
+        evidence: ["AG-002 证据充分性规则 v1.1"],
+      },
+      trace: appendTrace(state, "请求补充信息", "证据门控未通过，工作流未生成操作性答复。"),
+    };
+    return { response, trace: response.trace };
   };
 
   const composeGuidance = (state: typeof Ag002GraphState.State) => {
@@ -180,6 +204,7 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
     .addNode("missing_document", buildMissingDocument)
     .addNode("parse_document", parseDocument)
     .addNode("retrieve_evidence", retrieveEvidence)
+    .addNode("no_evidence", buildNoEvidence)
     .addNode("compose_guidance", composeGuidance)
     .addNode("review_safety", reviewSafety)
     .addNode("build_response", buildResponse)
@@ -189,18 +214,27 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
     .addConditionalEdges("load_document", (state) => state.documentMissing ? "missing_document" : "parse_document")
     .addEdge("missing_document", END)
     .addEdge("parse_document", "retrieve_evidence")
-    .addEdge("retrieve_evidence", "compose_guidance")
+    .addConditionalEdges("retrieve_evidence", (state) => state.rankedSections?.length ? "compose_guidance" : "no_evidence")
+    .addEdge("no_evidence", END)
     .addEdge("compose_guidance", "review_safety")
     .addEdge("review_safety", "build_response")
     .addEdge("build_response", END)
     .compile();
 }
 
-const defaultWorkflow = createAg002Workflow(resolveAg002Dependencies());
+let cachedWorkflow: { providerName: string; revision: number; workflow: ReturnType<typeof createAg002Workflow> } | undefined;
+
+function getDefaultWorkflow() {
+  const providerName = process.env.AG002_PROVIDER ?? "demo";
+  const revision = getAg002ProviderRevision();
+  if (!cachedWorkflow || cachedWorkflow.providerName !== providerName || cachedWorkflow.revision !== revision) {
+    cachedWorkflow = { providerName, revision, workflow: createAg002Workflow(resolveAg002Dependencies(providerName)) };
+  }
+  return cachedWorkflow.workflow;
+}
 
 export async function invokeAg002(request: AgentInvokeRequest, traceId: string): Promise<AgentInvokeResponse> {
-  const result = await defaultWorkflow.invoke({ request, traceId, trace: [] });
+  const result = await getDefaultWorkflow().invoke({ request, traceId, trace: [] });
   if (!result.response) throw new Error("AG-002 workflow completed without a response");
   return AgentInvokeResponseSchema.parse(result.response);
 }
-

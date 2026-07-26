@@ -187,7 +187,7 @@ function ManualPanel({ manual }: { manual: AgentManualOutput }) {
         <div>{manual.citations.map((citation) => <article key={citation.section_id}><span>{Math.round(citation.relevance * 100)}%</span><div><strong>{citation.location}</strong><p>{citation.excerpt}</p></div></article>)}</div>
       </section>
 
-      <div className="manual-coverage"><span><b>{manual.capability_coverage.length}</b>项现行能力已映射</span><p>其中图文识别为正式 AI 中台适配预留；当前仅演示预解析样例文档的下游工作流。</p></div>
+      <div className="manual-coverage"><span><b>{manual.capability_coverage.length}</b>项现行能力已对齐</span><p>场景语义检索、图示含义解读和章节图表关系理解等待正式 AI 中台适配；当前仅演示规则检索与预解析样例文档。</p></div>
       <p className="data-notice">{manual.data_notice}</p>
       <span className="engine-label">ENGINE · {manual.engine.toUpperCase()} · {manual.rule_version}</span>
     </div>
@@ -402,7 +402,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.3</p><span>AG-001 / AG-002 可运行 · Mock数据</span></footer>
+      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.4</p><span>AG-001 / AG-002 可运行 · Mock数据</span></footer>
     </main>
   );
 }

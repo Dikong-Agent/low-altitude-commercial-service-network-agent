@@ -1,4 +1,4 @@
-import type { AgentManualOutput } from "../../contracts";
+import type { AgentManualOutput, ManualTopic } from "../../contracts";
 import { AG002_CONFIG } from "./config";
 import type { ManualIntent, ParsedManual, RankedManualSection } from "./types";
 
@@ -7,19 +7,46 @@ function sectionLocation(section: RankedManualSection["section"]): string {
   return `${pages} · ${section.title}`;
 }
 
+const strongTopicRules: Record<ManualTopic, RegExp> = {
+  overview: /核心功能|主要功能|适用边界|使用限制|关键内容|产品介绍|说明书.{0,6}(摘要|概括)|(摘要|概括).{0,6}(说明书|手册)/,
+  operation: /说明书.{0,8}(操作步骤|使用步骤)|(操作步骤|使用步骤).{0,8}(摘要|概括|说明书|手册)/,
+  safety: /安全|风险|危险|注意|禁忌|禁止|不得|飞行前/,
+  troubleshooting: /故障|漂移|异常|告警|排查|无法|失控|断联/,
+  terminology: /术语|解释|什么意思|通俗|含义/,
+  compliance: /合规|法规|空域|禁飞|限飞|审批|申报|资质/,
+};
+
 export function rankManualSections(manual: ParsedManual, intent: ManualIntent, query: string): RankedManualSection[] {
   const ranked = manual.sections.map((section) => {
-    const topicMatches = intent.topics.filter((topic) => section.topics.includes(topic)).length;
-    const scenarioMatches = intent.scenarios.filter((scenario) => section.scenarios.includes(scenario)).length;
-    const termMatches = intent.terms.filter((term) => section.glossary.some((item) => item.term === term || item.aliases.includes(term))).length;
-    const phraseMatches = section.scenarios.filter((scenario) => query.includes(scenario)).length;
-    const rawScore = topicMatches * 4 + scenarioMatches * 7 + termMatches * 6 + phraseMatches * 2;
-    return { section, rawScore, relevance: Math.min(1, Number((0.35 + rawScore * 0.055).toFixed(2))) };
+    const strongTopics = intent.topics.filter((topic) => section.topics.includes(topic) && strongTopicRules[topic].test(query));
+    const scenarioMatches = intent.scenarios.filter((scenario) => section.scenarios.includes(scenario));
+    const termMatches = intent.terms.filter((term) => section.glossary.some((item) => item.term === term || item.aliases.includes(term)));
+    const phraseMatches = section.scenarios.filter((scenario) => query.includes(scenario));
+    const matchReasons = [
+      ...strongTopics.map((topic) => `主题:${topic}`),
+      ...scenarioMatches.map((scenario) => `场景:${scenario}`),
+      ...termMatches.map((term) => `术语:${term}`),
+      ...phraseMatches.map((scenario) => `原词:${scenario}`),
+    ];
+    const rawScore = strongTopics.length * 5 + scenarioMatches.length * 8 + termMatches.length * 14 + phraseMatches.length * 3;
+    const relevance = Math.min(1, Number((rawScore / 24).toFixed(2)));
+    return { section, rawScore, relevance, matchReasons };
   }).sort((a, b) => b.rawScore - a.rawScore || a.section.pageStart - b.section.pageStart);
 
-  const matched = ranked.filter((item) => item.rawScore > 0).slice(0, AG002_CONFIG.maxSections);
-  const fallback = ranked.filter((item) => item.section.topics.includes("overview") || item.section.topics.includes("safety"));
-  return (matched.length ? matched : fallback.slice(0, 2)).map(({ section, relevance }) => ({ section, relevance }));
+  return ranked
+    .filter((item) => item.rawScore > 0 && item.matchReasons.length > 0)
+    .slice(0, AG002_CONFIG.maxSections)
+    .map(({ section, relevance, matchReasons }) => ({ section, relevance, matchReasons }));
+}
+
+function selectAnswerSections(intent: ManualIntent, rankedSections: RankedManualSection[]) {
+  const selected = new Map<string, RankedManualSection["section"]>();
+  for (const topic of intent.topics) {
+    const match = rankedSections.find(({ section }) => section.topics.includes(topic));
+    if (match) selected.set(match.section.id, match.section);
+  }
+  if (selected.size === 0 && rankedSections[0]) selected.set(rankedSections[0].section.id, rankedSections[0].section);
+  return [...selected.values()].slice(0, 3);
 }
 
 export function buildManualOutput(
@@ -67,7 +94,10 @@ export function buildManualOutput(
     excerpt: section.plainLanguage,
     relevance,
   }));
-  const answer = rankedSections.slice(0, 2).map(({ section }) => section.plainLanguage).join(" ");
+  const terminologyOnly = intent.topics.every((topic) => topic === "terminology") && glossary.length > 0;
+  const answer = terminologyOnly
+    ? glossary.map((item) => `${item.term}：${item.plain_explanation}`).join("；")
+    : selectAnswerSections(intent, rankedSections).map((section) => section.plainLanguage).join(" ");
 
   return {
     engine: "langgraph-demo",
@@ -77,7 +107,7 @@ export function buildManualOutput(
       product_name: manual.productName,
       version: manual.version,
       updated_at: manual.updatedAt,
-      source_type: "虚构样例说明书",
+      source_type: manual.sourceType,
     },
     intent: { topics: intent.topics, scenarios: intent.scenarios, terms: intent.terms },
     answer,
