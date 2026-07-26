@@ -196,10 +196,18 @@ function ManualPanel({ manual }: { manual: AgentManualOutput }) {
 
 function RecommendationPanel({ recommendation }: { recommendation: AgentRecommendationOutput }) {
   const candidates = [...recommendation.solution_candidates, ...recommendation.product_candidates];
+  const budgetDisplay = recommendation.intent.budget_yuan === null
+    ? null
+    : recommendation.intent.budget_yuan >= 10_000
+      ? `${Number((recommendation.intent.budget_yuan / 10_000).toFixed(2))}万元`
+      : `${recommendation.intent.budget_yuan}元`;
   const intentItems = [
     ...recommendation.intent.use_cases.map((item) => `场景 · ${item}`),
-    recommendation.intent.budget_yuan ? `预算 · ${(recommendation.intent.budget_yuan / 10_000).toFixed(1)}万元` : null,
+    budgetDisplay ? `预算 · ${budgetDisplay}` : null,
     ...recommendation.intent.focus_tags.map((item) => `关注 · ${item}`),
+    ...recommendation.intent.ignored_focus_tags.map((item) => `非重点 · ${item}`),
+    ...recommendation.intent.excluded_focus_tags.map((item) => `排除 · ${item}`),
+    ...recommendation.intent.inferred_categories.map((item) => `类目 · ${item}`),
     ...recommendation.intent.query_terms.map((item) => `搜索 · ${item}`),
     recommendation.intent.experience_level === "beginner" ? "用户 · 新手" : null,
   ].filter((item): item is string => Boolean(item));
@@ -219,14 +227,16 @@ function RecommendationPanel({ recommendation }: { recommendation: AgentRecommen
         <div>{candidates.map((candidate, index) => (
           <article className={candidate.eligible ? "eligible" : "ineligible"} key={candidate.id}>
             <div className="candidate-rank"><span>0{index + 1}</span><b>{candidate.score}<small>/100</small></b></div>
-            <div className="candidate-copy"><small>{candidate.id} · {candidate.category}</small><strong>{candidate.name}</strong><p>{candidate.reason}</p>
+            <div className="candidate-copy"><small>{candidate.id} · {candidate.category}{recommendation.intent.requested_product_ids.length ? ` · ${candidate.request_match ? "目标匹配" : "替代候选"}` : ""}</small><strong>{candidate.name}</strong><p>{candidate.reason}</p>
               <div>{candidate.matched_tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
-              <em>样例价 ¥{candidate.price_yuan.toLocaleString("zh-CN")} · {candidate.eligible ? "通过当前硬条件" : "未通过当前硬条件"}</em>
+              <p className="condition-assessment">{candidate.condition_assessment}</p>
+              {candidate.suitable_conditions.length > 0 && <p className="suitable-conditions">适用条件：{candidate.suitable_conditions.join("；")}</p>}
+              <em>样例价 ¥{candidate.price_yuan.toLocaleString("zh-CN")} · {candidate.eligible ? "通过硬条件与适用条件" : "未通过当前条件"}</em>
             </div>
           </article>
         ))}</div>
       </section>
-      {recommendation.gaps.length > 0 && <div className="recommendation-gaps"><strong>差距与待确认事项</strong>{recommendation.gaps.slice(0, 5).map((item) => <p key={item}>! {item}</p>)}</div>}
+      {[...new Set([...recommendation.gaps, ...recommendation.missing_data])].length > 0 && <div className="recommendation-gaps"><strong>差距与待确认事项</strong>{[...new Set([...recommendation.gaps, ...recommendation.missing_data])].slice(0, 6).map((item) => <p key={item}>! {item}</p>)}</div>}
       <div className="manual-coverage"><span><b>{recommendation.capability_coverage.length}</b>项现行能力已对齐</span><p>{demonstrated}项使用 Mock 目录演示；其余图片找货与 C2C 个性化能力仅预留正式 AI 中台和业务数据适配接口。</p></div>
       <p className="data-notice">{recommendation.data_notice}</p>
       <span className="engine-label">ENGINE · {recommendation.engine.toUpperCase()} · {recommendation.rule_version}</span>
@@ -443,7 +453,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.5</p><span>AG-001 / AG-002 / AG-003 可运行 · Mock数据</span></footer>
+      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.6</p><span>AG-001 / AG-002 / AG-003 可运行 · Mock数据</span></footer>
     </main>
   );
 }

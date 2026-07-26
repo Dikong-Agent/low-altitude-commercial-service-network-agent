@@ -63,13 +63,22 @@ export function createAg003Workflow(dependencies: Ag003Dependencies) {
   const adapterBoundary = (state: typeof Ag003GraphState.State) => buildStopResponse(state, true);
 
   const loadCatalog = async (state: typeof Ag003GraphState.State) => {
-    const [products, solutions] = await Promise.all([
-      executeWithPolicy("ag003.business-data-products", AG003_CONFIG.reliability.businessData,
-        (signal) => dependencies.businessData.listProducts({ signal })),
-      executeWithPolicy("ag003.business-data-solutions", AG003_CONFIG.reliability.businessData,
-        (signal) => dependencies.businessData.listScenarioSolutions({ signal })),
-    ]);
-    return { products, solutions, trace: appendTrace(state, "加载样例目录", `通过 ${dependencies.providerName} BusinessDataPort 加载${products.length}个产品和${solutions.length}个场景方案。`) };
+    if (state.intent?.mode === "scenario_solution") {
+      const solutions = await executeWithPolicy("ag003.business-data-solutions", AG003_CONFIG.reliability.businessData,
+        (signal) => dependencies.businessData.listScenarioSolutions({ signal }));
+      return {
+        products: [],
+        solutions,
+        trace: appendTrace(state, "加载样例目录", `通过 ${dependencies.providerName} BusinessDataPort 仅加载${solutions.length}个场景方案；未调用商品目录。`),
+      };
+    }
+    const products = await executeWithPolicy("ag003.business-data-products", AG003_CONFIG.reliability.businessData,
+      (signal) => dependencies.businessData.listProducts({ signal }));
+    return {
+      products,
+      solutions: [],
+      trace: appendTrace(state, "加载样例目录", `通过 ${dependencies.providerName} BusinessDataPort 仅加载${products.length}个商品；未调用场景方案目录。`),
+    };
   };
 
   const rankCandidates = (state: typeof Ag003GraphState.State) => {

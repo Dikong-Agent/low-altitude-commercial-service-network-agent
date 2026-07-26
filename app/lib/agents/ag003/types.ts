@@ -25,7 +25,11 @@ export interface RecommendationIntent {
   useCases: string[];
   budgetYuan: number | null;
   focusTags: string[];
+  ignoredFocusTags: string[];
+  excludedFocusTags: string[];
+  inferredCategories: string[];
   queryTerms: string[];
+  requestedProductIds: string[];
   correctedTerms: Array<{ from: string; to: string }>;
   experienceLevel: "beginner" | "professional" | "unspecified";
   hardConstraints: HardConstraint[];
@@ -44,6 +48,9 @@ export interface RecommendationEvaluation {
   priceYuan: number;
   matchedTags: string[];
   limitations: string[];
+  requestMatch: boolean;
+  suitableConditions: string[];
+  conditionAssessment: string;
   reason: string;
   source: string;
 }
@@ -57,7 +64,9 @@ export const ScenarioSolutionSchema = z.object({
 
 export const RecommendationIntentSchema = z.object({
   mode: z.enum(["scenario_solution", "product_search", "image_search", "c2c_recommendation"]),
-  useCases: z.array(z.string()), budgetYuan: z.number().nullable(), focusTags: z.array(z.string()), queryTerms: z.array(z.string()),
+  useCases: z.array(z.string()), budgetYuan: z.number().nullable(), focusTags: z.array(z.string()),
+  ignoredFocusTags: z.array(z.string()), excludedFocusTags: z.array(z.string()), inferredCategories: z.array(z.string()),
+  queryTerms: z.array(z.string()), requestedProductIds: z.array(z.string()),
   correctedTerms: z.array(z.object({ from: z.string(), to: z.string() })),
   experienceLevel: z.enum(["beginner", "professional", "unspecified"]),
   hardConstraints: z.array(z.object({
@@ -70,7 +79,8 @@ export const RecommendationIntentSchema = z.object({
 export const RecommendationEvaluationSchema = z.object({
   id: z.string(), name: z.string(), candidateType: z.enum(["scenario_solution", "product"]), category: z.string(),
   score: z.number(), eligible: z.boolean(), priceYuan: z.number(), matchedTags: z.array(z.string()),
-  limitations: z.array(z.string()), reason: z.string(), source: z.string(),
+  limitations: z.array(z.string()), requestMatch: z.boolean(), suitableConditions: z.array(z.string()),
+  conditionAssessment: z.string(), reason: z.string(), source: z.string(),
 });
 
 export interface Ag003Catalog {

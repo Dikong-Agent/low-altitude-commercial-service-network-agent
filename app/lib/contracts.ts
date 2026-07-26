@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-export const AGENT_INTERFACE_VERSION = "v1.4";
+export const AGENT_INTERFACE_VERSION = "v1.5";
 export const MAX_AGENT_INPUT_LENGTH = 2_000;
 export const MAX_AGENT_CONTEXT_BYTES = 12_000;
 
@@ -194,6 +194,9 @@ export const RecommendationCandidateSchema = z.object({
   price_yuan: z.number().nonnegative(),
   matched_tags: z.array(z.string()),
   limitations: z.array(z.string()),
+  request_match: z.boolean(),
+  suitable_conditions: z.array(z.string()),
+  condition_assessment: z.string(),
   reason: z.string(),
   source: z.string(),
 });
@@ -206,7 +209,11 @@ export const AgentRecommendationOutputSchema = z.object({
     use_cases: z.array(z.string()),
     budget_yuan: z.number().nonnegative().nullable(),
     focus_tags: z.array(z.string()),
+    ignored_focus_tags: z.array(z.string()),
+    excluded_focus_tags: z.array(z.string()),
+    inferred_categories: z.array(z.string()),
     query_terms: z.array(z.string()),
+    requested_product_ids: z.array(z.string()),
     corrected_terms: z.array(z.object({ from: z.string(), to: z.string() })),
     experience_level: z.enum(["beginner", "professional", "unspecified"]),
     hard_constraints: z.array(z.string()),

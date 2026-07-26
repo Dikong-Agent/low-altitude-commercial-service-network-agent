@@ -34,7 +34,7 @@ test("renders the Agent capability showroom", async () => {
   assert.match(html, /五种模式，一套底座/);
   assert.match(html, /AG-001/);
   assert.match(html, /AG-025/);
-  assert.match(html, /V1\.5/);
+  assert.match(html, /V1\.6/);
   assert.equal((html.match(/<i>RUNNABLE<\/i>/g) ?? []).length, 3);
   assert.equal((html.match(/<i>PREVIEW<\/i>/g) ?? []).length, 2);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
@@ -295,6 +295,89 @@ test("AG-003 corrects a product search term and ranks the matching model", async
   assert.equal(body.status, "completed");
   assert.deepEqual(body.output.recommendation.intent.corrected_terms, [{ from: "云训x8", to: "云巡X8" }]);
   assert.equal(body.output.recommendation.recommendation.primary_id, "DEMO-X8");
+});
+
+test("AG-003 never replaces an explicit model with an unrelated eligible product", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-003", "搜索云巡X8，载荷至少5公斤");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "needs_review");
+  assert.equal(body.output.recommendation.recommendation.primary_id, null);
+  assert.equal(body.output.recommendation.product_candidates[0].id, "DEMO-X8");
+  assert.equal(body.output.recommendation.product_candidates[0].request_match, true);
+  assert.equal(body.output.recommendation.product_candidates[0].eligible, false);
+  assert.ok(body.output.recommendation.recommendation.alternative_ids.includes("DEMO-R6"));
+});
+
+test("AG-003 recognizes comparator-first numeric constraints", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-003", "至少续航50分钟，为新手推荐航拍无人机");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "needs_review");
+  assert.deepEqual(body.output.recommendation.intent.hard_constraints, ["续航不低于50分钟"]);
+  assert.equal(body.output.recommendation.recommendation.primary_id, null);
+  assert.ok(body.output.recommendation.product_candidates.every((item) => !item.eligible));
+});
+
+test("AG-003 preserves negated and ignored preference semantics", async () => {
+  const worker = await loadWorker();
+  const ignoredResponse = await invoke(worker, "AG-003", "园区巡检不强调抗风，推荐产品");
+  const ignoredBody = await ignoredResponse.json();
+  assert.ok(!ignoredBody.output.recommendation.intent.focus_tags.includes("抗风"));
+  assert.ok(ignoredBody.output.recommendation.intent.ignored_focus_tags.includes("抗风"));
+
+  const excludedResponse = await invoke(worker, "AG-003", "应急保障不要重载，推荐产品");
+  const excludedBody = await excludedResponse.json();
+  assert.ok(excludedBody.output.recommendation.intent.excluded_focus_tags.includes("重载"));
+  const excludedHeavyCandidates = excludedBody.output.recommendation.product_candidates.filter((item) => ["DEMO-R6", "DEMO-T60"].includes(item.id));
+  assert.ok(excludedHeavyCandidates.length >= 1);
+  assert.ok(excludedHeavyCandidates.every((item) => !item.eligible && item.limitations.some((text) => /排除“重载”/.test(text))));
+});
+
+test("AG-003 preserves decimal budget precision in the hard-constraint label", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-003", "预算2.5万元，为新手推荐航拍产品");
+  const body = await response.json();
+  assert.equal(body.output.recommendation.intent.budget_yuan, 25_000);
+  assert.deepEqual(body.output.recommendation.intent.hard_constraints, ["预算不超过2.5万元"]);
+});
+
+test("AG-003 honors target-model membership when recommending a scenario solution", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-003", "需要一套包含山岳T60的巡检方案");
+  const body = await response.json();
+  assert.equal(body.status, "completed");
+  assert.ok(["DEMO-SOLUTION-MOUNTAIN-POWER", "DEMO-SOLUTION-EMERGENCY"].includes(body.output.recommendation.recommendation.primary_id));
+  const primary = body.output.recommendation.solution_candidates.find((item) => item.id === body.output.recommendation.recommendation.primary_id);
+  assert.equal(primary.request_match, true);
+  assert.ok(primary.matched_tags.includes("包含目标型号"));
+});
+
+test("AG-003 evaluates and exposes scenario-solution suitability conditions", async () => {
+  const worker = await loadWorker();
+  const professional = await invoke(worker, "AG-003", "专业团队需要一套山区电力巡检方案，强调抗风");
+  const professionalBody = await professional.json();
+  const primary = professionalBody.output.recommendation.solution_candidates.find((item) => item.id === professionalBody.output.recommendation.recommendation.primary_id);
+  assert.ok(primary.suitable_conditions.length >= 3);
+  assert.match(primary.condition_assessment, /通过场景、实施能力和关键约束检查/);
+
+  const beginner = await invoke(worker, "AG-003", "新手需要一套山区电力巡检方案");
+  const beginnerBody = await beginner.json();
+  assert.equal(beginnerBody.status, "needs_review");
+  assert.equal(beginnerBody.output.recommendation.recommendation.primary_id, null);
+  assert.ok(beginnerBody.output.recommendation.solution_candidates.some((item) => /不适合作为新手方案/.test(item.condition_assessment)));
+});
+
+test("AG-003 loads only the catalog required by the selected recommendation mode", async () => {
+  const worker = await loadWorker();
+  const product = await invoke(worker, "AG-003", "为新手推荐适合航拍入门的产品，预算不超过3万元");
+  const productBody = await product.json();
+  assert.ok(productBody.trace.some((item) => /仅加载\d+个商品；未调用场景方案目录/.test(item.detail)));
+  const solution = await invoke(worker, "AG-003", "需要一套山区电力巡检方案");
+  const solutionBody = await solution.json();
+  assert.ok(solutionBody.trace.some((item) => /仅加载\d+个场景方案；未调用商品目录/.test(item.detail)));
 });
 
 test("AG-003 refuses a forced recommendation when all candidates conflict", async () => {
