@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AGENTS, type AgentComparisonOutput, type AgentDefinition, type AgentId } from "./lib/contracts";
 import { invokeAgent } from "./lib/agent-gateway";
 
@@ -9,6 +9,15 @@ const capabilityStats = [
   { value: "16", label: "AG-001 能力点" },
   { value: "02", label: "预留适配接口" },
 ];
+
+interface DemoHistoryItem {
+  requestId: string;
+  input: string;
+  summary: string;
+  createdAt: string;
+}
+
+const HISTORY_KEY = "jdz-ag001-demo-history";
 
 function AgentMark({ agent, compact = false }: { agent: AgentDefinition; compact?: boolean }) {
   return <span className={`agent-mark tone-${agent.tone} ${compact ? "compact" : ""}`} aria-hidden="true"><span>{agent.symbol}</span></span>;
@@ -98,7 +107,17 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<Awaited<ReturnType<typeof invokeAgent>> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<DemoHistoryItem[]>([]);
   const selected = useMemo(() => AGENTS.find((agent) => agent.id === selectedId) ?? AGENTS[0], [selectedId]);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]") as DemoHistoryItem[];
+      if (Array.isArray(saved)) setHistory(saved.filter((item) => item && typeof item.input === "string").slice(0, 5));
+    } catch {
+      localStorage.removeItem(HISTORY_KEY);
+    }
+  }, []);
 
   function chooseAgent(agent: AgentDefinition) {
     setSelectedId(agent.id);
@@ -113,7 +132,23 @@ export default function Home() {
     setLoading(true);
     setResponse(null);
     setError(null);
-    try { setResponse(await invokeAgent({ agent_id: selected.id, input: input.trim(), session_id: "showroom-demo" })); }
+    try {
+      const result = await invokeAgent({ agent_id: selected.id, input: input.trim(), session_id: "showroom-demo" });
+      setResponse(result);
+      if (selected.id === "AG-001" && result.output.comparison) {
+        const item: DemoHistoryItem = {
+          requestId: result.request_id,
+          input: input.trim(),
+          summary: result.output.comparison.recommendation.primary_product_name ?? "条件冲突，未形成推荐",
+          createdAt: new Date().toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }),
+        };
+        setHistory((current) => {
+          const next = [item, ...current.filter((entry) => entry.input !== item.input)].slice(0, 5);
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+          return next;
+        });
+      }
+    }
     catch { setError("Agent 暂时无法完成本次运行，请稍后重试或更换演示问题。"); }
     finally { setLoading(false); }
   }
@@ -196,6 +231,16 @@ export default function Home() {
                   {response.output.comparison ? <ComparisonPanel comparison={response.output.comparison} /> : <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>}
                   <div className="evidence-row"><span>依据</span>{response.output.evidence.map((item) => <b key={item}>{item}</b>)}</div>
                   <small>本结果由样例知识与演示数据生成，不代表正式业务结论。</small>
+                </div>
+              )}
+              {selected.id === "AG-001" && history.length > 0 && (
+                <div className="comparison-history">
+                  <header><div><strong>本地演示记录</strong><small>仅保存在当前浏览器，可点击复用</small></div><button type="button" onClick={() => { localStorage.removeItem(HISTORY_KEY); setHistory([]); }}>清空</button></header>
+                  <div>{history.map((item) => (
+                    <button type="button" key={item.requestId} onClick={() => { setInput(item.input); setResponse(null); setError(null); }}>
+                      <span><strong>{item.summary}</strong><small>{item.input}</small></span><time>{item.createdAt}</time>
+                    </button>
+                  ))}</div>
                 </div>
               )}
             </div>
