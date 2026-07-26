@@ -2,14 +2,16 @@
 
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AGENTS } from "./lib/agent-registry";
-import type { AgentComparisonOutput, AgentDefinition, AgentId } from "./lib/contracts";
+import type { AgentComparisonOutput, AgentDefinition, AgentId, AgentManualOutput } from "./lib/contracts";
 import { AgentGatewayError, invokeAgent } from "./lib/agent-gateway";
 
 const capabilityStats = [
-  { value: "01", label: "可运行 Agent" },
-  { value: "16", label: "AG-001 能力点" },
-  { value: "02", label: "预留适配接口" },
+  { value: "02", label: "可运行 Agent" },
+  { value: "29", label: "已映射能力点" },
+  { value: "03", label: "服务端适配端口" },
 ];
+
+const runnableCount = AGENTS.filter((agent) => agent.availability === "runnable").length;
 
 interface DemoHistoryItem {
   requestId: string;
@@ -144,6 +146,54 @@ function ComparisonPanel({ comparison }: { comparison: AgentComparisonOutput }) 
   );
 }
 
+function ManualPanel({ manual }: { manual: AgentManualOutput }) {
+  const riskLabels = { warning: "安全风险", prohibited: "操作禁忌", compliance: "合规要求" } as const;
+  return (
+    <div className="manual-result">
+      <div className="manual-document-band">
+        <div><small>{manual.document.id} · {manual.document.version}</small><strong>{manual.document.title}</strong><span>{manual.document.source_type} · 更新于 {manual.document.updated_at}</span></div>
+        <b>{manual.document_structure.chapters}章 / {manual.document_structure.figures}图示</b>
+      </div>
+
+      <div className="intent-strip">
+        <span>理解结果</span>
+        <div>
+          {manual.intent.topics.map((topic) => <b key={topic}>主题 · {topic}</b>)}
+          {manual.intent.scenarios.map((scenario) => <b key={scenario}>场景 · {scenario}</b>)}
+          {manual.intent.terms.map((term) => <b key={term}>术语 · {term}</b>)}
+        </div>
+      </div>
+
+      <div className="manual-answer"><span>通俗解读</span><p>{manual.answer}</p></div>
+
+      {manual.steps.length > 0 && <section className="manual-steps">
+        <header><strong>场景化操作指引</strong><small>按说明书原有条件与先后关系整理</small></header>
+        <div>{manual.steps.map((step) => (
+          <article key={`${step.order}-${step.title}`}>
+            <b>{String(step.order).padStart(2, "0")}</b>
+            <div><strong>{step.title}</strong><p>{step.instruction}</p>{step.condition && <span>条件：{step.condition}</span>}{step.safety_note && <em>注意：{step.safety_note}</em>}<small>{step.source_ref}</small></div>
+          </article>
+        ))}</div>
+      </section>}
+
+      {manual.risk_markers.length > 0 && <div className="manual-risks">
+        {manual.risk_markers.map((risk) => <article className={`risk-${risk.level}`} key={`${risk.level}-${risk.label}`}><span>{riskLabels[risk.level]}</span><strong>{risk.label}</strong><p>{risk.detail}</p><small>{risk.source_ref}</small></article>)}
+      </div>}
+
+      {manual.glossary.length > 0 && <section className="manual-glossary"><header><strong>专业术语通俗化</strong></header><div>{manual.glossary.map((item) => <article key={item.term}><b>{item.term}</b><p>{item.plain_explanation}</p><small>{item.source_ref}</small></article>)}</div></section>}
+
+      <section className="manual-citations">
+        <header><strong>原文定位</strong><small>相关度按样例文档语义检索结果展示</small></header>
+        <div>{manual.citations.map((citation) => <article key={citation.section_id}><span>{Math.round(citation.relevance * 100)}%</span><div><strong>{citation.location}</strong><p>{citation.excerpt}</p></div></article>)}</div>
+      </section>
+
+      <div className="manual-coverage"><span><b>{manual.capability_coverage.length}</b>项现行能力已映射</span><p>其中图文识别为正式 AI 中台适配预留；当前仅演示预解析样例文档的下游工作流。</p></div>
+      <p className="data-notice">{manual.data_notice}</p>
+      <span className="engine-label">ENGINE · {manual.engine.toUpperCase()} · {manual.rule_version}</span>
+    </div>
+  );
+}
+
 export default function Home() {
   const [selectedId, setSelectedId] = useState<AgentId>("AG-001");
   const [input, setInput] = useState(AGENTS[0].prompts[0]);
@@ -195,6 +245,7 @@ export default function Home() {
         agent_id: selectedAtStart.id,
         input: input.trim(),
         session_id: sessionId || getOrCreateSessionId(),
+        context: selectedAtStart.id === "AG-002" ? { document_id: "DEMO-MANUAL-X8" } : undefined,
       }, { signal: controller.signal });
       if (requestSequence.current !== sequence || result.agent_id !== selectedAtStart.id) return;
       setResponse(result);
@@ -283,7 +334,7 @@ export default function Home() {
         <div className="section-heading light"><div><span>03 / LIVE WORKBENCH</span><h2>Agent 演示工作台</h2></div><p>使用样例知识与演示数据运行。正式 AI 中台及业务数据将在接口确认后接入。</p></div>
         <div className="workbench-shell">
           <aside className="agent-sidebar">
-            <div className="panel-title"><span>AGENTS</span><b>1 RUNNABLE / 4 PREVIEW</b></div>
+            <div className="panel-title"><span>AGENTS</span><b>{runnableCount} RUNNABLE / {AGENTS.length - runnableCount} PREVIEW</b></div>
             {AGENTS.map((agent) => (
               <button type="button" key={agent.id} onClick={() => chooseAgent(agent)} className={selected.id === agent.id ? "active" : ""}>
                 <AgentMark agent={agent} compact /><span><small>{agent.id}</small><strong>{agent.shortName}</strong></span><i />
@@ -293,16 +344,17 @@ export default function Home() {
           </aside>
 
           <div className="conversation-panel">
-            <div className="conversation-head"><div><AgentMark agent={selected} compact /><span><small>{selected.id}</small><strong>{selected.name}</strong></span></div><span className="mock-badge">{selected.id === "AG-001" ? "LangGraph · Mock数据" : "样例预览"}</span></div>
+            <div className="conversation-head"><div><AgentMark agent={selected} compact /><span><small>{selected.id}</small><strong>{selected.name}</strong></span></div><span className="mock-badge">{selected.availability === "runnable" ? "LangGraph · Mock数据" : "样例预览"}</span></div>
             <div className="conversation-body">
               <div className="welcome-copy"><span className={`mini-symbol tone-${selected.tone}`}>{selected.symbol}</span><h3>{selected.welcome}</h3><p>{selected.demoHint}</p></div>
+              {selected.id === "AG-002" && !response && !loading && <div className="manual-source-chip"><span>当前样例文档</span><strong>云巡 X8 无人机用户手册</strong><small>v0.9-demo · 虚构预解析材料</small></div>}
               {!response && !loading && <div className="prompt-list"><span>推荐演示问题</span>{selected.prompts.map((prompt) => <button type="button" key={prompt} onClick={() => setInput(prompt)}>{prompt}<i>↗</i></button>)}</div>}
               {loading && <div className="thinking-card"><div className="thinking-head"><span className="loading-dots"><i /><i /><i /></span> Agent 正在处理</div><div className="loading-line"><span /></div><p>正在理解问题、调用演示工具并组织可解释结果…</p></div>}
               {error && <div className="error-card"><strong>运行未完成</strong><p>{error}</p></div>}
               {response && (
                 <div className="result-card">
-                  <div className="result-kicker"><span>{response.status === "preview" ? "能力预览" : "演示结果"}</span><b title={response.trace_id}>{response.request_id} · TRACE</b></div><h3>{response.output.title}</h3><p>{response.output.summary}</p>
-                  {response.output.comparison ? <ComparisonPanel comparison={response.output.comparison} /> : <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>}
+                  <div className="result-kicker"><span>{response.status === "preview" ? "能力预览" : response.status === "needs_review" ? "演示结果 · 需复核" : "演示结果"}</span><b title={response.trace_id}>{response.request_id} · TRACE</b></div><h3>{response.output.title}</h3><p>{response.output.summary}</p>
+                  {response.output.comparison ? <ComparisonPanel comparison={response.output.comparison} /> : response.output.manual ? <ManualPanel manual={response.output.manual} /> : <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>}
                   <div className="evidence-row"><span>依据</span>{response.output.evidence.map((item) => <b key={item}>{item}</b>)}</div>
                   <small>本结果由样例知识与演示数据生成，不代表正式业务结论。</small>
                 </div>
@@ -319,7 +371,7 @@ export default function Home() {
               )}
             </div>
             <form className="composer" onSubmit={runAgent}>
-              <button type="button" className="attach-button" title="演示阶段使用预置样例材料" aria-label="样例材料">＋</button>
+              <button type="button" className="attach-button" title="演示阶段使用预置样例材料，暂不接收文件上传" aria-label="样例材料上传暂未开放" disabled>＋</button>
               <input value={input} onChange={(event) => setInput(event.target.value)} aria-label="向 Agent 提问" placeholder="输入一个业务问题…" />
               <button type="submit" className="send-button" disabled={loading || !input.trim()} aria-label="发送">↑</button>
               <div className="composer-meta"><span>ENTER 发送</span><b>演示接口已连接</b></div>
@@ -336,7 +388,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <div className="trace-metrics"><div><span>执行引擎</span><strong>{selected.id === "AG-001" ? "LANGGRAPH" : "PREVIEW"}</strong></div><div><span>数据源</span><strong>MOCK</strong></div></div>
+            <div className="trace-metrics"><div><span>执行引擎</span><strong>{selected.availability === "runnable" ? "LANGGRAPH" : "PREVIEW"}</strong></div><div><span>数据源</span><strong>MOCK</strong></div></div>
           </aside>
         </div>
       </section>
@@ -346,11 +398,11 @@ export default function Home() {
         <div className="architecture-map">
           <div className="layer"><small>EXPERIENCE</small><strong>Agent 能力展厅</strong><span>统一交互工作台</span></div><i>↓</i>
           <div className="layer accent"><small>OUR CORE</small><strong>Agent 应用框架</strong><span>业务流程 · Prompt · 规则 · 评测</span></div><i>↓</i>
-          <div className="adapter-row"><div className="layer"><small>AI PORT</small><strong>AIPlatformPort</strong><span>甲方 AI 中台适配</span></div><div className="layer"><small>DATA PORT</small><strong>BusinessDataPort</strong><span>数据及业务系统适配</span></div></div>
+          <div className="adapter-row"><div className="layer"><small>AI PORT</small><strong>AIPlatformPort</strong><span>甲方 AI 中台、OCR与多模态适配</span></div><div className="layer"><small>DATA PORT</small><strong>Business / Document DataPort</strong><span>数据中台、业务系统与文档源适配</span></div></div>
         </div>
       </section>
 
-      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.2</p><span>AG-001 可运行 / Mock数据</span></footer>
+      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.3</p><span>AG-001 / AG-002 可运行 · Mock数据</span></footer>
     </main>
   );
 }

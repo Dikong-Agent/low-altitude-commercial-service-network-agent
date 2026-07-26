@@ -34,7 +34,9 @@ test("renders the Agent capability showroom", async () => {
   assert.match(html, /五种模式，一套底座/);
   assert.match(html, /AG-001/);
   assert.match(html, /AG-025/);
-  assert.match(html, /V1\.2/);
+  assert.match(html, /V1\.3/);
+  assert.equal((html.match(/<i>RUNNABLE<\/i>/g) ?? []).length, 2);
+  assert.equal((html.match(/<i>PREVIEW<\/i>/g) ?? []).length, 3);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
 
@@ -97,6 +99,95 @@ test("serves the AG-001 mock product catalog through BusinessDataPort", async ()
   assert.equal(body.connector.status, "mock-active");
   assert.ok(body.items.length >= 2);
   assert.ok(body.items.every((item) => item.name.startsWith("样例·")));
+});
+
+test("runs AG-002 through the LangGraph manual interpretation workflow", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-002", "飞行前需要完成哪些安全检查？请按顺序说明");
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-agent-engine"), "langgraph-demo");
+  const body = await response.json();
+  assert.equal(response.headers.get("x-trace-id"), body.trace_id);
+  assert.equal(body.status, "needs_review");
+  assert.equal(body.output.manual.engine, "langgraph-demo");
+  assert.equal(body.output.manual.document.id, "DEMO-MANUAL-X8");
+  assert.ok(body.output.manual.steps.length >= 5);
+  assert.ok(body.output.manual.citations.every((item) => /第\d+/.test(item.location)));
+  assert.ok(body.output.manual.risk_markers.some((item) => item.level === "warning"));
+  assert.ok(body.output.manual.risk_markers.some((item) => item.level === "prohibited"));
+  assert.ok(body.output.manual.risk_markers.some((item) => item.level === "compliance"));
+  assert.equal(body.output.manual.capability_coverage.length, 13);
+  assert.deepEqual(
+    body.output.manual.capability_coverage.filter((item) => item.status === "adapter-ready").map((item) => item.capability),
+    ["说明书图文语义识别"],
+  );
+  assert.ok(body.trace.length >= 7);
+});
+
+test("AG-002 combines core-function, safety, and compliance summaries", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-002", "概括核心功能、安全事项和合规要求");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "needs_review");
+  assert.ok(body.output.manual.intent.topics.includes("overview"));
+  assert.ok(body.output.manual.intent.topics.includes("safety"));
+  assert.ok(body.output.manual.intent.topics.includes("compliance"));
+  assert.ok(body.output.manual.citations.some((item) => item.section_id === "x8-overview"));
+  assert.ok(body.output.manual.citations.some((item) => item.section_id === "x8-compliance"));
+  assert.ok(body.output.manual.risk_markers.some((item) => item.level === "compliance"));
+});
+
+test("AG-002 preserves troubleshooting order and source locations", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-002", "设备出现定位漂移时，应优先检查哪些项目？");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "needs_review");
+  assert.ok(body.output.manual.intent.topics.includes("troubleshooting"));
+  assert.equal(body.output.manual.steps[0].title, "转移到开阔区域");
+  assert.ok(body.output.manual.steps.some((step) => step.title === "异常持续则降落停用"));
+  assert.ok(body.output.manual.steps.every((step, index) => step.order === index + 1));
+  assert.ok(body.output.manual.steps.every((step) => /第\d+/.test(step.source_ref)));
+});
+
+test("AG-002 explains requested terminology without forcing an operational conclusion", async () => {
+  const worker = await loadWorker();
+  const response = await invoke(worker, "AG-002", "用通俗的话解释GNSS、返航点和失控保护，并标出原文位置");
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.status, "completed");
+  assert.deepEqual(body.output.manual.glossary.map((item) => item.term), ["GNSS", "返航点", "失控保护"]);
+  assert.ok(body.output.manual.glossary.every((item) => /第\d+/.test(item.source_ref)));
+});
+
+test("AG-002 asks for clarification and rejects unknown document ids safely", async () => {
+  const worker = await loadWorker();
+  const vague = await invoke(worker, "AG-002", "你好");
+  assert.equal(vague.status, 200);
+  assert.equal((await vague.json()).status, "needs_clarification");
+
+  const missing = await invokeBody(worker, "AG-002", { agent_id: "AG-002", input: "概括核心功能", context: { document_id: "UNKNOWN" } });
+  assert.equal(missing.status, 200);
+  const missingBody = await missing.json();
+  assert.equal(missingBody.status, "needs_clarification");
+  assert.match(missingBody.output.summary, /没有找到指定文档/);
+});
+
+test("serves the AG-002 mock manual directory through DocumentDataPort", async () => {
+  const worker = await loadWorker();
+  const response = await worker.fetch(new Request("http://localhost/api/data/manuals?id=DEMO-MANUAL-X8"), env, ctx);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.environment, "demo");
+  assert.equal(body.connector.port, "DocumentDataPort");
+  assert.equal(body.items.length, 1);
+  assert.match(body.items[0].title, /^样例·/);
+  assert.match(body.notice, /虚构样例/);
+
+  const missing = await worker.fetch(new Request("http://localhost/api/data/manuals?id=UNKNOWN"), env, ctx);
+  assert.equal(missing.status, 404);
+  assert.equal((await missing.json()).code, "DOCUMENT_NOT_FOUND");
 });
 
 test("AG-001 evaluates hard constraints before limiting candidates", async () => {

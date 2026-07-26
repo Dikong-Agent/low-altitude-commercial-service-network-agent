@@ -7,13 +7,13 @@ import {
   type AgentInvokeResponse,
 } from "../../../../lib/contracts";
 import { invokeAg001 } from "../../../../lib/agents/ag001/workflow";
+import { invokeAg002 } from "../../../../lib/agents/ag002/workflow";
 import { recordAgentRun } from "../../../../lib/observability";
 import { DependencyUnavailableError } from "../../../../lib/reliability";
 
 const MAX_REQUEST_BYTES = 20_000;
 
-const previewOutputs: Record<Exclude<AgentId, "AG-001">, Omit<AgentInvokeResponse["output"], "summary">> = {
-  "AG-002": { title: "说明书解读能力预览", points: ["计划定位操作、安全和故障处理章节。", "计划按条件和先后关系提炼步骤。", "正式实现需接入文档解析与原文定位能力。"], evidence: ["预览流程定义", "待接入样例说明书"] },
+const previewOutputs: Record<Exclude<AgentId, "AG-001" | "AG-002">, Omit<AgentInvokeResponse["output"], "summary">> = {
   "AG-003": { title: "分类导购能力预览", points: ["计划识别预算、场景和性能约束。", "计划以硬条件排除不满足要求的候选。", "正式实现需接入产品标签和推荐规则。"], evidence: ["预览流程定义", "待接入产品目录"] },
   "AG-012": { title: "政策解读能力预览", points: ["计划围绕适用对象、执行条件和时效开展检索。", "计划输出带来源的政策解释。", "正式业务判断仍需回到最新有效文件并由专业人员复核。"], evidence: ["预览流程定义", "待接入政策知识库"] },
   "AG-025": { title: "智能客服能力预览", points: ["计划识别业务意图并选择服务路径。", "计划连接知识问答、业务工具和转人工流程。", "正式实现需接入 FAQ、业务工具及人工服务机制。"], evidence: ["预览流程定义", "待接入客服工具"] },
@@ -64,9 +64,10 @@ export async function POST(request: Request, context: { params: Promise<{ agentI
     return errorResponse(400, "AGENT_ID_MISMATCH", "agent_id does not match route", traceId);
   }
 
-  if (agent.id === "AG-001") {
+  if (agent.id === "AG-001" || agent.id === "AG-002") {
+    const workflowRunner = agent.id === "AG-001" ? invokeAg001 : invokeAg002;
     try {
-      const response = await invokeAg001(parsed.data, traceId);
+      const response = await workflowRunner(parsed.data, traceId);
       recordAgentRun({ traceId, requestId: response.request_id, agentId: agent.id, status: response.status, durationMs: Date.now() - startedAt });
       return Response.json(response, { headers: responseHeaders(traceId, "langgraph-demo") });
     } catch (error) {
@@ -78,11 +79,11 @@ export async function POST(request: Request, context: { params: Promise<{ agentI
         durationMs: Date.now() - startedAt,
         errorCode: dependencyFailure ? "DEPENDENCY_UNAVAILABLE" : "WORKFLOW_FAILED",
       });
-      console.error("AG-001 workflow failed", { traceId, error });
+      console.error(`${agent.id} workflow failed`, { traceId, error });
       return errorResponse(
         dependencyFailure ? 503 : 500,
         dependencyFailure ? "DEPENDENCY_UNAVAILABLE" : "AGENT_WORKFLOW_FAILED",
-        dependencyFailure ? "A required Agent dependency is temporarily unavailable" : "AG-001 workflow failed safely",
+        dependencyFailure ? "A required Agent dependency is temporarily unavailable" : `${agent.id} workflow failed safely`,
         traceId,
       );
     }

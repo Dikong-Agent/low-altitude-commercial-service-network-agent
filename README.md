@@ -1,11 +1,11 @@
-# 景德镇低空商业服务网 Agent 能力展厅 v1.2
+# 景德镇低空商业服务网 Agent 能力展厅 v1.3
 
 面向甲方展示五个标杆业务 Agent 的前端能力展厅与统一演示工作台。
 
 ## 当前包含
 
 - AG-001 低空产品型号对比Agent：可运行。
-- AG-002 低空产品说明书解读Agent：能力预览。
+- AG-002 低空产品说明书解读Agent：可运行。
 - AG-003 低空产品分类导购及推荐Agent：能力预览。
 - AG-012 政策、标准解读Agent：能力预览。
 - AG-025 智能客服Agent：能力预览。
@@ -23,10 +23,19 @@
 - 自动保存最近5条当前浏览器本地演示记录，可回看和复用。
 - 所有产品均为虚构 Mock 数据，通过 `BusinessDataPort` 提供。
 
+## AG-002 当前可运行能力
+
+- 使用独立 LangGraphJS 工作流编排问题理解、样例文档加载、文档结构解析、章节语义检索、通俗化指引、风险校验和带依据输出。
+- 覆盖当前功能导图中 AG-002 的13项能力：核心内容摘要、场景检索、操作步骤、术语转换、故障排查、安全风险、操作禁忌、合规要求、文档结构和图文解析适配等。
+- 可按飞行前检查、充电、维护、定位漂移、失控与返航等场景检索样例说明书。
+- 输出分步操作指引、适用条件、安全注意、风险标记、通俗术语解释、章节页码和相关原文摘要。
+- 涉及飞行、安全、故障或合规的结果自动标记为需要人工复核，不将样例手册答复作为正式操作指令。
+- 当前仅使用虚构的预解析样例说明书；正式 PDF、扫描件、OCR、多模态识别和文档库通过 `AIPlatformPort` 与 `DocumentDataPort` 接入。
+
 ## 技术底座
 
 - `AgentRequest`、`AgentResponse`及比较结果均使用 Zod 进行运行时校验。
-- `Provider Registry`负责注入`AIPlatformPort`和`BusinessDataPort`，正式接入无需修改核心工作流。
+- 每个 Agent 使用独立 `Provider Registry` 注入 `AIPlatformPort`、`BusinessDataPort` 或 `DocumentDataPort`，正式接入无需修改核心工作流。
 - 端口调用具备超时、有限重试和熔断保护；前端请求支持超时和切换 Agent 时主动取消。
 - 每次调用分别生成`request_id`和`trace_id`，服务端输出不包含用户问题正文的结构化运行日志。
 - 浏览器会话使用独立随机`session_id`，不在不同用户之间共享演示上下文。
@@ -37,8 +46,9 @@
 - `GET /api/agents`：Agent目录和可运行/预览状态。
 - `POST /api/agents/:agentId/invoke`：统一Agent调用接口，采用运行时校验的`AgentInvokeRequest`和`AgentInvokeResponse`契约。
 - `GET /api/data/products`：AG-001 Mock产品诊断接口，可按`ids`或`scenario`查询。
+- `GET /api/data/manuals`：AG-002 Mock说明书目录诊断接口，可按`id`查询。
 - 未实现的数据资源返回`404`，避免把接口路径错误伪装为空数据。
-- AG-002、AG-003、AG-012、AG-025明确返回`preview`状态，不表示工作流已经实现。
+- AG-003、AG-012、AG-025明确返回`preview`状态，不表示工作流已经实现。
 - 浏览器固定调用同源`/api` BFF；正式AI能力和业务数据均由服务端适配器访问，不允许前端通过公开环境变量绕过我方接口层。
 
 ## 本地运行

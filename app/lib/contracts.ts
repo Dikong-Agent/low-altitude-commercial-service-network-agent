@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-export const AGENT_INTERFACE_VERSION = "v1.1";
+export const AGENT_INTERFACE_VERSION = "v1.2";
 export const MAX_AGENT_INPUT_LENGTH = 2_000;
 export const MAX_AGENT_CONTEXT_BYTES = 12_000;
 
@@ -97,6 +97,80 @@ export const AgentComparisonOutputSchema = z.object({
 });
 export type AgentComparisonOutput = z.infer<typeof AgentComparisonOutputSchema>;
 
+export const ManualTopicSchema = z.enum(["overview", "operation", "safety", "troubleshooting", "terminology", "compliance"]);
+export type ManualTopic = z.infer<typeof ManualTopicSchema>;
+
+export const ManualCitationSchema = z.object({
+  section_id: z.string(),
+  section_title: z.string(),
+  location: z.string(),
+  excerpt: z.string(),
+  relevance: z.number().min(0).max(1),
+});
+export type ManualCitation = z.infer<typeof ManualCitationSchema>;
+
+export const ManualStepSchema = z.object({
+  order: z.number().int().positive(),
+  title: z.string(),
+  instruction: z.string(),
+  condition: z.string().nullable(),
+  safety_note: z.string().nullable(),
+  source_ref: z.string(),
+});
+export type ManualStep = z.infer<typeof ManualStepSchema>;
+
+export const ManualRiskMarkerSchema = z.object({
+  level: z.enum(["warning", "prohibited", "compliance"]),
+  label: z.string(),
+  detail: z.string(),
+  source_ref: z.string(),
+});
+export type ManualRiskMarker = z.infer<typeof ManualRiskMarkerSchema>;
+
+export const ManualGlossaryItemSchema = z.object({
+  term: z.string(),
+  plain_explanation: z.string(),
+  source_ref: z.string(),
+});
+export type ManualGlossaryItem = z.infer<typeof ManualGlossaryItemSchema>;
+
+export const AgentManualOutputSchema = z.object({
+  engine: z.literal("langgraph-demo"),
+  document: z.object({
+    id: z.string(),
+    title: z.string(),
+    product_name: z.string(),
+    version: z.string(),
+    updated_at: z.string(),
+    source_type: z.literal("虚构样例说明书"),
+  }),
+  intent: z.object({
+    topics: z.array(ManualTopicSchema),
+    scenarios: z.array(z.string()),
+    terms: z.array(z.string()),
+  }),
+  answer: z.string(),
+  steps: z.array(ManualStepSchema),
+  risk_markers: z.array(ManualRiskMarkerSchema),
+  glossary: z.array(ManualGlossaryItemSchema),
+  citations: z.array(ManualCitationSchema),
+  document_structure: z.object({
+    chapters: z.number().int().nonnegative(),
+    tables: z.number().int().nonnegative(),
+    figures: z.number().int().nonnegative(),
+    scanned_pages: z.number().int().nonnegative(),
+    recognition_mode: z.literal("demo-preparsed"),
+  }),
+  capability_coverage: z.array(z.object({
+    requirement_id: z.string(),
+    capability: z.string(),
+    status: z.enum(["mock-demonstrated", "adapter-ready"]),
+  })),
+  data_notice: z.string(),
+  rule_version: z.string(),
+});
+export type AgentManualOutput = z.infer<typeof AgentManualOutputSchema>;
+
 export const AgentInvokeResponseSchema = z.object({
   request_id: z.string(),
   trace_id: z.string(),
@@ -109,6 +183,7 @@ export const AgentInvokeResponseSchema = z.object({
     points: z.array(z.string()),
     evidence: z.array(z.string()),
     comparison: AgentComparisonOutputSchema.optional(),
+    manual: AgentManualOutputSchema.optional(),
   }),
   trace: z.array(z.object({ name: z.string(), detail: z.string() })),
 });
