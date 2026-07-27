@@ -17,9 +17,12 @@ const strongTopicRules: Record<ManualTopic, RegExp> = {
 };
 
 export function rankManualSections(manual: ParsedManual, intent: ManualIntent, query: string): RankedManualSection[] {
+  const focusedScenarios = intent.scenarios.filter((scenario) => scenario !== "飞行");
+  const shouldFocusScenario = focusedScenarios.length > 0;
   const ranked = manual.sections.map((section) => {
     const strongTopics = intent.topics.filter((topic) => section.topics.includes(topic) && strongTopicRules[topic].test(query));
     const scenarioMatches = intent.scenarios.filter((scenario) => section.scenarios.includes(scenario));
+    const focusedScenarioMatches = focusedScenarios.filter((scenario) => section.scenarios.includes(scenario));
     const termMatches = intent.terms.filter((term) => section.glossary.some((item) => item.term === term || item.aliases.includes(term)));
     const phraseMatches = section.scenarios.filter((scenario) => query.includes(scenario));
     const matchReasons = [
@@ -30,11 +33,13 @@ export function rankManualSections(manual: ParsedManual, intent: ManualIntent, q
     ];
     const rawScore = strongTopics.length * 5 + scenarioMatches.length * 8 + termMatches.length * 14 + phraseMatches.length * 3;
     const relevance = Math.min(1, Number((rawScore / 24).toFixed(2)));
-    return { section, rawScore, relevance, matchReasons };
+    return { section, rawScore, relevance, matchReasons, hasFocusedScenarioMatch: focusedScenarioMatches.length > 0, hasTermMatch: termMatches.length > 0 };
   }).sort((a, b) => b.rawScore - a.rawScore || a.section.pageStart - b.section.pageStart);
 
   return ranked
-    .filter((item) => item.rawScore > 0 && item.matchReasons.length > 0)
+    .filter((item) => item.rawScore > 0
+      && item.matchReasons.length > 0
+      && (!shouldFocusScenario || item.hasFocusedScenarioMatch || item.hasTermMatch))
     .slice(0, AG002_CONFIG.maxSections)
     .map(({ section, relevance, matchReasons }) => ({ section, relevance, matchReasons }));
 }

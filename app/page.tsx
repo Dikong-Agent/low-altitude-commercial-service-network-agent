@@ -2,7 +2,7 @@
 
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AGENTS } from "./lib/agent-registry";
-import type { AgentComparisonOutput, AgentCustomerServiceOutput, AgentDefinition, AgentId, AgentManualOutput, AgentPolicyOutput, AgentRecommendationOutput } from "./lib/contracts";
+import type { AgentComparisonOutput, AgentCustomerServiceOutput, AgentDefinition, AgentId, AgentManualOutput, AgentPolicyOutput, AgentRecommendationOutput, ManualTopic } from "./lib/contracts";
 import { AgentGatewayError, invokeAgent } from "./lib/agent-gateway";
 
 const capabilityStats = [
@@ -22,9 +22,18 @@ const agentPresentation = {
 const runnableCount = AGENTS.filter((agent) => agent.availability === "runnable").length;
 
 function presentEvidenceLabel(value: string): string {
-  if (/rule|规则版本/i.test(value)) return "能力规则依据";
+  if (/^AG-?\d{3}(?:\s|-).*(?:rule|规则|port|边界)/i.test(value)) return "能力规则依据";
   return value.replaceAll("Mock", "演示样例").replaceAll("DEMO", "样例");
 }
+
+const manualTopicLabels: Record<ManualTopic, string> = {
+  overview: "产品概况",
+  operation: "操作指引",
+  safety: "安全事项",
+  troubleshooting: "故障排查",
+  terminology: "术语解释",
+  compliance: "合规要求",
+};
 
 interface DemoHistoryItem {
   requestId: string;
@@ -171,7 +180,7 @@ function ManualPanel({ manual }: { manual: AgentManualOutput }) {
       <div className="intent-strip">
         <span>理解结果</span>
         <div>
-          {manual.intent.topics.map((topic) => <b key={topic}>主题 · {topic}</b>)}
+          {manual.intent.topics.map((topic) => <b key={topic}>主题 · {manualTopicLabels[topic]}</b>)}
           {manual.intent.scenarios.map((scenario) => <b key={scenario}>场景 · {scenario}</b>)}
           {manual.intent.terms.map((term) => <b key={term}>术语 · {term}</b>)}
         </div>

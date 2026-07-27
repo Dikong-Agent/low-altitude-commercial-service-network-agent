@@ -324,6 +324,8 @@ test("runs AG-002 through the LangGraph manual interpretation workflow", async (
   assert.equal(body.output.manual.engine, "langgraph-demo");
   assert.equal(body.output.manual.document.id, "DEMO-MANUAL-X8");
   assert.ok(body.output.manual.steps.length >= 5);
+  assert.deepEqual(body.output.manual.citations.map((item) => item.section_id), ["x8-compliance", "x8-preflight"]);
+  assert.ok(body.output.manual.steps.every((step) => step.source_ref.includes("3.1 飞行前安全检查")));
   assert.ok(body.output.manual.citations.every((item) => /第\d+/.test(item.location)));
   assert.ok(body.output.manual.risk_markers.some((item) => item.level === "warning"));
   assert.ok(body.output.manual.risk_markers.some((item) => item.level === "prohibited"));
@@ -372,8 +374,10 @@ test("AG-002 preserves troubleshooting order and source locations", async () => 
   const body = await response.json();
   assert.equal(body.status, "needs_review");
   assert.ok(body.output.manual.intent.topics.includes("troubleshooting"));
+  assert.deepEqual(body.output.manual.citations.map((item) => item.section_id), ["x8-position-drift"]);
   assert.equal(body.output.manual.steps[0].title, "转移到开阔区域");
   assert.ok(body.output.manual.steps.some((step) => step.title === "异常持续则降落停用"));
+  assert.ok(body.output.manual.steps.every((step) => step.source_ref.includes("6.3 定位漂移排查")));
   assert.ok(body.output.manual.steps.every((step, index) => step.order === index + 1));
   assert.ok(body.output.manual.steps.every((step) => /第\d+/.test(step.source_ref)));
 });
