@@ -2,7 +2,7 @@
 
 import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AGENTS } from "./lib/agent-registry";
-import type { AgentComparisonOutput, AgentCustomerServiceOutput, AgentDefinition, AgentId, AgentManualOutput, AgentPolicyOutput, AgentRecommendationOutput, ManualTopic } from "./lib/contracts";
+import type { AgentComparisonOutput, AgentCustomerServiceOutput, AgentDefinition, AgentId, AgentManualOutput, AgentPolicyOutput, AgentRecommendationOutput, ManualTopic, PolicyTopic } from "./lib/contracts";
 import { AgentGatewayError, invokeAgent } from "./lib/agent-gateway";
 
 const capabilityStats = [
@@ -23,7 +23,26 @@ const runnableCount = AGENTS.filter((agent) => agent.availability === "runnable"
 
 function presentEvidenceLabel(value: string): string {
   if (/^AG-?\d{3}(?:\s|-).*(?:rule|规则|port|边界)/i.test(value)) return "能力规则依据";
-  return value.replaceAll("Mock", "演示样例").replaceAll("DEMO", "样例");
+  const protectedOrderIds: string[] = [];
+  const protectedValue = value.replace(/JDZ-DEMO-\d+/gi, (orderId) => {
+    const index = protectedOrderIds.push(orderId) - 1;
+    return `__ORDER_ID_${index}__`;
+  });
+  const presented = protectedValue
+    .replace(/^MockOrderData\s*·\s*/i, "演示订单记录 · ")
+    .replace(/^MockProductData\s*·\s*/i, "演示商品记录 · ")
+    .replace(/^MockServiceData\s*·\s*/i, "演示服务记录 · ")
+    .replace(/\bv(\d+(?:\.\d+)*)-demo\b/gi, "演示版本 $1")
+    .replaceAll("Mock", "演示样例")
+    .replaceAll("DEMO", "样例");
+  return protectedOrderIds.reduce(
+    (result, orderId, index) => result.replace(`__ORDER_ID_${index}__`, orderId),
+    presented,
+  );
+}
+
+function presentEvidenceLabels(values: string[]): string[] {
+  return [...new Set(values.map(presentEvidenceLabel))];
 }
 
 const manualTopicLabels: Record<ManualTopic, string> = {
@@ -33,6 +52,27 @@ const manualTopicLabels: Record<ManualTopic, string> = {
   troubleshooting: "故障排查",
   terminology: "术语解释",
   compliance: "合规要求",
+};
+
+const policyTopicLabels: Record<PolicyTopic, string> = {
+  scope: "适用范围",
+  filing: "活动报备",
+  operation: "运行管理",
+  operation_safety: "运行安全",
+  record_retention: "记录保存",
+  logistics: "低空物流",
+  applicability: "适用条件",
+  timeliness: "政策时效",
+  version_status: "版本状态",
+  business_impact: "业务影响",
+  airworthiness: "适航要求",
+};
+
+const policyChangeLabels: Record<AgentPolicyOutput["changes"][number]["change_type"], string> = {
+  added: "新增",
+  removed: "废止",
+  modified: "调整",
+  moved: "迁移",
 };
 
 interface DemoHistoryItem {
@@ -269,12 +309,15 @@ function PolicyPanel({ policy }: { policy: AgentPolicyOutput }) {
   const modeLabels = { policy_summary: "政策摘要", policy_qa: "依据问答", version_compare: "版本对比", applicability: "适用判断", business_impact: "影响分析", airworthiness: "适航咨询" } as const;
   const assessmentLabels = { matched: "条件匹配", not_matched: "暂不匹配", unknown: "信息待补" } as const;
   const demonstrated = policy.capability_coverage.filter((item) => item.status === "mock-demonstrated").length;
+  const currentDocument = policy.current_version ? policy.documents.find((document) => document.id === policy.current_version?.document_id) : undefined;
+  const documentTypes = new Set(policy.intent.document_types);
+  const citationTitle = documentTypes.has("standard") && !documentTypes.has("policy") ? "标准依据" : documentTypes.has("policy") && !documentTypes.has("standard") ? "政策依据" : "政策与标准依据";
   const intentItems = [
     `模式 · ${modeLabels[policy.mode]}`,
     `时点 · ${policy.intent.as_of_date}`,
     ...policy.intent.subject_types.map((item) => `主体 · ${item}`),
     ...policy.intent.scenarios.map((item) => `场景 · ${item}`),
-    ...policy.intent.topics.map((item) => `主题 · ${item}`),
+    ...policy.intent.topics.map((item) => `主题 · ${policyTopicLabels[item]}`),
   ];
 
   return (
@@ -282,7 +325,7 @@ function PolicyPanel({ policy }: { policy: AgentPolicyOutput }) {
       <div className="intent-strip"><span>问题理解</span><div>{intentItems.map((item) => <b key={item}>{item}</b>)}</div></div>
       {policy.current_version && <div className="policy-current-band">
         <span>截至 {policy.current_version.as_of_date}</span>
-        <div><small>{policy.current_version.document_id}</small><strong>{policy.current_version.version}</strong><p>{policy.current_version.explanation}</p></div>
+        <div><small>{currentDocument ? presentEvidenceLabel(currentDocument.document_number) : "当前材料"}</small><strong>{policy.current_version.version}</strong><p>{policy.current_version.explanation}</p></div>
         <b className={`status-${policy.current_version.effective_status}`}>{statusLabels[policy.current_version.effective_status]}</b>
       </div>}
       <div className="manual-answer"><span>政策解读</span><p>{policy.answer}</p></div>
@@ -291,7 +334,7 @@ function PolicyPanel({ policy }: { policy: AgentPolicyOutput }) {
         <header><strong>版本与材料状态</strong><small>按提问时点动态判断，不以最新发布日期替代当前有效版本</small></header>
         <div>{policy.documents.map((document) => (
           <article key={document.id} className={`status-${document.effective_status}`}>
-            <span>{document.effective_from}</span><div><small>{document.document_number} · {document.source_type}</small><strong>{document.title}</strong><p>{document.issuer} · {document.jurisdiction}</p></div><b>{statusLabels[document.effective_status]}</b>
+            <span>{document.effective_from}</span><div><small>{presentEvidenceLabel(document.document_number)} · {document.source_type}</small><strong>{document.title}</strong><p>{document.issuer} · {document.jurisdiction}</p></div><b>{statusLabels[document.effective_status]}</b>
           </article>
         ))}</div>
       </section>
@@ -299,7 +342,7 @@ function PolicyPanel({ policy }: { policy: AgentPolicyOutput }) {
       {policy.changes.length > 0 && <section className="policy-changes">
         <header><strong>新旧版本主要变化</strong><small>逐项保留新旧条款定位</small></header>
         <div>{policy.changes.map((change, index) => (
-          <article key={change.id}><span>{String(index + 1).padStart(2, "0")}</span><div><small>{change.change_type.toUpperCase()} · {change.topic}</small><strong>{change.explanation}</strong><p>{change.business_impact}</p><em>{change.old_source_ref} → {change.new_source_ref}</em></div></article>
+          <article key={change.id}><span>{String(index + 1).padStart(2, "0")}</span><div><small>{policyChangeLabels[change.change_type]} · {change.topic}</small><strong>{change.explanation}</strong><p>{change.business_impact}</p><em>{change.old_source_ref} → {change.new_source_ref}</em></div></article>
         ))}</div>
       </section>}
 
@@ -311,7 +354,7 @@ function PolicyPanel({ policy }: { policy: AgentPolicyOutput }) {
       </section>}
 
       {policy.key_points.length > 0 && <section className="policy-key-points"><header><strong>条款要点</strong></header><div>{policy.key_points.map((item, index) => <p key={item}><span>{String(index + 1).padStart(2, "0")}</span>{item}</p>)}</div></section>}
-      <section className="manual-citations policy-citations"><header><strong>政策依据</strong><small>文号 · 版本 · 条款 · 生效状态</small></header><div>{policy.citations.map((citation) => <article key={`${citation.document_id}-${citation.locator}`}><span>{Math.round(citation.relevance * 100)}%</span><div><strong>{citation.document_number} · {citation.version} · {citation.locator} · {statusLabels[citation.effective_status]}</strong><p>{citation.excerpt}</p></div></article>)}</div></section>
+      <section className="manual-citations policy-citations"><header><strong>{citationTitle}</strong><small>文号 · 版本 · 条款 · 生效状态</small></header><div>{policy.citations.map((citation, index) => <article key={`${citation.document_id}-${citation.locator}`}><span>依据 {String(index + 1).padStart(2, "0")}</span><div><strong>{presentEvidenceLabel(citation.document_number)} · {citation.version} · {citation.locator} · {statusLabels[citation.effective_status]}</strong><p>{citation.excerpt}</p></div></article>)}</div></section>
       {policy.review_items.length > 0 && <div className="policy-review-items"><strong>待核实与复核事项</strong>{policy.review_items.map((item) => <p key={item}>! {item}</p>)}</div>}
       <div className="manual-coverage"><span><b>{policy.capability_coverage.length}</b>项能力纳入当前样板</span><p>其中{demonstrated}项已形成可运行展示，重点呈现版本核验、条款依据和适用条件解释。</p></div>
       <p className="data-notice">当前展示使用演示样例政策与标准；真实申报、合规及适航判断应以权威资料和主管部门口径为准。</p>
@@ -323,6 +366,7 @@ function CustomerServicePanel({ customerService }: { customerService: AgentCusto
   const routeLabels = { knowledge_answer: "知识答复", business_data: "业务信息查询", specialist_agent: "专业能力协同", human_handoff: "人工协同", clarification: "补充信息" } as const;
   const domainLabels = { platform: "平台", product_mall: "产品商城", flight_service: "飞行服务", technical_service: "技术服务", commercial_service: "商业服务", unknown: "待识别" } as const;
   const issueLabels = { general_rule: "平台规则", product: "商品咨询", order: "订单问题", after_sales: "售后问题", service: "服务咨询", complaint: "投诉", finance: "投融资", credit: "信贷", analytics: "运营问数", violation: "违规风险", unknown: "待识别" } as const;
+  const priorityLabels = { normal: "常规", high: "优先", urgent: "紧急" } as const;
   const demonstrated = customerService.capability_coverage.filter((item) => item.status === "mock-demonstrated").length;
   const intentItems = [
     `路径 · ${routeLabels[customerService.intent.route]}`,
@@ -344,8 +388,8 @@ function CustomerServicePanel({ customerService }: { customerService: AgentCusto
       {complaintItems.length > 0 && <section className="customer-tools"><header><strong>投诉要素理解</strong><small>主题 · 对象 · 时间 · 核心诉求</small></header><div>{complaintItems.map((item) => <article key={item}><span>已识别</span><p>{item}</p></article>)}</div></section>}
       {customerService.conversation.session_id && <section className="customer-knowledge"><header><strong>连续会话摘要</strong><small>{customerService.conversation.turn_count} 轮 · {customerService.conversation.prior_context_used ? "已结合前序信息" : "当前为独立问题"}</small></header><div><article><span>{String(customerService.conversation.turn_count).padStart(2, "0")}</span><div><strong>{customerService.conversation.user_problem_summary}</strong><p>持续保留已确认的关键信息，减少重复说明。</p></div></article></div></section>}
       {customerService.tool_results.length > 0 && <section className="customer-tools"><header><strong>业务信息</strong><small>根据已确认的信息返回对应结果</small></header><div>{customerService.tool_results.map((item) => <article className={`tool-${item.status}`} key={`${item.tool}-${item.label}`}><span>{item.status === "found" ? "已找到" : "未找到"}</span><strong>{item.label}</strong><p>{item.value}</p></article>)}</div></section>}
-      {customerService.knowledge_matches.length > 0 && <section className="customer-knowledge"><header><strong>答复依据</strong><small>演示用知识与规则样例</small></header><div>{customerService.knowledge_matches.map((item) => <article key={item.id}><span>{Math.round(item.relevance * 100)}%</span><div><strong>{item.title}</strong><p>{item.excerpt}</p></div></article>)}</div></section>}
-      {customerService.handoff.required && <section className="handoff-card"><header><span>{customerService.handoff.priority.toUpperCase()}</span><strong>建议转接：{customerService.handoff.target_team}</strong><b>尚未执行</b></header><p>{customerService.handoff.reason}</p><div><article><strong>已确认信息</strong>{customerService.handoff.confirmed_information.length ? customerService.handoff.confirmed_information.map((item) => <span key={item}>{item}</span>) : <span>暂无已确认业务实体</span>}</article><article><strong>待处理事项</strong>{customerService.handoff.pending_items.map((item) => <span key={item}>{item}</span>)}</article></div></section>}
+      {customerService.knowledge_matches.length > 0 && <section className="customer-knowledge"><header><strong>答复依据</strong><small>演示用知识与规则样例</small></header><div>{customerService.knowledge_matches.map((item, index) => <article key={item.id}><span>依据 {String(index + 1).padStart(2, "0")}</span><div><strong>{item.title}</strong><p>{item.excerpt}</p></div></article>)}</div></section>}
+      {customerService.handoff.required && <section className="handoff-card"><header><span>{priorityLabels[customerService.handoff.priority]}</span><strong>建议转接：{customerService.handoff.target_team}</strong><b>尚未执行</b></header><p>{customerService.handoff.reason}</p><div><article><strong>已确认信息</strong>{customerService.handoff.confirmed_information.length ? customerService.handoff.confirmed_information.map((item) => <span key={item}>{item}</span>) : <span>暂无已确认业务实体</span>}</article><article><strong>待处理事项</strong>{customerService.handoff.pending_items.map((item) => <span key={item}>{item}</span>)}</article></div></section>}
       <div className="manual-coverage"><span><b>{customerService.capability_coverage.length}</b>项能力纳入当前样板</span><p>其中{demonstrated}项已形成可运行展示，重点呈现多意图理解、业务答复与协同分流。</p></div>
       <p className="data-notice">当前展示使用演示样例业务资料，不执行退款、转单、信用处理或人工转接等真实业务操作。</p>
     </div>
@@ -526,7 +570,7 @@ export default function Home() {
                 <div className="result-card">
                   <div className="result-kicker"><span>{response.status === "preview" ? "能力预览" : response.status === "needs_review" ? "演示结果 · 建议复核" : response.status === "needs_clarification" ? "需要补充信息" : "演示结果"}</span><b>结果编号 {response.request_id}</b></div><h3>{response.output.title}</h3><p>{response.output.summary}</p>
                   {response.output.comparison ? <ComparisonPanel comparison={response.output.comparison} /> : response.output.manual ? <ManualPanel manual={response.output.manual} /> : response.output.recommendation ? <RecommendationPanel recommendation={response.output.recommendation} /> : response.output.policy ? <PolicyPanel policy={response.output.policy} /> : response.output.customer_service ? <CustomerServicePanel customerService={response.output.customer_service} /> : <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>}
-                  <div className="evidence-row"><span>依据</span>{response.output.evidence.map((item) => <b key={item}>{presentEvidenceLabel(item)}</b>)}</div>
+                  <div className="evidence-row"><span>依据</span>{presentEvidenceLabels(response.output.evidence).map((item) => <b key={item}>{item}</b>)}</div>
                   <small>本结果基于演示样例生成，仅用于能力展示，不作为正式业务结论。</small>
                 </div>
               )}

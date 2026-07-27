@@ -82,10 +82,10 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
       status: "needs_review",
       environment: dependencies.environment,
       output: {
-        title: "适航资料接口待接入",
-        summary: "当前演示环境没有接入权威适航资料，不能形成适航要求、案例适用性或合规结论。",
-        points: ["已保留适航材料检索、来源时效核验和条款引用接口。", "适航解读需以权威现行资料为依据。", "涉及安全与监管责任的结论必须由专业人员最终确认。"],
-        evidence: ["AG-012 AIPlatformPort 适航检索边界", "AG-012 PolicyDataPort 权威资料边界"],
+        title: "适航结论暂需权威资料与专业确认",
+        summary: "当前演示环境尚未接入权威适航资料，因此暂不提供型号适航、个案适用性或合规判断。",
+        points: ["需先核验型号对应的权威适航文件、适用版本和生效状态。", "在权威资料接入前，暂不提供型号适航或合规判断。", "涉及安全与监管责任的结论必须由专业人员最终确认。"],
+        evidence: ["适航资料与来源时效核验边界", "适航结论专业复核边界"],
       },
       trace: appendTrace(state, "保留适航复核边界", "未伪造适航知识或合规判断，等待权威资料与专业复核机制接入。"),
     };

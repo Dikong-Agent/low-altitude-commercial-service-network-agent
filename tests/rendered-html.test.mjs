@@ -82,12 +82,12 @@ test("runs AG-025 through the multi-intent customer service workflow", async () 
   const orderResult = body.output.customer_service.tool_results.find((item) => item.tool === "order_lookup");
   assert.equal(orderResult.status, "found");
   assert.equal(orderResult.label, "JDZ-DEMO-1001");
-  assert.equal(body.output.customer_service.capability_coverage.length, 61);
+  assert.equal(body.output.customer_service.capability_coverage.length, 50);
   assert.equal(body.output.customer_service.capability_coverage.filter((item) => item.status === "mock-demonstrated").length, 19);
-  assert.equal(body.output.customer_service.capability_coverage.filter((item) => item.status === "adapter-ready").length, 42);
+  assert.equal(body.output.customer_service.capability_coverage.filter((item) => item.status === "adapter-ready").length, 31);
   assert.equal(body.output.customer_service.capability_coverage.find((item) => item.requirement_id === "085-A-006").capability, "订单咨询协同答复");
-  assert.ok(body.output.customer_service.capability_coverage.some((item) => item.capability === "运营问数分析方案生成"));
-  assert.ok(body.output.customer_service.capability_coverage.some((item) => item.capability === "单指标异常关联线索分析"));
+  assert.ok(body.output.customer_service.capability_coverage.some((item) => item.capability === "运营问数意图理解"));
+  assert.ok(body.output.customer_service.capability_coverage.some((item) => item.capability === "客服会话违规风险线索识别"));
   assert.match(body.output.customer_service.data_notice, /Mock|未执行/);
   assert.ok(body.trace.length >= 5);
 });
@@ -825,7 +825,34 @@ test("AG-012 preserves the formal airworthiness adapter and review boundary", as
   const body = await response.json();
   assert.equal(body.status, "needs_review");
   assert.equal(body.output.policy, undefined);
-  assert.match(body.output.summary, /没有接入权威适航资料/);
+  assert.match(body.output.title, /权威资料与专业确认/);
+  assert.match(body.output.summary, /暂不提供型号适航/);
+  assert.doesNotMatch(JSON.stringify(body.output), /AIPlatformPort|PolicyDataPort/);
+  assert.equal(new Set(body.output.evidence).size, body.output.evidence.length);
+});
+
+test("AG-012 client presentation keeps implementation metadata out of policy results", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const policyPanel = source.slice(source.indexOf("function PolicyPanel"), source.indexOf("function CustomerServicePanel"));
+  assert.match(policyPanel, /policyTopicLabels\[item\]/);
+  assert.match(policyPanel, /policyChangeLabels\[change\.change_type\]/);
+  assert.match(source, /presentEvidenceLabels\(response\.output\.evidence\)/);
+  assert.match(policyPanel, /<strong>\{citationTitle\}<\/strong>/);
+  assert.doesNotMatch(policyPanel, /<small>\{policy\.current_version\.document_id\}<\/small>/);
+  assert.doesNotMatch(policyPanel, /change\.change_type\.toUpperCase\(\)/);
+  assert.doesNotMatch(policyPanel, /Math\.round\(citation\.relevance \* 100\)/);
+});
+
+test("AG-025 client presentation keeps stable business identifiers and internal metadata out of results", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const customerServicePanel = source.slice(source.indexOf("function CustomerServicePanel"), source.indexOf("export default function Home"));
+  assert.match(source, /JDZ-DEMO-\\d\+/);
+  assert.match(source, /演示订单记录 · /);
+  assert.match(source, /演示版本 \$1/);
+  assert.match(customerServicePanel, /priorityLabels\[customerService\.handoff\.priority\]/);
+  assert.match(customerServicePanel, /依据 \{String\(index \+ 1\)\.padStart\(2, "0"\)\}/);
+  assert.doesNotMatch(customerServicePanel, /customerService\.handoff\.priority\.toUpperCase\(\)/);
+  assert.doesNotMatch(customerServicePanel, /Math\.round\(item\.relevance \* 100\)/);
 });
 
 test("an invalid AG-012 provider is isolated from the other Agents", async () => {
