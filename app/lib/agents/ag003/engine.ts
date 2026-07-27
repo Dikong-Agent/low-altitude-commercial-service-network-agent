@@ -52,6 +52,8 @@ function evaluateProduct(product: DemoProduct, intent: RecommendationIntent): Re
   if (intent.experienceLevel === "beginner" && product.priceYuan <= 30_000) score += 12;
   if (intent.experienceLevel === "beginner" && product.trainingIncluded) score += 5;
   if (failures.length) score -= failures.length * 18;
+  if (hardFailures.length) score = Math.min(score, 59);
+  else if (suitabilityFailures.length) score = Math.min(score, 69);
   score = Math.max(0, Math.min(100, Math.round(score)));
   const reason = matchedTags.length
     ? `${product.description} 匹配${[...new Set(matchedTags)].join("、")}；样例价${(product.priceYuan / 10_000).toFixed(1)}万元。`
@@ -82,6 +84,8 @@ function evaluateSolution(solution: ScenarioSolution, intent: RecommendationInte
   let score = 42 + matchedScenarios.length * 16 + matchedTags.length * 6;
   if (requestMatch && intent.requestedProductIds.length) score += 24;
   if (failures.length) score -= failures.length * 18;
+  if (hardFailures.length) score = Math.min(score, 59);
+  else if (suitabilityFailures.length) score = Math.min(score, 69);
   score = Math.max(0, Math.min(100, Math.round(score)));
   return {
     id: solution.id, name: solution.name, candidateType: "scenario_solution", category: solution.category, score,

@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AGENTS } from "./lib/agent-registry";
 import type { AgentComparisonOutput, AgentCustomerServiceOutput, AgentDefinition, AgentId, AgentManualOutput, AgentPolicyOutput, AgentRecommendationOutput, ManualTopic } from "./lib/contracts";
 import { AgentGatewayError, invokeAgent } from "./lib/agent-gateway";
@@ -436,6 +436,13 @@ export default function Home() {
     }
   }
 
+  function handleComposerKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    if (!input.trim() || loading) return;
+    event.currentTarget.form?.requestSubmit();
+  }
+
   return (
     <main>
       <header className="site-header">
@@ -536,7 +543,7 @@ export default function Home() {
             </div>
             <form className="composer" onSubmit={runAgent}>
               <button type="button" className="attach-button" title={selected.id === "AG-003" ? "图片找货需等待正式视觉能力与商品数据接入" : "演示阶段使用预置样例材料，暂不接收文件上传"} aria-label="样例材料上传暂未开放" disabled>＋</button>
-              <input value={input} onChange={(event) => setInput(event.target.value)} aria-label="向 Agent 提问" placeholder="输入一个业务问题…" />
+              <input value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleComposerKeyDown} aria-label="向 Agent 提问" placeholder="输入一个业务问题…" />
               <button type="submit" className="send-button" disabled={loading || !input.trim()} aria-label="发送">↑</button>
               <div className="composer-meta"><span>按 Enter 发送</span><b>演示服务正常</b></div>
             </form>

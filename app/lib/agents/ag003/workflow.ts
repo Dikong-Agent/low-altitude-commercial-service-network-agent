@@ -26,6 +26,8 @@ function appendTrace(state: { trace?: Array<{ name: string; detail: string }> },
 
 function buildStopResponse(state: typeof Ag003GraphState.State, adapter = false) {
   const message = adapter ? state.intent?.adapterMessage : state.intent?.clarificationMessage;
+  const imageBoundary = adapter && state.intent?.mode === "image_search";
+  const c2cBoundary = adapter && state.intent?.mode === "c2c_recommendation";
   const response: AgentInvokeResponse = {
     request_id: `AG003-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
     trace_id: state.traceId,
@@ -33,11 +35,23 @@ function buildStopResponse(state: typeof Ag003GraphState.State, adapter = false)
     status: "needs_clarification",
     environment: "demo",
     output: {
-      title: adapter ? "已识别需求，等待正式能力适配" : "需要补充导购条件",
+      title: imageBoundary
+        ? "图片找货暂需补充正式识别与商品数据"
+        : c2cBoundary
+          ? "二手商品推荐暂需补充正式业务数据"
+          : "需要补充导购条件",
       summary: message ?? "请补充产品用途、预算或关键条件。",
-      points: adapter
-        ? ["图片能力需接入 AIPlatformPort；C2C 需接入正式业务数据。", "当前不会用文字规则伪造视觉识别、在售状态或个性化推荐。"]
-        : ["可说明用途，例如山区电力巡检或入门航拍。", "可补充预算、抗风、续航、载荷等条件。"],
+      points: imageBoundary
+        ? [
+          "需先识别图片主体与产品特征，再结合正式商品目录核对相似候选和可售状态。",
+          "在图片识别与商品数据接入前，暂不提供相似度排序或购买建议。",
+        ]
+        : c2cBoundary
+          ? [
+            "需结合真实在售商品、卖家信用、用户偏好和同城履约条件进行匹配。",
+            "在相关业务数据接入前，暂不提供个性化二手商品推荐或交易可达性结论。",
+          ]
+          : ["可说明用途，例如山区电力巡检或入门航拍。", "可补充预算、抗风、续航、载荷等条件。"],
       evidence: [adapter ? "AG-003 能力边界规则 v1.0" : "AG-003 输入完整性规则 v1.0"],
     },
     trace: appendTrace(state, adapter ? "进入适配边界" : "请求补充信息", adapter ? "未调用不存在的正式依赖，安全停止。" : "未形成有效导购意图，安全停止。"),

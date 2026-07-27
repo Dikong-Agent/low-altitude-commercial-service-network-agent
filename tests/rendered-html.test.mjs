@@ -558,6 +558,9 @@ test("AG-003 preserves decimal budget precision in the hard-constraint label", a
   const body = await response.json();
   assert.equal(body.output.recommendation.intent.budget_yuan, 25_000);
   assert.deepEqual(body.output.recommendation.intent.hard_constraints, ["预算不超过2.5万元"]);
+  const closest = body.output.recommendation.product_candidates.find((item) => item.id === "DEMO-C1");
+  assert.equal(closest.eligible, false);
+  assert.ok(closest.score <= 59);
 });
 
 test("AG-003 honors target-model membership when recommending a scenario solution", async () => {
@@ -612,14 +615,25 @@ test("AG-003 clarifies vague requests and stops at image/C2C adapter boundaries"
   assert.equal(vague.status, 200);
   assert.equal((await vague.json()).status, "needs_clarification");
 
-  for (const input of ["上传一张图片帮我找相似商品", "按卖家信用推荐同城二手无人机"]) {
-    const response = await invoke(worker, "AG-003", input);
-    assert.equal(response.status, 200);
-    const body = await response.json();
-    assert.equal(body.status, "needs_clarification");
-    assert.equal(body.output.recommendation, undefined);
-    assert.match(body.output.summary, /不能/);
-  }
+  const image = await invoke(worker, "AG-003", "上传一张图片帮我找相似商品");
+  assert.equal(image.status, 200);
+  const imageBody = await image.json();
+  assert.equal(imageBody.status, "needs_clarification");
+  assert.equal(imageBody.output.recommendation, undefined);
+  assert.match(imageBody.output.title, /图片找货/);
+  assert.match(imageBody.output.summary, /暂不生成相似商品推荐/);
+  assert.match(imageBody.output.points.join(" "), /图片主体.*商品目录/);
+  assert.doesNotMatch(imageBody.output.points.join(" "), /AIPlatformPort|C2C|卖家信用/);
+
+  const c2c = await invoke(worker, "AG-003", "按卖家信用推荐同城二手无人机");
+  assert.equal(c2c.status, 200);
+  const c2cBody = await c2c.json();
+  assert.equal(c2cBody.status, "needs_clarification");
+  assert.equal(c2cBody.output.recommendation, undefined);
+  assert.match(c2cBody.output.title, /二手商品推荐/);
+  assert.match(c2cBody.output.summary, /暂不生成个性化推荐/);
+  assert.match(c2cBody.output.points.join(" "), /卖家信用.*同城履约/);
+  assert.doesNotMatch(c2cBody.output.points.join(" "), /AIPlatformPort|图片识别/);
 });
 
 test("an invalid AG-003 provider is isolated from the other Agents", async () => {
