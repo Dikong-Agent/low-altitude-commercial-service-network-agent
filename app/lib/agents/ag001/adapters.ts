@@ -44,9 +44,9 @@ function parseConstraint(
   keyword: string,
   unit: string,
 ): HardConstraint | null {
-  const gte = firstNumber(input, new RegExp(`${keyword}[^，。；]{0,10}(?:至少|不低于|不少于|>=|≥)\\s*(\\d+(?:\\.\\d+)?)`, "i"));
+  const gte = firstNumber(input, new RegExp(`${keyword}[^，。；、]{0,10}?(?:至少|不低于|不少于|>=|≥)\\s*(\\d+(?:\\.\\d+)?)`, "i"));
   if (gte !== null) return { dimension, operator: "gte", value: gte, label: `${label}不低于${gte}${unit}` };
-  const lte = firstNumber(input, new RegExp(`${keyword}[^，。；]{0,10}(?:不超过|不高于|以内|<=|≤)\\s*(\\d+(?:\\.\\d+)?)`, "i"));
+  const lte = firstNumber(input, new RegExp(`${keyword}[^，。；、]{0,10}?(?:不超过|不高于|以内|<=|≤)\\s*(\\d+(?:\\.\\d+)?)`, "i"));
   if (lte !== null) return { dimension, operator: "lte", value: lte, label: `${label}不超过${lte}${unit}` };
   return null;
 }

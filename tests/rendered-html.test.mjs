@@ -865,7 +865,11 @@ test("AG-001 preserves compound business scenarios", async () => {
   const response = await invoke(worker, "AG-001", "用于山区电力巡检，载荷至少3公斤、抗风至少13米/秒，有合适型号吗？");
   assert.equal(response.status, 200);
   const body = await response.json();
+  assert.equal(body.status, "completed");
   assert.deepEqual(body.output.comparison.intent.use_cases, ["山区巡检", "电力巡检"]);
+  assert.deepEqual(body.output.comparison.intent.hard_constraints, ["有效载荷不低于3公斤", "抗风能力不低于13米/秒"]);
+  assert.ok(body.output.comparison.products.some((item) => item.eligible));
+  assert.ok(body.output.comparison.recommendation.primary_product_id);
 });
 
 test("AG-001 asks for the unit when a budget is ambiguous", async () => {
