@@ -6,12 +6,25 @@ import type { AgentComparisonOutput, AgentCustomerServiceOutput, AgentDefinition
 import { AgentGatewayError, invokeAgent } from "./lib/agent-gateway";
 
 const capabilityStats = [
-  { value: "05", label: "可运行 Agent" },
-  { value: "178", label: "已映射能力点" },
-  { value: "05", label: "服务端适配端口" },
+  { value: "28", label: "业务智能体总体范围" },
+  { value: "5", label: "可运行标杆Agent" },
+  { value: "1", label: "套可复用建设方法" },
 ];
 
+const agentPresentation = {
+  "AG-001": { scene: "产品选型与参数比较", input: "候选型号、使用场景与约束条件", output: "结构化对比、约束校验与选型建议" },
+  "AG-002": { scene: "产品说明书咨询", input: "说明书材料、问题与操作场景", output: "原文定位、通俗解读与安全提示" },
+  "AG-003": { scene: "分类导购与方案推荐", input: "用途、预算、偏好与排除条件", output: "候选方案、推荐依据与差距说明" },
+  "AG-012": { scene: "政策与标准咨询", input: "政策材料、查询时点与适用条件", output: "版本核验、条款依据与适用解释" },
+  "AG-025": { scene: "商品、订单与售后咨询", input: "用户问题、业务实体与会话上下文", output: "答复、业务路由与人工协同摘要" },
+} satisfies Record<AgentId, { scene: string; input: string; output: string }>;
+
 const runnableCount = AGENTS.filter((agent) => agent.availability === "runnable").length;
+
+function presentEvidenceLabel(value: string): string {
+  if (/rule|规则版本/i.test(value)) return "能力规则依据";
+  return value.replaceAll("Mock", "演示样例").replaceAll("DEMO", "样例");
+}
 
 interface DemoHistoryItem {
   requestId: string;
@@ -140,8 +153,8 @@ function ComparisonPanel({ comparison }: { comparison: AgentComparisonOutput }) 
       </div>
 
       {comparison.conflicts.length > 0 && <div className="conflict-box"><strong>条件冲突</strong>{comparison.conflicts.map((item) => <p key={item}>! {item}</p>)}</div>}
-      <p className="data-notice">{comparison.data_notice}</p>
-      <span className="engine-label">ENGINE · {comparison.engine.toUpperCase()} · {productById.size} PRODUCTS</span>
+      <p className="data-notice">当前展示使用演示样例产品，不代表正式商品、价格、库存或采购结论。</p>
+      <span className="engine-label">本次比较范围 · {productById.size}个候选产品</span>
     </div>
   );
 }
@@ -183,13 +196,12 @@ function ManualPanel({ manual }: { manual: AgentManualOutput }) {
       {manual.glossary.length > 0 && <section className="manual-glossary"><header><strong>专业术语通俗化</strong></header><div>{manual.glossary.map((item) => <article key={item.term}><b>{item.term}</b><p>{item.plain_explanation}</p><small>{item.source_ref}</small></article>)}</div></section>}
 
       <section className="manual-citations">
-        <header><strong>原文定位</strong><small>相关度按样例文档语义检索结果展示</small></header>
+        <header><strong>原文定位</strong><small>按与当前问题的相关程度展示</small></header>
         <div>{manual.citations.map((citation) => <article key={citation.section_id}><span>{Math.round(citation.relevance * 100)}%</span><div><strong>{citation.location}</strong><p>{citation.excerpt}</p></div></article>)}</div>
       </section>
 
-      <div className="manual-coverage"><span><b>{manual.capability_coverage.length}</b>项现行能力已对齐</span><p>场景语义检索、图示含义解读和章节图表关系理解等待正式 AI 中台适配；当前仅演示规则检索与预解析样例文档。</p></div>
-      <p className="data-notice">{manual.data_notice}</p>
-      <span className="engine-label">ENGINE · {manual.engine.toUpperCase()} · {manual.rule_version}</span>
+      <div className="manual-coverage"><span><b>{manual.capability_coverage.length}</b>项能力纳入当前样板</span><p>本次重点展示问题理解、原文定位、通俗解读和安全提示等核心能力。</p></div>
+      <p className="data-notice">当前展示使用演示样例说明书；实际操作请以真实有效手册、现行规范和专业人员确认结果为准。</p>
     </div>
   );
 }
@@ -223,7 +235,7 @@ function RecommendationPanel({ recommendation }: { recommendation: AgentRecommen
         <p>{recommendation.recommendation.reason}</p>
       </div>
       <section className="candidate-section">
-        <header><strong>{recommendation.mode === "scenario_solution" ? "场景方案候选" : "商品候选"}</strong><small>先执行硬条件，再按相关性排序</small></header>
+        <header><strong>{recommendation.mode === "scenario_solution" ? "场景方案候选" : "商品候选"}</strong><small>优先满足必要条件，再综合评估相关性</small></header>
         <div>{candidates.map((candidate, index) => (
           <article className={candidate.eligible ? "eligible" : "ineligible"} key={candidate.id}>
             <div className="candidate-rank"><span>0{index + 1}</span><b>{candidate.score}<small>/100</small></b></div>
@@ -237,9 +249,8 @@ function RecommendationPanel({ recommendation }: { recommendation: AgentRecommen
         ))}</div>
       </section>
       {[...new Set([...recommendation.gaps, ...recommendation.missing_data])].length > 0 && <div className="recommendation-gaps"><strong>差距与待确认事项</strong>{[...new Set([...recommendation.gaps, ...recommendation.missing_data])].slice(0, 6).map((item) => <p key={item}>! {item}</p>)}</div>}
-      <div className="manual-coverage"><span><b>{recommendation.capability_coverage.length}</b>项现行能力已对齐</span><p>{demonstrated}项使用 Mock 目录演示；其余图片找货与 C2C 个性化能力仅预留正式 AI 中台和业务数据适配接口。</p></div>
-      <p className="data-notice">{recommendation.data_notice}</p>
-      <span className="engine-label">ENGINE · {recommendation.engine.toUpperCase()} · {recommendation.rule_version}</span>
+      <div className="manual-coverage"><span><b>{recommendation.capability_coverage.length}</b>项能力纳入当前样板</span><p>其中{demonstrated}项已形成可运行展示，重点呈现场景理解、条件筛选与推荐依据。</p></div>
+      <p className="data-notice">当前展示使用演示样例方案、产品与价格，不代表真实商城信息、正式报价或采购建议。</p>
     </div>
   );
 }
@@ -293,21 +304,19 @@ function PolicyPanel({ policy }: { policy: AgentPolicyOutput }) {
       {policy.key_points.length > 0 && <section className="policy-key-points"><header><strong>条款要点</strong></header><div>{policy.key_points.map((item, index) => <p key={item}><span>{String(index + 1).padStart(2, "0")}</span>{item}</p>)}</div></section>}
       <section className="manual-citations policy-citations"><header><strong>政策依据</strong><small>文号 · 版本 · 条款 · 生效状态</small></header><div>{policy.citations.map((citation) => <article key={`${citation.document_id}-${citation.locator}`}><span>{Math.round(citation.relevance * 100)}%</span><div><strong>{citation.document_number} · {citation.version} · {citation.locator} · {statusLabels[citation.effective_status]}</strong><p>{citation.excerpt}</p></div></article>)}</div></section>
       {policy.review_items.length > 0 && <div className="policy-review-items"><strong>待核实与复核事项</strong>{policy.review_items.map((item) => <p key={item}>! {item}</p>)}</div>}
-      <div className="manual-coverage"><span><b>{policy.capability_coverage.length}</b>项现行能力已对齐</span><p>{demonstrated}项以虚构政策和标准样例演示；适航咨询与内容生成能力保留正式权威资料、AI 中台和专业复核适配边界。</p></div>
-      <p className="data-notice">{policy.data_notice}</p>
-      <span className="engine-label">ENGINE · {policy.engine.toUpperCase()} · {policy.rule_version}</span>
+      <div className="manual-coverage"><span><b>{policy.capability_coverage.length}</b>项能力纳入当前样板</span><p>其中{demonstrated}项已形成可运行展示，重点呈现版本核验、条款依据和适用条件解释。</p></div>
+      <p className="data-notice">当前展示使用演示样例政策与标准；真实申报、合规及适航判断应以权威资料和主管部门口径为准。</p>
     </div>
   );
 }
 
 function CustomerServicePanel({ customerService }: { customerService: AgentCustomerServiceOutput }) {
-  const routeLabels = { knowledge_answer: "知识答复", business_data: "业务数据查询", specialist_agent: "专业 Agent 路由", human_handoff: "人工协同", clarification: "补充信息" } as const;
+  const routeLabels = { knowledge_answer: "知识答复", business_data: "业务信息查询", specialist_agent: "专业能力协同", human_handoff: "人工协同", clarification: "补充信息" } as const;
   const domainLabels = { platform: "平台", product_mall: "产品商城", flight_service: "飞行服务", technical_service: "技术服务", commercial_service: "商业服务", unknown: "待识别" } as const;
   const issueLabels = { general_rule: "平台规则", product: "商品咨询", order: "订单问题", after_sales: "售后问题", service: "服务咨询", complaint: "投诉", finance: "投融资", credit: "信贷", analytics: "运营问数", violation: "违规风险", unknown: "待识别" } as const;
   const demonstrated = customerService.capability_coverage.filter((item) => item.status === "mock-demonstrated").length;
   const intentItems = [
     `路径 · ${routeLabels[customerService.intent.route]}`,
-    `置信度 · ${Math.round(customerService.intent.confidence * 100)}%`,
     ...customerService.intent.domains.map((item) => `板块 · ${domainLabels[item]}`),
     ...customerService.intent.issue_types.map((item) => `问题 · ${issueLabels[item]}`),
     ...(customerService.intent.prior_context_used ? ["上下文 · 已复用前序会话"] : []),
@@ -324,13 +333,12 @@ function CustomerServicePanel({ customerService }: { customerService: AgentCusto
       <div className="intent-strip"><span>客服理解</span><div>{intentItems.map((item) => <b key={item}>{item}</b>)}</div></div>
       <div className="customer-answer"><span>{routeLabels[customerService.intent.route]}</span><p>{customerService.answer}</p></div>
       {complaintItems.length > 0 && <section className="customer-tools"><header><strong>投诉要素理解</strong><small>主题 · 对象 · 时间 · 核心诉求</small></header><div>{complaintItems.map((item) => <article key={item}><span>已识别</span><p>{item}</p></article>)}</div></section>}
-      {customerService.conversation.session_id && <section className="customer-knowledge"><header><strong>会话上下文摘要</strong><small>{customerService.conversation.turn_count} 轮 · {customerService.conversation.prior_context_used ? "本轮已复用前序信息" : "本轮未复用前序实体"}</small></header><div><article><span>{String(customerService.conversation.turn_count).padStart(2, "0")}</span><div><strong>{customerService.conversation.user_problem_summary}</strong><p>{customerService.conversation.processing_trace_summary}</p></div></article></div></section>}
-      {customerService.tool_results.length > 0 && <section className="customer-tools"><header><strong>业务工具结果</strong><small>只按明确实体查询，不扩展读取其他记录</small></header><div>{customerService.tool_results.map((item) => <article className={`tool-${item.status}`} key={`${item.tool}-${item.label}`}><span>{item.status === "found" ? "已找到" : "未找到"}</span><strong>{item.label}</strong><p>{item.value}</p><small>{item.source_ref}</small></article>)}</div></section>}
-      {customerService.knowledge_matches.length > 0 && <section className="customer-knowledge"><header><strong>答复依据</strong><small>虚构 FAQ 与规则样例</small></header><div>{customerService.knowledge_matches.map((item) => <article key={item.id}><span>{Math.round(item.relevance * 100)}%</span><div><strong>{item.title}</strong><p>{item.excerpt}</p><small>{item.source_ref}</small></div></article>)}</div></section>}
+      {customerService.conversation.session_id && <section className="customer-knowledge"><header><strong>连续会话摘要</strong><small>{customerService.conversation.turn_count} 轮 · {customerService.conversation.prior_context_used ? "已结合前序信息" : "当前为独立问题"}</small></header><div><article><span>{String(customerService.conversation.turn_count).padStart(2, "0")}</span><div><strong>{customerService.conversation.user_problem_summary}</strong><p>持续保留已确认的关键信息，减少重复说明。</p></div></article></div></section>}
+      {customerService.tool_results.length > 0 && <section className="customer-tools"><header><strong>业务信息</strong><small>根据已确认的信息返回对应结果</small></header><div>{customerService.tool_results.map((item) => <article className={`tool-${item.status}`} key={`${item.tool}-${item.label}`}><span>{item.status === "found" ? "已找到" : "未找到"}</span><strong>{item.label}</strong><p>{item.value}</p></article>)}</div></section>}
+      {customerService.knowledge_matches.length > 0 && <section className="customer-knowledge"><header><strong>答复依据</strong><small>演示用知识与规则样例</small></header><div>{customerService.knowledge_matches.map((item) => <article key={item.id}><span>{Math.round(item.relevance * 100)}%</span><div><strong>{item.title}</strong><p>{item.excerpt}</p></div></article>)}</div></section>}
       {customerService.handoff.required && <section className="handoff-card"><header><span>{customerService.handoff.priority.toUpperCase()}</span><strong>建议转接：{customerService.handoff.target_team}</strong><b>尚未执行</b></header><p>{customerService.handoff.reason}</p><div><article><strong>已确认信息</strong>{customerService.handoff.confirmed_information.length ? customerService.handoff.confirmed_information.map((item) => <span key={item}>{item}</span>) : <span>暂无已确认业务实体</span>}</article><article><strong>待处理事项</strong>{customerService.handoff.pending_items.map((item) => <span key={item}>{item}</span>)}</article></div></section>}
-      <div className="manual-coverage"><span><b>{customerService.capability_coverage.length}</b>项现行能力已对齐</span><p>{demonstrated}项使用虚构 FAQ、订单、商品和服务资料演示；高风险判断、跨板块协同、运营问数及真实转接保留正式 AI 中台和业务系统适配边界。</p></div>
-      <p className="data-notice">{customerService.data_notice}</p>
-      <span className="engine-label">ENGINE · {customerService.engine.toUpperCase()} · {customerService.rule_version}</span>
+      <div className="manual-coverage"><span><b>{customerService.capability_coverage.length}</b>项能力纳入当前样板</span><p>其中{demonstrated}项已形成可运行展示，重点呈现多意图理解、业务答复与协同分流。</p></div>
+      <p className="data-notice">当前展示使用演示样例业务资料，不执行退款、转单、信用处理或人工转接等真实业务操作。</p>
     </div>
   );
 }
@@ -424,83 +432,86 @@ export default function Home() {
       <header className="site-header">
         <a className="brand" href="#top" aria-label="返回首页">
           <span className="brand-seal">JDZ</span>
-          <span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span>
+          <span><strong>景德镇低空商业服务网</strong><small>标杆智能体能力演示</small></span>
         </a>
-        <nav aria-label="主导航"><a href="#agents">标杆能力</a><a href="#workbench">演示工作台</a><a href="#architecture">接口架构</a></nav>
-        <div className="environment-pill"><i /> 演示环境</div>
+        <nav aria-label="主导航"><a href="#agents">标杆Agent</a><a href="#workbench">现场演示</a><a href="#architecture">建设体系</a></nav>
+        <div className="environment-pill"><i /> 能力演示</div>
       </header>
 
       <section className="hero" id="top">
         <div className="hero-copy">
-          <div className="eyebrow"><span>01</span> AI AGENT BENCHMARK</div>
-          <h1>让每一个业务场景，<br /><em>都拥有可解释的智能决策。</em></h1>
-          <p className="hero-lead">五个标杆 Agent，共用一套可复用技术底座。从知识检索、文档解析，到结构化比较、智能推荐与业务路由，完整呈现 Agent 的理解、推理与协同能力。</p>
+          <div className="eyebrow"><span>企业级业务智能体解决方案</span></div>
+          <h1>以五个标杆Agent，<br /><em>展现可复制、可扩展的业务智能化能力。</em></h1>
+          <p className="hero-lead">围绕五类典型业务场景，形成从问题理解、业务判断到结果依据呈现的完整能力，为后续Agent建设提供统一、可复用的实施路径。</p>
+          <p className="hero-note">当前为能力演示环境，页面中的商品、政策、订单和业务信息均为演示样例。</p>
           <div className="hero-actions">
-            <a className="primary-button" href="#workbench">进入演示工作台 <span>↗</span></a>
-            <a className="text-button" href="#agents">查看标杆能力 <span>↓</span></a>
+            <a className="primary-button" href="#workbench">进入现场演示 <span>→</span></a>
+            <a className="text-button" href="#agents">查看五个标杆Agent <span>↓</span></a>
           </div>
           <div className="stats-row">{capabilityStats.map((stat) => <div key={stat.label}><strong>{stat.value}</strong><span>{stat.label}</span></div>)}</div>
         </div>
 
-        <div className="hero-system" aria-label="Agent 技术能力关系图">
-          <div className="system-topline"><span>LIVE SYSTEM MAP</span><b>运行正常</b></div>
-          <div className="system-stage">
-            <div className="orbit orbit-one" /><div className="orbit orbit-two" />
-            <div className="core-node"><span className="core-pulse" /><small>AGENT</small><strong>CORE</strong><em>统一智能底座</em></div>
-            {AGENTS.map((agent, index) => (
-              <button type="button" key={agent.id} className={`satellite satellite-${index + 1} tone-${agent.tone}`} onClick={() => chooseAgent(agent)} aria-label={`选择 ${agent.name}`}>
-                <b>{agent.symbol}</b><span>{agent.shortName}</span>
-              </button>
-            ))}
+        <div className="project-brief" aria-label="标杆建设成果">
+          <div className="brief-head"><span>标杆建设成果</span><b><i />5个Agent均可运行</b></div>
+          <div className="brief-body">
+            <div className="brief-row owned"><span>01</span><div><small>可运行成果</small><strong>五个标杆Agent</strong><p>覆盖产品比较、说明书解读、分类导购、政策咨询和智能客服</p></div><b>已具备</b></div>
+            <div className="brief-row"><span>02</span><div><small>标准化方法</small><strong>统一能力设计</strong><p>贯通问题理解、业务判断、结果呈现、依据说明与效果评估</p></div><b>可复用</b></div>
+            <div className="brief-row"><span>03</span><div><small>规模化基础</small><strong>28个业务智能体</strong><p>为后续智能体建设提供一致的能力规范与扩展路径</p></div><b>持续建设</b></div>
           </div>
-          <div className="signal-strip"><span><i />模型能力适配</span><span><i />业务数据适配</span><span><i />全链路追踪</span></div>
+          <div className="brief-foot"><span>展示重点</span><strong>业务价值 + 可信依据 + 清晰边界</strong><p>直观呈现Agent能够解决什么问题、如何形成结果，以及结果适用范围。</p></div>
         </div>
       </section>
 
       <section className="agents-section" id="agents">
-        <div className="section-heading"><div><span>02 / BENCHMARK CASES</span><h2>五种模式，一套底座</h2></div><p>每个标杆 Agent 对应一种可复用开发模式，为后续 28 个业务智能体提供工程模板。</p></div>
+        <div className="section-heading"><div><span>标杆能力</span><h2>五个Agent，一套可复用交付方法</h2></div><p>每个标杆Agent覆盖一种典型开发模式，重点展示输入理解、业务处理、结果依据和协作边界。</p></div>
         <div className="agent-grid">
           {AGENTS.map((agent, index) => (
             <article className={`agent-card tone-${agent.tone}`} key={agent.id}>
-              <div className="card-top"><span>CASE 0{index + 1}</span><i>{agent.availability === "runnable" ? "RUNNABLE" : "PREVIEW"}</i></div>
-              <AgentMark agent={agent} /><div className="agent-id">{agent.id}</div><h3>{agent.name}</h3><p>{agent.description}</p>
-              <div className="tags">{agent.capabilities.map((item) => <span key={item}>{item}</span>)}</div>
-              <button type="button" onClick={() => { chooseAgent(agent); location.hash = "workbench"; }}>启动演示 <span>↗</span></button>
+              <div className="card-top"><span>标杆样板 {String(index + 1).padStart(2, "0")}</span><i>{agent.availability === "runnable" ? "可运行" : "能力预览"}</i></div>
+              <div className="agent-card-head"><AgentMark agent={agent} /><div><span className="agent-id">{agent.id}</span><h3>{agent.name}</h3></div></div>
+              <p>{agent.description}</p>
+              <dl className="agent-facts">
+                <div><dt>适用场景</dt><dd>{agentPresentation[agent.id].scene}</dd></div>
+                <div><dt>主要输入</dt><dd>{agentPresentation[agent.id].input}</dd></div>
+                <div><dt>输出结果</dt><dd>{agentPresentation[agent.id].output}</dd></div>
+              </dl>
+              <div className="capability-line"><span>已演示能力</span><p>{agent.capabilities.join("、")}</p></div>
+              <button type="button" onClick={() => { chooseAgent(agent); location.hash = "workbench"; }}>打开演示 <span>→</span></button>
             </article>
           ))}
         </div>
       </section>
 
       <section className="workbench-section" id="workbench">
-        <div className="section-heading light"><div><span>03 / LIVE WORKBENCH</span><h2>Agent 演示工作台</h2></div><p>使用样例知识与演示数据运行。正式 AI 中台及业务数据将在接口确认后接入。</p></div>
+        <div className="section-heading light"><div><span>现场演示</span><h2>可操作的Agent工作台</h2></div><p>选择标杆Agent并输入业务问题，查看业务理解、分析结果、参考依据与适用说明。</p></div>
         <div className="workbench-shell">
           <aside className="agent-sidebar">
-            <div className="panel-title"><span>AGENTS</span><b>{runnableCount} RUNNABLE / {AGENTS.length - runnableCount} PREVIEW</b></div>
+            <div className="panel-title"><span>标杆Agent</span><b>{runnableCount}个可运行</b></div>
             {AGENTS.map((agent) => (
               <button type="button" key={agent.id} onClick={() => chooseAgent(agent)} className={selected.id === agent.id ? "active" : ""} aria-label={`选择 ${agent.id} ${agent.shortName}`}>
                 <AgentMark agent={agent} compact /><span><small>{agent.id}</small><strong>{agent.shortName}</strong></span><i />
               </button>
             ))}
-            <div className="sidebar-foot"><span>统一接口</span><strong>AgentRequest / Response</strong></div>
+            <div className="sidebar-foot"><span>统一交互规范</span><strong>标准化输入与结果输出</strong></div>
           </aside>
 
           <div className="conversation-panel">
-            <div className="conversation-head"><div><AgentMark agent={selected} compact /><span><small>{selected.id}</small><strong>{selected.name}</strong></span></div><span className="mock-badge">{selected.availability === "runnable" ? "LangGraph · Mock数据" : "样例预览"}</span></div>
+            <div className="conversation-head"><div><AgentMark agent={selected} compact /><span><small>{selected.id}</small><strong>{selected.name}</strong></span></div><span className="mock-badge">{selected.availability === "runnable" ? "能力演示 · 样例数据" : "能力预览"}</span></div>
             <div className="conversation-body">
               <div className="welcome-copy"><span className={`mini-symbol tone-${selected.tone}`}>{selected.symbol}</span><h3>{selected.welcome}</h3><p>{selected.demoHint}</p></div>
-              {selected.id === "AG-002" && !response && !loading && <div className="manual-source-chip"><span>当前样例文档</span><strong>云巡 X8 无人机用户手册</strong><small>v0.9-demo · 虚构预解析材料</small></div>}
-              {selected.id === "AG-003" && !response && !loading && <div className="recommendation-source-chip"><span>当前样例目录</span><strong>7 个虚构产品 · 3 套虚构场景方案</strong><small>仅用于规则推荐与接口演示，不代表真实商城数据</small></div>}
-              {selected.id === "AG-012" && !response && !loading && <div className="policy-source-chip"><span>当前样例知识</span><strong>2 个虚构政策版本 · 1 份虚构行业标准</strong><small>支持版本时效、条款引用和适用条件演示，不代表真实政策库</small></div>}
-              {selected.id === "AG-025" && !response && !loading && <div className="customer-service-source-chip"><span>当前客服 Mock</span><strong>6 条 FAQ · 2 个订单 · 2 个商品 · 3 项服务</strong><small>仅用于多意图路由、查询与转人工建议，不执行真实业务操作</small></div>}
+              {selected.id === "AG-002" && !response && !loading && <div className="manual-source-chip"><span>演示用文档</span><strong>云巡 X8 无人机用户手册</strong><small>支持内容解读、原文定位与安全提示展示</small></div>}
+              {selected.id === "AG-003" && !response && !loading && <div className="recommendation-source-chip"><span>演示用目录</span><strong>7 个样例产品 · 3 套样例场景方案</strong><small>用于展示场景理解、条件筛选和推荐依据</small></div>}
+              {selected.id === "AG-012" && !response && !loading && <div className="policy-source-chip"><span>演示用知识</span><strong>2 个样例政策版本 · 1 份样例行业标准</strong><small>用于展示版本核验、条款引用和适用条件解释</small></div>}
+              {selected.id === "AG-025" && !response && !loading && <div className="customer-service-source-chip"><span>演示用业务资料</span><strong>6 条 FAQ · 2 个订单 · 2 个商品 · 3 项服务</strong><small>用于展示咨询理解、业务答复与人工协同建议</small></div>}
               {!response && !loading && <div className="prompt-list"><span>推荐演示问题</span>{selected.prompts.map((prompt) => <button type="button" key={prompt} onClick={() => setInput(prompt)}>{prompt}<i>↗</i></button>)}</div>}
-              {loading && <div className="thinking-card"><div className="thinking-head"><span className="loading-dots"><i /><i /><i /></span> Agent 正在处理</div><div className="loading-line"><span /></div><p>正在理解问题、调用演示工具并组织可解释结果…</p></div>}
+              {loading && <div className="thinking-card"><div className="thinking-head"><span className="loading-dots"><i /><i /><i /></span> 正在生成演示结果</div><div className="loading-line"><span /></div><p>请稍候，结果生成后将展示结论、依据与适用说明。</p></div>}
               {error && <div className="error-card"><strong>运行未完成</strong><p>{error}</p></div>}
               {response && (
                 <div className="result-card">
-                  <div className="result-kicker"><span>{response.status === "preview" ? "能力预览" : response.status === "needs_review" ? "演示结果 · 需复核" : response.status === "needs_clarification" ? "需要补充或适配" : "演示结果"}</span><b title={response.trace_id}>{response.request_id} · TRACE</b></div><h3>{response.output.title}</h3><p>{response.output.summary}</p>
+                  <div className="result-kicker"><span>{response.status === "preview" ? "能力预览" : response.status === "needs_review" ? "演示结果 · 建议复核" : response.status === "needs_clarification" ? "需要补充信息" : "演示结果"}</span><b>结果编号 {response.request_id}</b></div><h3>{response.output.title}</h3><p>{response.output.summary}</p>
                   {response.output.comparison ? <ComparisonPanel comparison={response.output.comparison} /> : response.output.manual ? <ManualPanel manual={response.output.manual} /> : response.output.recommendation ? <RecommendationPanel recommendation={response.output.recommendation} /> : response.output.policy ? <PolicyPanel policy={response.output.policy} /> : response.output.customer_service ? <CustomerServicePanel customerService={response.output.customer_service} /> : <div className="result-points">{response.output.points.map((point, index) => <div key={point}><span>0{index + 1}</span><p>{point}</p></div>)}</div>}
-                  <div className="evidence-row"><span>依据</span>{response.output.evidence.map((item) => <b key={item}>{item}</b>)}</div>
-                  <small>本结果由样例知识与演示数据生成，不代表正式业务结论。</small>
+                  <div className="evidence-row"><span>依据</span>{response.output.evidence.map((item) => <b key={item}>{presentEvidenceLabel(item)}</b>)}</div>
+                  <small>本结果基于演示样例生成，仅用于能力展示，不作为正式业务结论。</small>
                 </div>
               )}
               {selected.id === "AG-001" && history.length > 0 && (
@@ -518,35 +529,35 @@ export default function Home() {
               <button type="button" className="attach-button" title={selected.id === "AG-003" ? "图片找货需等待正式视觉能力与商品数据接入" : "演示阶段使用预置样例材料，暂不接收文件上传"} aria-label="样例材料上传暂未开放" disabled>＋</button>
               <input value={input} onChange={(event) => setInput(event.target.value)} aria-label="向 Agent 提问" placeholder="输入一个业务问题…" />
               <button type="submit" className="send-button" disabled={loading || !input.trim()} aria-label="发送">↑</button>
-              <div className="composer-meta"><span>ENTER 发送</span><b>演示接口已连接</b></div>
+              <div className="composer-meta"><span>按 Enter 发送</span><b>演示服务正常</b></div>
             </form>
           </div>
 
           <aside className="trace-panel">
-            <div className="panel-title"><span>EXECUTION TRACE</span><b>LIVE</b></div>
-            <div className="trace-status"><span className={`trace-symbol tone-${selected.tone}`}>{selected.symbol}</span><div><small>当前工作流</small><strong>{selected.workflow}</strong></div></div>
+            <div className="panel-title"><span>业务流程</span><b>清晰可追踪</b></div>
+            <div className="trace-status"><span className={`trace-symbol tone-${selected.tone}`}>{selected.symbol}</span><div><small>能力流程</small><strong>{selected.workflow}</strong></div></div>
             <div className="trace-list">
-              {(response?.trace ?? selected.trace).map((step, index) => (
-                <div className={response || (!loading && index === 0) || (loading && index < 3) ? "done" : ""} key={typeof step === "string" ? step : step.name}>
-                  <span>{String(index + 1).padStart(2, "0")}</span><p><strong>{typeof step === "string" ? step : step.name}</strong><small>{typeof step === "string" ? selected.traceNotes[index] : step.detail}</small></p><i />
+              {selected.trace.map((step, index) => (
+                <div className={response || (!loading && index === 0) || (loading && index < 3) ? "done" : ""} key={step}>
+                  <span>{String(index + 1).padStart(2, "0")}</span><p><strong>{step}</strong><small>{selected.traceNotes[index]}</small></p><i />
                 </div>
               ))}
             </div>
-            <div className="trace-metrics"><div><span>执行引擎</span><strong>{selected.availability === "runnable" ? "LANGGRAPH" : "PREVIEW"}</strong></div><div><span>数据源</span><strong>MOCK</strong></div></div>
+            <div className="trace-metrics"><div><span>流程状态</span><strong>{selected.availability === "runnable" ? "可运行" : "能力预览"}</strong></div><div><span>数据范围</span><strong>演示样例</strong></div></div>
           </aside>
         </div>
       </section>
 
       <section className="architecture-section" id="architecture">
-        <div className="architecture-copy"><span>04 / ADAPTER READY</span><h2>今天可演示，<br />明天可接入。</h2><p>页面与 Agent 核心逻辑通过运行时契约解耦。正式接口明确后，可通过 Provider Registry 注入正式适配器，不改变核心业务流程。</p><div className="contract-chips"><span>AgentRequest</span><span>AgentResponse</span><span>trace_id</span><span>evidence</span></div></div>
+        <div className="architecture-copy"><span>规模化建设体系</span><h2>统一能力规范，<br />支撑持续扩展。</h2><p>通过标准化的交互方式连接智能能力、业务知识与业务数据，使不同Agent能够复用成熟方法，并根据后续建设需要持续扩展。</p><div className="contract-chips"><span>统一输入</span><span>结构化结果</span><span>过程可追踪</span><span>依据可核验</span></div></div>
         <div className="architecture-map">
-          <div className="layer"><small>EXPERIENCE</small><strong>Agent 能力展厅</strong><span>统一交互工作台</span></div><i>↓</i>
-          <div className="layer accent"><small>OUR CORE</small><strong>Agent 应用框架</strong><span>业务流程 · Prompt · 规则 · 评测</span></div><i>↓</i>
-          <div className="adapter-row"><div className="layer"><small>AI PORT</small><strong>AIPlatformPort</strong><span>甲方 AI 中台、OCR与多模态适配</span></div><div className="layer"><small>DATA PORT</small><strong>Business / Document / Policy DataPort</strong><span>数据中台、业务系统、文档源与政策知识库适配</span></div></div>
+          <div className="layer"><small>能力展示入口</small><strong>标杆Agent能力演示</strong><span>统一问题输入、结果呈现与使用记录</span></div><i>↓</i>
+          <div className="layer accent"><small>业务智能体能力</small><strong>业务理解与智能辅助</strong><span>问题理解 · 业务判断 · 结果生成 · 依据说明 · 效果评估</span></div><i>↓</i>
+          <div className="adapter-row"><div className="layer"><small>智能能力支撑</small><strong>模型与知识能力</strong><span>语言理解、知识检索、文档识别、多模态与工具能力</span></div><div className="layer"><small>业务信息支撑</small><strong>数据与业务服务</strong><span>业务数据、文档材料、政策信息、流程状态与执行结果</span></div></div>
         </div>
       </section>
 
-      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>AI AGENT LAB</small></span></div><p>标杆 Agent 能力演示 · V1.9</p><span>AG-001 / AG-002 / AG-003 / AG-012 / AG-025 全部可运行 · Mock数据</span></footer>
+      <footer><div className="brand"><span className="brand-seal">JDZ</span><span><strong>景德镇低空商业服务网</strong><small>标杆智能体能力演示</small></span></div><p>五个标杆Agent · V1.9</p><span>演示环境 · 样例数据 · 结果仅用于能力展示</span></footer>
     </main>
   );
 }

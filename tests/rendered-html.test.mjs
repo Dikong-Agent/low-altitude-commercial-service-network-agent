@@ -57,13 +57,13 @@ test("renders the Agent capability showroom", async () => {
   const response = await worker.fetch(new Request("http://localhost/", { headers: { accept: "text/html" } }), env, ctx);
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /AI Agent 能力展厅/);
-  assert.match(html, /五种模式，一套底座/);
+  assert.match(html, /企业级业务智能体能力演示/);
+  assert.match(html, /五个Agent，一套可复用交付方法/);
   assert.match(html, /AG-001/);
   assert.match(html, /AG-025/);
   assert.match(html, /V1\.9/);
-  assert.equal((html.match(/<i>RUNNABLE<\/i>/g) ?? []).length, 5);
-  assert.equal((html.match(/<i>PREVIEW<\/i>/g) ?? []).length, 0);
+  assert.equal((html.match(/<i>可运行<\/i>/g) ?? []).length, 5);
+  assert.equal((html.match(/<i>能力预览<\/i>/g) ?? []).length, 0);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
 
