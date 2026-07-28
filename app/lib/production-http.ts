@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { DependencyUnavailableError } from "./reliability";
+import { currentAgentTraceId, DependencyUnavailableError } from "./reliability";
 import type { RequestIdentity } from "./request-identity";
 import { accessContextFromIdentity, type AgentAccessContext } from "./runtime-ports";
 import { AI_SAFETY_POLICY_VERSION } from "./ai-safety";
@@ -54,6 +54,21 @@ function validatedBaseUrl(name: string): URL {
   return url;
 }
 
+function validatedToken(name: string): string {
+  const token = requiredEnvironment(name);
+  if (token.length < 16) {
+    throw new DependencyUnavailableError("production-adapter.config", `${name} must contain at least 16 characters`, { retryable: false });
+  }
+  return token;
+}
+
+export function assertProductionAdapterConfiguration(): void {
+  for (const prefix of ["JDZ_AI_PLATFORM", "JDZ_BUSINESS_DATA"] as const) {
+    validatedBaseUrl(`${prefix}_BASE_URL`);
+    validatedToken(`${prefix}_AUTH_TOKEN`);
+  }
+}
+
 function assertTrustedIdentity(identity: RequestIdentity | undefined): asserts identity is RequestIdentity {
   if (!identity || identity.source !== "trusted-gateway" || !identity.tenantId || !identity.subjectId) {
     throw new DependencyUnavailableError("production-adapter.identity", "A trusted tenant identity is required", { retryable: false });
@@ -73,10 +88,7 @@ export class ProductionHttpClient {
     this.access = accessContextFromIdentity(identity);
     const prefix = kind === "ai-platform" ? "JDZ_AI_PLATFORM" : "JDZ_BUSINESS_DATA";
     this.baseUrl = validatedBaseUrl(`${prefix}_BASE_URL`);
-    this.token = requiredEnvironment(`${prefix}_AUTH_TOKEN`);
-    if (this.token.length < 16) {
-      throw new DependencyUnavailableError("production-adapter.config", `${prefix}_AUTH_TOKEN must contain at least 16 characters`, { retryable: false });
-    }
+    this.token = validatedToken(`${prefix}_AUTH_TOKEN`);
   }
 
   async call<T>(
@@ -106,6 +118,7 @@ export class ProductionHttpClient {
           "X-JDZ-Purpose": this.access.purpose,
           "X-JDZ-Untrusted-Content": "true",
           "X-JDZ-Safety-Policy": AI_SAFETY_POLICY_VERSION,
+          ...(currentAgentTraceId() ? { "X-Trace-Id": currentAgentTraceId()! } : {}),
         },
         body: JSON.stringify({ contract_version: ADAPTER_CONTRACT_VERSION, data: payload }),
         signal,

@@ -29,6 +29,7 @@ async function invokeBody(worker, agentId, body, additionalHeaders = {}) {
 
 function fakeD1() {
   const executed = [];
+  const claimedNonces = new Set();
   const database = {
     prepare(sql) {
       let values = [];
@@ -39,12 +40,66 @@ function fakeD1() {
           if (/RETURNING request_count/.test(sql)) return { request_count: 1 };
           return null;
         },
-        async run() { executed.push({ sql, values }); return { success: true, meta: { changes: 1 } }; },
+        async run() {
+          executed.push({ sql, values });
+          if (/INSERT INTO auth_nonce_records/.test(sql)) {
+            const key = `${values[0]}:${values[1]}`;
+            if (claimedNonces.has(key)) return { success: true, meta: { changes: 0 } };
+            claimedNonces.add(key);
+          }
+          return { success: true, meta: { changes: 1 } };
+        },
       };
     },
     async batch(statements) { return Promise.all(statements.map((statement) => statement.run())); },
   };
   return { database, executed };
+}
+
+function fakeAsyncRuntime() {
+  const nonces = new Set();
+  const idempotency = new Set();
+  const tasks = new Map();
+  const queued = [];
+  const database = {
+    prepare(sql) {
+      let values = [];
+      return {
+        bind(...nextValues) { values = nextValues; return this; },
+        async first() {
+          if (/RETURNING request_count/.test(sql)) return { request_count: 1 };
+          if (/SELECT task_id, request_hash, state FROM agent_tasks/.test(sql)) {
+            return [...tasks.values()].find((task) => task.tenant_id === values[0] && task.subject_id === values[1] && task.agent_id === values[2] && task.idempotency_key === values[3]) ?? null;
+          }
+          return null;
+        },
+        async run() {
+          if (/INSERT INTO auth_nonce_records/.test(sql)) {
+            const key = `${values[0]}:${values[1]}`;
+            if (nonces.has(key)) return { success: true, meta: { changes: 0 } };
+            nonces.add(key);
+          }
+          if (/INSERT INTO idempotency_records/.test(sql)) {
+            const key = values.slice(0, 4).join(":");
+            if (idempotency.has(key)) return { success: true, meta: { changes: 0 } };
+            idempotency.add(key);
+          }
+          if (/DELETE FROM idempotency_records/.test(sql)) idempotency.delete(values.slice(0, 4).join(":"));
+          if (/INSERT INTO agent_tasks/.test(sql)) {
+            const unique = values.slice(1, 6).join(":");
+            if ([...tasks.values()].some((task) => task.unique === unique)) return { success: true, meta: { changes: 0 } };
+            tasks.set(values[0], {
+              task_id: values[0], tenant_id: values[1], subject_id: values[2], agent_id: values[4], idempotency_key: values[5],
+              request_hash: values[6], state: "queued", unique,
+            });
+          }
+          return { success: true, meta: { changes: 1 } };
+        },
+      };
+    },
+    async batch(statements) { return Promise.all(statements.map((statement) => statement.run())); },
+  };
+  return { database, queue: { async send(message) { queued.push(message); } }, queued };
 }
 
 function trustedGatewayHeaders(agentId, body, options = {}) {
@@ -63,6 +118,9 @@ function trustedGatewayHeaders(agentId, body, options = {}) {
     tenantId,
     subjectId,
     roles.join(","),
+    options.idempotencyKey ?? "",
+    (options.prefer ?? "").trim().toLowerCase(),
+    options.callbackId ?? "",
     createHash("sha256").update(rawBody).digest("hex"),
   ].join("\n");
   return {
@@ -73,6 +131,9 @@ function trustedGatewayHeaders(agentId, body, options = {}) {
     "x-jdz-auth-timestamp": timestamp,
     "x-jdz-auth-nonce": nonce,
     "x-jdz-auth-signature": createHmac("sha256", options.secret ?? process.env.JDZ_GATEWAY_SHARED_SECRET).update(canonical).digest("base64url"),
+    ...(options.idempotencyKey ? { "idempotency-key": options.idempotencyKey } : {}),
+    ...(options.prefer ? { prefer: options.prefer } : {}),
+    ...(options.callbackId ? { "x-jdz-callback-id": options.callbackId } : {}),
   };
 }
 
@@ -97,7 +158,7 @@ async function currentAg025Capabilities() {
     const agent = immediateAttributes.match(/<attribute\s+NAME="承载Agent"\s+VALUE="([^"]*)"/)?.[1] ?? "";
     const requirementId = immediateAttributes.match(/<attribute\s+NAME="需求编号来源"\s+VALUE="([^"]*)"/)?.[1];
     return agent.includes("AG-025") && requirementId
-      ? [{ requirement_id: decodeXml(requirementId), capability: decodeXml(match[1]) }]
+      ? [{ source_requirement_id: decodeXml(requirementId), capability: decodeXml(match[1]) }]
       : [];
   });
 }
@@ -135,7 +196,7 @@ test("runs AG-025 through the multi-intent customer service workflow", async () 
   assert.equal(body.output.customer_service.capability_coverage.length, 56);
   assert.equal(body.output.customer_service.capability_coverage.filter((item) => item.status === "mock-demonstrated").length, 19);
   assert.equal(body.output.customer_service.capability_coverage.filter((item) => item.status === "adapter-ready").length, 37);
-  assert.ok(body.output.customer_service.capability_coverage.some((item) => item.requirement_id === "85" && item.capability === "订单咨询协同答复"));
+  assert.ok(body.output.customer_service.capability_coverage.some((item) => item.source_requirement_id === "85" && item.capability === "订单咨询协同答复"));
   assert.ok(body.output.customer_service.capability_coverage.some((item) => item.capability === "运营问数意图理解"));
   assert.ok(body.output.customer_service.capability_coverage.some((item) => item.capability === "客服会话违规风险线索识别"));
   assert.match(body.output.customer_service.data_notice, /Mock|未执行/);
@@ -148,10 +209,10 @@ test("AG-025 capability coverage matches the current authoritative function map"
   assert.equal(response.status, 200);
   const body = await response.json();
   const actual = body.output.customer_service.capability_coverage
-    .map(({ requirement_id, capability }) => `${requirement_id}|${capability}`)
+    .map(({ source_requirement_id, capability }) => `${source_requirement_id}|${capability}`)
     .sort();
   const expected = (await currentAg025Capabilities())
-    .map(({ requirement_id, capability }) => `${requirement_id}|${capability}`)
+    .map(({ source_requirement_id, capability }) => `${source_requirement_id}|${capability}`)
     .sort();
   assert.deepEqual(actual, expected);
 });
@@ -382,23 +443,23 @@ test("runs AG-002 through the LangGraph manual interpretation workflow", async (
   assert.ok(body.output.manual.risk_markers.some((item) => item.level === "compliance"));
   assert.equal(body.output.manual.capability_coverage.length, 13);
   assert.deepEqual(body.output.manual.capability_coverage.map((item) => item.capability), [
+    "操作步骤摘要",
+    "用户说明书故障排查路径摘要",
+    "产品核心能力与适用边界摘要",
+    "说明书图示含义解读",
+    "说明书章节与图表关系理解",
+    "说明书场景语义检索",
+    "专业术语转换",
+    "说明书操作步骤通俗解读",
+    "场景化操作指引生成",
     "安全事项要点提取",
     "安全风险提示生成",
     "禁止操作提示生成",
     "合规要求场景提示生成",
-    "说明书操作步骤通俗解读",
-    "专业术语转换",
-    "说明书场景语义检索",
-    "场景化操作指引生成",
-    "操作步骤摘要",
-    "故障排查路径摘要",
-    "产品核心能力与适用边界摘要",
-    "说明书图示含义解读",
-    "说明书章节与图表关系理解",
   ]);
   assert.deepEqual(
     body.output.manual.capability_coverage.filter((item) => item.status === "adapter-ready").map((item) => item.capability),
-    ["说明书场景语义检索", "说明书图示含义解读", "说明书章节与图表关系理解"],
+    ["说明书图示含义解读", "说明书章节与图表关系理解"],
   );
   assert.ok(body.trace.length >= 7);
 });
@@ -533,9 +594,9 @@ test("runs AG-003 through the scenario-solution recommendation workflow", async 
   assert.equal(body.status, "completed");
   assert.equal(body.output.recommendation.mode, "scenario_solution");
   assert.equal(body.output.recommendation.recommendation.primary_id, "DEMO-SOLUTION-MOUNTAIN-POWER");
-  assert.equal(body.output.recommendation.capability_coverage.length, 32);
-  assert.equal(body.output.recommendation.capability_coverage.filter((item) => item.status === "mock-demonstrated").length, 12);
-  assert.equal(body.output.recommendation.capability_coverage.filter((item) => item.status === "adapter-ready").length, 20);
+  assert.equal(body.output.recommendation.capability_coverage.length, 50);
+  assert.equal(body.output.recommendation.capability_coverage.filter((item) => item.status === "mock-demonstrated").length, 13);
+  assert.equal(body.output.recommendation.capability_coverage.filter((item) => item.status === "adapter-ready").length, 37);
   assert.match(body.output.recommendation.data_notice, /虚构 Mock 数据/);
   assert.ok(body.trace.length >= 6);
 });
@@ -730,7 +791,7 @@ test("runs AG-012 through the policy summary workflow with time-aware citations"
   assert.equal(body.output.policy.current_version.effective_status, "effective");
   assert.ok(body.output.policy.key_points.length >= 3);
   assert.ok(body.output.policy.citations.every((item) => item.document_number && item.locator));
-  assert.equal(body.output.policy.capability_coverage.length, 56);
+  assert.equal(body.output.policy.capability_coverage.length, 66);
   assert.equal(body.output.policy.capability_coverage.filter((item) => item.status === "mock-demonstrated").length, 23);
   assert.equal(body.output.policy.capability_coverage.find((item) => item.capability === "跨来源冲突信息识别").status, "adapter-ready");
 });
@@ -992,12 +1053,12 @@ test("production runtime requires an untampered trusted gateway identity", async
 
     const signed = await invokeBody(worker, "AG-001", body, trustedGatewayHeaders("AG-001", body));
     assert.equal(signed.status, 503);
-    assert.equal((await signed.json()).code, "PRODUCTION_PROVIDER_REQUIRED");
+    assert.equal((await signed.json()).code, "AUTH_CONFIGURATION_ERROR");
 
     process.env.AG001_PROVIDER = "production";
     const missingAdapterConfig = await invokeBody(worker, "AG-001", body, trustedGatewayHeaders("AG-001", body));
     assert.equal(missingAdapterConfig.status, 503);
-    assert.equal((await missingAdapterConfig.json()).code, "DURABLE_STATE_UNAVAILABLE");
+    assert.equal((await missingAdapterConfig.json()).code, "AUTH_CONFIGURATION_ERROR");
 
     const tampered = await invokeBody(
       worker,
@@ -1017,6 +1078,109 @@ test("production runtime requires an untampered trusted gateway identity", async
     else process.env.JDZ_GATEWAY_SHARED_SECRET = previousSecret;
     if (previousProvider === undefined) delete process.env.AG001_PROVIDER;
     else process.env.AG001_PROVIDER = previousProvider;
+  }
+});
+
+test("production gateway signature binds control headers and rejects nonce replay", async () => {
+  const names = ["AGENT_RUNTIME_MODE", "JDZ_GATEWAY_SHARED_SECRET", "AG001_PROVIDER"];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  process.env.AGENT_RUNTIME_MODE = "production";
+  process.env.JDZ_GATEWAY_SHARED_SECRET = "test-only-shared-secret-with-at-least-32-bytes";
+  delete process.env.AG001_PROVIDER;
+  const { database } = fakeD1();
+  try {
+    const worker = await loadWorker();
+    const body = { agent_id: "AG-001", input: "compare P-001 and P-002" };
+    const signedHeaders = trustedGatewayHeaders("AG-001", body, { nonce: "nonce-replay-test-00000001" });
+    const first = await worker.fetch(new Request("http://localhost/api/agents/AG-001/invoke", {
+      method: "POST", headers: { "content-type": "application/json", ...signedHeaders }, body: JSON.stringify(body),
+    }), { ...env, DB: database }, ctx);
+    assert.equal(first.status, 503);
+    assert.equal((await first.json()).code, "PRODUCTION_PROVIDER_REQUIRED");
+
+    const replay = await worker.fetch(new Request("http://localhost/api/agents/AG-001/invoke", {
+      method: "POST", headers: { "content-type": "application/json", ...signedHeaders }, body: JSON.stringify(body),
+    }), { ...env, DB: database }, ctx);
+    assert.equal(replay.status, 401);
+    assert.equal((await replay.json()).code, "INVALID_AUTHENTICATION");
+
+    const headerBound = trustedGatewayHeaders("AG-001", body, { idempotencyKey: "signed-control-key-0001" });
+    const tamperedControlHeader = await worker.fetch(new Request("http://localhost/api/agents/AG-001/invoke", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...headerBound, "idempotency-key": "tampered-control-key-1" },
+      body: JSON.stringify(body),
+    }), { ...env, DB: database }, ctx);
+    assert.equal(tamperedControlHeader.status, 401);
+  } finally {
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
+  }
+});
+
+test("production Agent access policy rejects an authenticated but unauthorized role", async () => {
+  const names = ["AGENT_RUNTIME_MODE", "JDZ_GATEWAY_SHARED_SECRET", "AG001_PROVIDER"];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  process.env.AGENT_RUNTIME_MODE = "production";
+  process.env.JDZ_GATEWAY_SHARED_SECRET = "test-only-shared-secret-with-at-least-32-bytes";
+  process.env.AG001_PROVIDER = "production";
+  const { database } = fakeD1();
+  try {
+    const worker = await loadWorker();
+    const body = { agent_id: "AG-001", input: "compare P-001 and P-002" };
+    const response = await worker.fetch(new Request("http://localhost/api/agents/AG-001/invoke", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...trustedGatewayHeaders("AG-001", body, { roles: ["viewer"] }) },
+      body: JSON.stringify(body),
+    }), { ...env, DB: database }, ctx);
+    assert.equal(response.status, 403);
+    assert.equal((await response.json()).code, "AGENT_ACCESS_DENIED");
+  } finally {
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
+  }
+});
+
+test("asynchronous invocation replays identical work and rejects a conflicting body", async () => {
+  const names = ["AGENT_RUNTIME_MODE", "JDZ_GATEWAY_SHARED_SECRET", "AG002_PROVIDER"];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  process.env.AGENT_RUNTIME_MODE = "production";
+  process.env.JDZ_GATEWAY_SHARED_SECRET = "test-only-shared-secret-with-at-least-32-bytes";
+  process.env.AG002_PROVIDER = "production";
+  const runtime = fakeAsyncRuntime();
+  const idempotencyKey = "async-contract-key-0001";
+  const prefer = "respond-async";
+  try {
+    const worker = await loadWorker();
+    const firstBody = { agent_id: "AG-002", input: "summarize the safety checklist" };
+    const invokeAsync = (body) => worker.fetch(new Request("http://localhost/api/agents/AG-002/invoke", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...trustedGatewayHeaders("AG-002", body, { idempotencyKey, prefer }) },
+      body: JSON.stringify(body),
+    }), { ...env, DB: runtime.database, AGENT_TASKS: runtime.queue }, ctx);
+
+    const first = await invokeAsync(firstBody);
+    assert.equal(first.status, 202);
+    const firstPayload = await first.json();
+    assert.equal(runtime.queued.length, 1);
+
+    const replay = await invokeAsync(firstBody);
+    assert.equal(replay.status, 202);
+    assert.equal((await replay.json()).task_id, firstPayload.task_id);
+    assert.equal(replay.headers.get("x-idempotent-replay"), "true");
+    assert.equal(runtime.queued.length, 1);
+
+    const conflict = await invokeAsync({ ...firstBody, input: "summarize troubleshooting steps" });
+    assert.equal(conflict.status, 409);
+    assert.equal((await conflict.json()).code, "IDEMPOTENCY_CONFLICT");
+  } finally {
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
   }
 });
 
@@ -1077,8 +1241,7 @@ test("production provider propagates trusted identity and commits the Agent run 
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "idempotency-key": "contract-test-injection-0001",
-        ...trustedGatewayHeaders("AG-001", injectionBody, { tenantId: "TENANT-PROD", subjectId: "USER-PROD" }),
+        ...trustedGatewayHeaders("AG-001", injectionBody, { tenantId: "TENANT-PROD", subjectId: "USER-PROD", idempotencyKey: "contract-test-injection-0001" }),
       },
       body: JSON.stringify(injectionBody),
     }), { ...env, DB: database }, ctx);
@@ -1091,8 +1254,7 @@ test("production provider propagates trusted identity and commits the Agent run 
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "idempotency-key": "contract-test-request-0001",
-        ...trustedGatewayHeaders("AG-001", body, { tenantId: "TENANT-PROD", subjectId: "USER-PROD" }),
+        ...trustedGatewayHeaders("AG-001", body, { tenantId: "TENANT-PROD", subjectId: "USER-PROD", idempotencyKey: "contract-test-request-0001" }),
       },
       body: JSON.stringify(body),
     }), { ...env, DB: database }, ctx);
@@ -1114,8 +1276,7 @@ test("production provider propagates trusted identity and commits the Agent run 
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "idempotency-key": "contract-test-output-block-0001",
-        ...trustedGatewayHeaders("AG-001", body, { tenantId: "TENANT-PROD", subjectId: "USER-PROD" }),
+        ...trustedGatewayHeaders("AG-001", body, { tenantId: "TENANT-PROD", subjectId: "USER-PROD", idempotencyKey: "contract-test-output-block-0001" }),
       },
       body: JSON.stringify(body),
     }), { ...env, DB: database }, ctx);

@@ -176,6 +176,7 @@ export function createAg001Workflow(dependencies: Ag001Dependencies) {
       },
       conflicts,
       missing_data: missingData,
+      capability_coverage: AG001_CONFIG.capabilityCoverage.map((item) => ({ ...item })),
       data_notice: dependencies.environment === "demo"
         ? "当前结果仅基于虚构样例产品和 Mock 规则生成，不代表正式商品、价格、库存或采购结论。"
         : "当前结果基于已接入的数据源与规则生成；涉及采购、价格、库存和适用性的结论仍需按业务流程复核。",

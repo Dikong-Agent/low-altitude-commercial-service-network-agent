@@ -17,7 +17,7 @@ import {
   type IdempotencyReservation,
 } from "./api-guard";
 import { AISafetyError, assertSafeAgentOutput } from "./ai-safety";
-import { enqueueAgentTask } from "./async-runtime";
+import { AsyncTaskConflictError, enqueueAgentTask } from "./async-runtime";
 
 const MAX_REQUEST_BYTES = 20_000;
 
@@ -128,16 +128,22 @@ export async function handleAgentInvocation(request: Request, agentId: string): 
       await releaseProductionApiRequest(reservation);
       return Response.json({ task_id: task.taskId, agent_id: definition.id, status: "queued", trace_id: traceId }, {
         status: 202,
-        headers: { ...runtimeResponseHeaders(traceId), "Preference-Applied": "respond-async", "Location": `/v1/tasks/${task.taskId}` },
+        headers: {
+          ...runtimeResponseHeaders(traceId),
+          "Preference-Applied": "respond-async",
+          "Location": `/v1/tasks/${task.taskId}`,
+          ...(task.replayed ? { "X-Idempotent-Replay": "true" } : {}),
+        },
       });
     } catch (error) {
       await releaseProductionApiRequest(reservation).catch(() => undefined);
+      if (error instanceof AsyncTaskConflictError) return runtimeErrorResponse(409, "IDEMPOTENCY_CONFLICT", error.message, traceId);
       const message = error instanceof DependencyUnavailableError ? error.message : "The Agent task could not be queued";
       return runtimeErrorResponse(503, "ASYNC_RUNTIME_UNAVAILABLE", message, traceId);
     }
   }
 
-  const execution = createAgentExecutionContext(traceId, definition.timeoutPolicy.totalTimeoutMs, request.signal);
+  const execution = createAgentExecutionContext(traceId, definition.timeoutPolicy.maxSynchronousMs, request.signal);
   try {
     const internalResponse = await runWithAgentExecutionContext(execution, () => definition.invoke(parsed.data, traceId, identity));
     const response = definition.responseSchema.parse(internalResponse);
@@ -170,9 +176,10 @@ export async function handleAgentInvocation(request: Request, agentId: string): 
   } catch (error) {
     await releaseProductionApiRequest(reservation).catch(() => undefined);
     const cancelled = error instanceof AgentExecutionAbortedError;
+    const timedOut = !cancelled && error instanceof DependencyUnavailableError && /time budget|timed out/i.test(`${error.message} ${error.cause instanceof Error ? error.cause.message : ""}`);
     const dependencyFailure = error instanceof DependencyUnavailableError;
     const safetyFailure = error instanceof AISafetyError;
-    const errorCode = cancelled ? "REQUEST_CANCELLED" : dependencyFailure ? "DEPENDENCY_UNAVAILABLE" : safetyFailure ? error.code : "WORKFLOW_FAILED";
+    const errorCode = cancelled ? "REQUEST_CANCELLED" : timedOut ? "AGENT_TIMEOUT" : dependencyFailure ? "DEPENDENCY_UNAVAILABLE" : safetyFailure ? error.code : "WORKFLOW_FAILED";
     const event = {
       traceId,
       agentId: definition.id,
@@ -190,10 +197,10 @@ export async function handleAgentInvocation(request: Request, agentId: string): 
     }
     console.error("Agent workflow failed", { traceId, agentId: definition.id, errorCode });
     return runtimeErrorResponse(
-      cancelled ? 408 : dependencyFailure ? 503 : safetyFailure ? 502 : 500,
+      cancelled || timedOut ? 408 : dependencyFailure ? 503 : safetyFailure ? 502 : 500,
       errorCode,
-      cancelled
-        ? "The Agent request was cancelled or exceeded its total time budget"
+      cancelled || timedOut
+        ? "The Agent request was cancelled or exceeded its synchronous time budget"
         : dependencyFailure
           ? "A required Agent dependency is temporarily unavailable"
           : safetyFailure

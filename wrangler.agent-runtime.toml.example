@@ -19,6 +19,9 @@ max_batch_timeout = 5
 max_retries = 3
 dead_letter_queue = "jdz-agent-tasks-dlq"
 
+[triggers]
+crons = ["17 3 * * *"]
+
 [vars]
 AGENT_RUNTIME_MODE = "production"
 AG001_PROVIDER = "production"

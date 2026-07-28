@@ -1,24 +1,37 @@
 import { handleAgentInvocation } from "../app/lib/agent-runtime-handler";
 import { listRuntimeAgentDefinitions } from "../app/lib/agent-runtime-registry";
 import { claimCallbackReceipt, getAgentTask, processQueuedAgentTask } from "../app/lib/async-runtime";
-import { assertDurableStateAvailable } from "../app/lib/durable-state";
-import { RequestIdentityError, resolveRequestIdentity } from "../app/lib/request-identity";
+import { assertDurableStateAvailable, cleanupExpiredRuntimeState } from "../app/lib/durable-state";
+import { assertProductionAuthConfiguration, RequestIdentityError, resolveRequestIdentity } from "../app/lib/request-identity";
 import { DependencyUnavailableError } from "../app/lib/reliability";
-import { runWithRuntimeBindings, type RuntimeBindings } from "../app/lib/runtime-bindings";
+import { getRuntimeBindings, runWithRuntimeBindings, type RuntimeBindings } from "../app/lib/runtime-bindings";
+import { assertProductionAdapterConfiguration } from "../app/lib/production-http";
 
 type Env = RuntimeBindings;
 interface QueueMessage { body: { taskId?: string }; ack(): void; retry(): void }
 interface QueueBatch { messages: QueueMessage[] }
 
 function json(payload: unknown, status = 200, headers?: Record<string, string>): Response {
-  return Response.json(payload, { status, headers: { "Cache-Control": "no-store", ...headers } });
+  return Response.json(payload, { status, headers: {
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    ...headers,
+  } });
 }
 
 async function ready(): Promise<Response> {
   try {
+    const bindings = getRuntimeBindings();
+    if (!bindings?.DB || !bindings.AGENT_TASKS) return json({ status: "not_ready" }, 503);
     await assertDurableStateAvailable();
     const missingProviders = listRuntimeAgentDefinitions().filter((definition) => process.env[definition.id.replace("-", "") + "_PROVIDER"] !== "production");
     if (process.env.AGENT_RUNTIME_MODE !== "production" || missingProviders.length) return json({ status: "not_ready" }, 503);
+    if (listRuntimeAgentDefinitions().some((definition) => definition.accessPolicy.requiredAnyRole.length === 0)) return json({ status: "not_ready" }, 503);
+    assertProductionAuthConfiguration();
+    assertProductionAdapterConfiguration();
     return json({ status: "ready" });
   } catch {
     return json({ status: "not_ready" }, 503);
@@ -100,6 +113,10 @@ const runtime = {
         }
       }));
     });
+  },
+
+  async scheduled(_controller: unknown, env: Env): Promise<void> {
+    await runWithRuntimeBindings(env, () => cleanupExpiredRuntimeState());
   },
 };
 

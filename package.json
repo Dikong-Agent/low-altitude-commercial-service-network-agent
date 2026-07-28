@@ -14,12 +14,13 @@
     "test:runtime": "node --test tests/rendered-html.test.mjs tests/reliability.test.mjs tests/runtime-architecture.test.mjs tests/production-start.test.mjs",
     "typecheck": "tsc --noEmit --incremental false",
     "lint": "eslint app worker tests scripts",
+    "audit:prod": "pnpm audit --prod --audit-level high",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test"
   },
   "dependencies": {
     "@langchain/core": "^1.2.3",
     "@langchain/langgraph": "^1.4.8",
-    "next": "16.2.6",
+    "next": "16.2.11",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "zod": "^4.4.3"
@@ -33,7 +34,7 @@
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.26",
     "eslint": "^9.39.2",
-    "eslint-config-next": "16.2.6",
+    "eslint-config-next": "16.2.11",
     "react-server-dom-webpack": "19.2.6",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",

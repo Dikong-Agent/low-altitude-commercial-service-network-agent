@@ -1,6 +1,5 @@
 import type { AgentRecommendationOutput, RecommendationCandidate } from "../../contracts";
 import type { DemoProduct, HardConstraint, NumericDimension } from "../ag001/types";
-import { AG003_CAPABILITY_COVERAGE } from "./catalog";
 import { AG003_CONFIG } from "./config";
 import type { Ag003Catalog, RecommendationEvaluation, RecommendationIntent, ScenarioSolution } from "./types";
 
@@ -152,7 +151,7 @@ export function buildRecommendationOutput(
     missing_data: intent.mode === "scenario_solution"
       ? ["真实库存与上架状态", "载荷组合和实施服务报价", "正式空域与作业条件"]
       : ["真实库存与上架状态", "实时价格与交付信息", "正式商品标签与评价数据"],
-    capability_coverage: AG003_CAPABILITY_COVERAGE.map(([requirement_id, capability, status]) => ({ requirement_id, capability, status })),
+    capability_coverage: AG003_CONFIG.capabilityCoverage.map((item) => ({ ...item })),
     data_notice: "全部方案、产品、价格和评分均为虚构 Mock 数据，仅用于 AG-003 技术演示；不代表商城真实商品、正式报价或采购建议。",
     rule_version: AG003_CONFIG.ruleVersion,
   };

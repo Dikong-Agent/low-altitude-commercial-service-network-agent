@@ -1,3 +1,5 @@
+import { getRuntimeBindings } from "./runtime-bindings";
+
 export type AgentRuntimeMode = "demo" | "production";
 
 export interface RequestIdentity {
@@ -91,7 +93,7 @@ async function sha256Hex(value: string): Promise<string> {
 }
 
 export async function buildGatewaySignatureInput(
-  request: Pick<Request, "method" | "url">,
+  request: Pick<Request, "method" | "url" | "headers">,
   rawBody: string,
   identity: Pick<RequestIdentity, "tenantId" | "subjectId" | "roles">,
   timestamp: string,
@@ -100,14 +102,37 @@ export async function buildGatewaySignatureInput(
   return [
     "JDZ-AUTH-V1",
     request.method.toUpperCase(),
-    new URL(request.url).pathname,
+    `${new URL(request.url).pathname}${new URL(request.url).search}`,
     timestamp,
     nonce,
     identity.tenantId,
     identity.subjectId,
     [...new Set(identity.roles.map((role) => role.trim().toLowerCase()).filter(Boolean))].sort().join(","),
+    request.headers.get("idempotency-key")?.trim() ?? "",
+    request.headers.get("prefer")?.trim().toLowerCase() ?? "",
+    request.headers.get("x-jdz-callback-id")?.trim() ?? "",
     await sha256Hex(rawBody),
   ].join("\n");
+}
+
+async function claimAuthenticationNonce(identity: RequestIdentity, nonce: string): Promise<void> {
+  const db = getRuntimeBindings()?.DB;
+  if (!db) {
+    throw new RequestIdentityError("AUTH_CONFIGURATION_ERROR", 503, "Agent runtime authentication is temporarily unavailable");
+  }
+  const now = new Date();
+  const expires = new Date(now.getTime() + maxClockSkewSeconds() * 2_000).toISOString();
+  try {
+    const result = await db.prepare(
+      "INSERT INTO auth_nonce_records (tenant_id, nonce, subject_id, received_at, expires_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(tenant_id, nonce) DO NOTHING",
+    ).bind(identity.tenantId, nonce, identity.subjectId, now.toISOString(), expires).run();
+    if ((result.meta?.changes ?? 0) === 0) {
+      throw new RequestIdentityError("INVALID_AUTHENTICATION", 401, "Trusted gateway authentication was already used");
+    }
+  } catch (error) {
+    if (error instanceof RequestIdentityError) throw error;
+    throw new RequestIdentityError("AUTH_CONFIGURATION_ERROR", 503, "Agent runtime authentication is temporarily unavailable");
+  }
 }
 
 async function verifyTrustedGatewayIdentity(request: Request, rawBody: string): Promise<RequestIdentity> {
@@ -142,7 +167,13 @@ async function verifyTrustedGatewayIdentity(request: Request, rawBody: string): 
     toArrayBuffer(new TextEncoder().encode(input)),
   );
   if (!verified) throw new RequestIdentityError("INVALID_AUTHENTICATION", 401, "Trusted gateway authentication is invalid");
+  await claimAuthenticationNonce(identity, nonce);
   return identity;
+}
+
+export function assertProductionAuthConfiguration(): void {
+  sharedSecret();
+  maxClockSkewSeconds();
 }
 
 export async function resolveRequestIdentity(request: Request, rawBody: string): Promise<RequestIdentity> {

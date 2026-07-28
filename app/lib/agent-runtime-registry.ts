@@ -53,7 +53,7 @@ export interface RuntimeAgentDefinition {
 
 const commonAccessPolicy: AgentAccessPolicy = {
   productionRequiresTrustedIdentity: true,
-  requiredAnyRole: [],
+  requiredAnyRole: ["agent-user", "buyer", "operator", "customer-service", "admin"],
 };
 
 const commonTimeoutPolicy: AgentTimeoutPolicy = { totalTimeoutMs: 25_000, maxSynchronousMs: 15_000 };
@@ -68,7 +68,7 @@ const definitions: RuntimeAgentDefinition[] = [
     accessPolicy: commonAccessPolicy,
     timeoutPolicy: commonTimeoutPolicy,
     executionMode: "synchronous",
-    versions: { capability: "AG-001@1.2", workflow: AG001_CONFIG.workflowVersion, prompt: "structured-intent@1", rule: AG001_CONFIG.ruleVersion, model: "upstream-managed" },
+    versions: { capability: "AG-001@1.3", workflow: AG001_CONFIG.workflowVersion, prompt: "structured-intent@1", rule: AG001_CONFIG.ruleVersion, model: "upstream-managed" },
     invoke: (request, traceId, identity) => invokeAg001(request, traceId, identity),
   },
   {
@@ -78,7 +78,7 @@ const definitions: RuntimeAgentDefinition[] = [
     accessPolicy: commonAccessPolicy,
     timeoutPolicy: { totalTimeoutMs: 40_000, maxSynchronousMs: 15_000 },
     executionMode: "async-capable",
-    versions: { capability: "AG-002@1.1", workflow: AG002_CONFIG.workflowVersion, prompt: "manual-grounding@1", rule: AG002_CONFIG.ruleVersion, model: "upstream-managed" },
+    versions: { capability: "AG-002@1.2", workflow: AG002_CONFIG.workflowVersion, prompt: "manual-grounding@1", rule: AG002_CONFIG.ruleVersion, model: "upstream-managed" },
     invoke: (request, traceId, identity) => invokeAg002(request, traceId, identity),
   },
   {
@@ -88,7 +88,7 @@ const definitions: RuntimeAgentDefinition[] = [
     accessPolicy: commonAccessPolicy,
     timeoutPolicy: commonTimeoutPolicy,
     executionMode: "synchronous",
-    versions: { capability: "AG-003@1.0", workflow: "1.0.0", prompt: "recommendation-intent@1", rule: AG003_CONFIG.ruleVersion, model: "upstream-managed" },
+    versions: { capability: "AG-003@1.1", workflow: "1.0.0", prompt: "recommendation-intent@1", rule: AG003_CONFIG.ruleVersion, model: "upstream-managed" },
     invoke: (request, traceId, identity) => invokeAg003(request, traceId, identity),
   },
   {
@@ -98,7 +98,7 @@ const definitions: RuntimeAgentDefinition[] = [
     accessPolicy: commonAccessPolicy,
     timeoutPolicy: { totalTimeoutMs: 35_000, maxSynchronousMs: 15_000 },
     executionMode: "async-capable",
-    versions: { capability: "AG-012@1.1", workflow: AG012_CONFIG.workflowVersion, prompt: "policy-grounding@1", rule: AG012_CONFIG.ruleVersion, model: "upstream-managed" },
+    versions: { capability: "AG-012@1.2", workflow: AG012_CONFIG.workflowVersion, prompt: "policy-grounding@1", rule: AG012_CONFIG.ruleVersion, model: "upstream-managed" },
     invoke: (request, traceId, identity) => invokeAg012(Ag012InvokeRequestSchema.parse(request), traceId, identity),
   },
   {
@@ -108,7 +108,7 @@ const definitions: RuntimeAgentDefinition[] = [
     accessPolicy: commonAccessPolicy,
     timeoutPolicy: commonTimeoutPolicy,
     executionMode: "synchronous",
-    versions: { capability: "AG-025@1.0", workflow: AG025_CONFIG.workflowVersion, prompt: "customer-routing@1", rule: AG025_CONFIG.ruleVersion, model: "upstream-managed" },
+    versions: { capability: "AG-025@1.1", workflow: AG025_CONFIG.workflowVersion, prompt: "customer-routing@1", rule: AG025_CONFIG.ruleVersion, model: "upstream-managed" },
     invoke: (request, traceId, identity) => invokeAg025(Ag025InvokeRequestSchema.parse(request), traceId, customerAccessScopeFromIdentity(identity), identity),
   },
 ];

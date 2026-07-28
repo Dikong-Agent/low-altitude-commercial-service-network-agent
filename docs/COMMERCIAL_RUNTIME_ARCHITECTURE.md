@@ -17,7 +17,7 @@
   ├─ 公共端口：AI 能力、业务访问上下文、领域数据、工具执行
   ├─ 可靠性：总时间预算、取消传递、分类重试、抖动退避、D1 熔断
   ├─ 异步任务：D1 任务状态 + Queue；只在 async-capable Agent 明确请求时使用
-  └─ 运行审计：版本、依赖耗时、重试、状态和内部 Trace
+  └─ 运行审计：版本、依赖耗时、重试、状态和脱敏后的步骤名称
         ├─ 甲方 AI 中台适配器
         └─ 数据中台 / 业务系统适配器
 ```
@@ -40,18 +40,19 @@
 - 重试使用指数退避和随机抖动。
 - 熔断状态存入 D1，在多实例间共享；本地 Demo 才使用内存降级。
 - AG-002、AG-012 标记为 `async-capable`。生产请求携带 `Prefer: respond-async` 时写入 D1 任务表并进入 Queue，返回 `202` 和任务地址。
+- 异步幂等记录同时校验请求哈希；同一幂等键对应不同请求时返回冲突。Queue 消费前使用条件更新原子领取任务，失败任务明确落为 `failed` 后才允许重试。
 - 回调使用 `source + callback_id + payload_hash` 去重；同一 ID 携带不同内容会拒绝。
 
 ## 可观测性与客户展示分离
 
-生产响应只返回 `processing_steps`，不返回包含 Provider、规则判断和内部细节的 `trace`。完整内部 Trace 仅进入受控审计表。
+生产响应只返回 `processing_steps`，不返回包含 Provider、规则判断和内部细节的 `trace`。审计表仅保留脱敏后的步骤名称，不持久化可能含用户输入或个人信息的步骤详情。
 
 每次运行记录 Agent、租户、状态、总耗时、能力/工作流/Prompt/规则/模型版本、各依赖耗时、尝试和重试次数。Token 与模型成本字段已经预留；在甲方 AI 中台回传标准 usage 之前保持为空，不用估算值冒充正式数据。
 
 ## 独立部署接口
 
 - `GET /health/live`：进程存活；
-- `GET /health/ready`：D1、运行模式和生产 Provider 就绪；
+- `GET /health/ready`：D1迁移、Queue、运行模式、生产 Provider、网关密钥和两个上游适配器配置就绪；
 - `GET /v1/agents`：运行时注册信息；
 - `POST /v1/agents/:agentId/invoke`：同步或异步调用；
 - `GET /v1/tasks/:taskId`：按租户和用户查询任务；
@@ -61,8 +62,10 @@
 
 ## 上线顺序
 
-1. 执行 `db/migrations/0001_agent_runtime_state.sql` 和 `0002_commercial_runtime_p1.sql`。
+1. 依次执行 `db/migrations/0001_agent_runtime_state.sql`、`0002_commercial_runtime_p1.sql` 和 `0003_commercial_runtime_hardening.sql`。
 2. 创建任务队列及死信队列，配置独立 Runtime 的 `DB`、`AGENT_TASKS` 绑定。
 3. 注入网关签名密钥、AI 中台和业务数据适配器密钥。
 4. 将五个 Provider 全部设为 `production`，通过 `/health/ready` 后再接流量。
 5. 用甲方正式角色、租户、超时、限流和故障场景完成联调；Demo 数据不得作为验收数据。
+
+可信网关签名覆盖请求方法、路径与查询串、请求体哈希、租户、用户、角色、`Idempotency-Key`、`Prefer` 和 `X-JDZ-Callback-Id`。签名 nonce 在租户维度只能使用一次，过期 nonce、幂等、回调、任务、会话和运行审计数据由每日定时清理任务按保留期删除。

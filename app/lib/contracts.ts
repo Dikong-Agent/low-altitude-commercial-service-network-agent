@@ -1,6 +1,6 @@
 import { z } from "zod/v4";
 
-export const AGENT_INTERFACE_VERSION = "v1.6";
+export const AGENT_INTERFACE_VERSION = "v1.7";
 export const MAX_AGENT_INPUT_LENGTH = 2_000;
 export const MAX_AGENT_CONTEXT_BYTES = 12_000;
 
@@ -43,6 +43,13 @@ export const AgentInvokeRequestSchema = z.object({
   context: AgentContextSchema.optional(),
 }).strict();
 export type AgentInvokeRequest = z.infer<typeof AgentInvokeRequestSchema>;
+
+export const CapabilityCoverageItemSchema = z.object({
+  function_id: z.string().regex(/^F-\d{4}$/),
+  source_requirement_id: z.string().regex(/^\d+$/),
+  capability: z.string().min(1),
+  status: z.enum(["mock-demonstrated", "adapter-ready"]),
+});
 
 export const Ag002ContextSchema = z.object({
   document_id: z.string().trim().min(1).max(128).optional(),
@@ -124,6 +131,7 @@ export const AgentComparisonOutputSchema = z.object({
   }),
   conflicts: z.array(z.string()),
   missing_data: z.array(z.string()),
+  capability_coverage: z.array(CapabilityCoverageItemSchema),
   data_notice: z.string(),
   rule_version: z.string(),
 });
@@ -193,11 +201,7 @@ export const AgentManualOutputSchema = z.object({
     scanned_pages: z.number().int().nonnegative(),
     recognition_mode: z.enum(["demo-preparsed", "ocr-layout", "multimodal-layout"]),
   }),
-  capability_coverage: z.array(z.object({
-    requirement_id: z.string(),
-    capability: z.string(),
-    status: z.enum(["mock-demonstrated", "adapter-ready"]),
-  })),
+  capability_coverage: z.array(CapabilityCoverageItemSchema),
   data_notice: z.string(),
   rule_version: z.string(),
 });
@@ -251,11 +255,7 @@ export const AgentRecommendationOutputSchema = z.object({
   }),
   gaps: z.array(z.string()),
   missing_data: z.array(z.string()),
-  capability_coverage: z.array(z.object({
-    requirement_id: z.string(),
-    capability: z.string(),
-    status: z.enum(["mock-demonstrated", "adapter-ready"]),
-  })),
+  capability_coverage: z.array(CapabilityCoverageItemSchema),
   data_notice: z.string(),
   rule_version: z.string(),
 });
@@ -315,9 +315,7 @@ export const AgentPolicyOutputSchema = z.object({
   })),
   citations: z.array(PolicyCitationSchema),
   review_items: z.array(z.string()),
-  capability_coverage: z.array(z.object({
-    requirement_id: z.string(), capability: z.string(), status: z.enum(["mock-demonstrated", "adapter-ready"]),
-  })),
+  capability_coverage: z.array(CapabilityCoverageItemSchema),
   data_notice: z.string(),
   rule_version: z.string(),
 });
@@ -375,9 +373,7 @@ export const AgentCustomerServiceOutputSchema = z.object({
     user_problem_summary: z.string(),
     processing_trace_summary: z.string(),
   }),
-  capability_coverage: z.array(z.object({
-    requirement_id: z.string(), capability: z.string(), status: z.enum(["mock-demonstrated", "adapter-ready"]),
-  })),
+  capability_coverage: z.array(CapabilityCoverageItemSchema),
   data_notice: z.string(),
   rule_version: z.string(),
 });

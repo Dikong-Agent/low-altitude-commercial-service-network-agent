@@ -16,6 +16,8 @@ import {
   CREATE_CALLBACK_RECEIPTS_EXPIRY_INDEX_SQL,
   CREATE_AGENT_TASKS_SQL,
   CREATE_AGENT_TASKS_EXPIRY_INDEX_SQL,
+  CREATE_AUTH_NONCE_RECORDS_SQL,
+  CREATE_AUTH_NONCE_EXPIRY_INDEX_SQL,
 } from "../../db/schema";
 import type { CustomerConversationPort } from "./agents/ag025/adapters";
 import {
@@ -73,6 +75,8 @@ async function ensureSchema(db: D1Database): Promise<void> {
       db.prepare(CREATE_CALLBACK_RECEIPTS_EXPIRY_INDEX_SQL),
       db.prepare(CREATE_AGENT_TASKS_SQL),
       db.prepare(CREATE_AGENT_TASKS_EXPIRY_INDEX_SQL),
+      db.prepare(CREATE_AUTH_NONCE_RECORDS_SQL),
+      db.prepare(CREATE_AUTH_NONCE_EXPIRY_INDEX_SQL),
     ]).then(() => undefined);
     initialized.set(key, pending);
   }
@@ -89,7 +93,8 @@ export async function assertDurableStateAvailable(): Promise<void> {
   await ensureSchema(db);
   try {
     await db.prepare("SELECT capability_version, retry_count, internal_trace_json FROM agent_runs LIMIT 1").first();
-    await db.prepare("SELECT roles_json, result_json, error_code FROM agent_tasks LIMIT 1").first();
+    await db.prepare("SELECT roles_json, request_hash, attempt_count, result_json, error_code FROM agent_tasks LIMIT 1").first();
+    await db.prepare("SELECT tenant_id, nonce, expires_at FROM auth_nonce_records LIMIT 1").first();
   } catch (error) {
     throw new DependencyUnavailableError("durable-state.migration", "Required Agent runtime migrations have not been applied", { cause: error, retryable: false });
   }
@@ -213,7 +218,7 @@ export async function persistAgentRun(event: AgentRunEvent, identity: RequestIde
       event.tokenUsage?.input ?? null,
       event.tokenUsage?.output ?? null,
       event.modelCostMicros ?? null,
-      event.internalTrace ? JSON.stringify(event.internalTrace) : null,
+      event.internalTrace ? JSON.stringify(event.internalTrace.map((step) => ({ name: step.name.slice(0, 120) }))) : null,
       now,
       expiry,
     )];
@@ -225,5 +230,27 @@ export async function persistAgentRun(event: AgentRunEvent, identity: RequestIde
     await db.batch(statements);
   } catch (error) {
     throw new DependencyUnavailableError("durable-state.agent-run", "Agent run record could not be persisted", { cause: error });
+  }
+}
+
+export async function cleanupExpiredRuntimeState(now = new Date()): Promise<void> {
+  const db = database();
+  await ensureSchema(db);
+  const timestamp = now.toISOString();
+  const staleCircuitTimestamp = new Date(now.getTime() - 30 * 86_400_000).toISOString();
+  try {
+    await db.batch([
+      db.prepare("DELETE FROM agent_run_events WHERE expires_at <= ?").bind(timestamp),
+      db.prepare("DELETE FROM agent_runs WHERE expires_at <= ?").bind(timestamp),
+      db.prepare("DELETE FROM agent_conversations WHERE expires_at <= ?").bind(timestamp),
+      db.prepare("DELETE FROM api_usage_buckets WHERE window_ends_at <= ?").bind(timestamp),
+      db.prepare("DELETE FROM idempotency_records WHERE expires_at <= ?").bind(timestamp),
+      db.prepare("DELETE FROM callback_receipts WHERE expires_at <= ?").bind(timestamp),
+      db.prepare("DELETE FROM agent_tasks WHERE expires_at <= ?").bind(timestamp),
+      db.prepare("DELETE FROM auth_nonce_records WHERE expires_at <= ?").bind(timestamp),
+      db.prepare("DELETE FROM dependency_circuits WHERE open_until_ms <= ? AND updated_at <= ?").bind(now.getTime(), staleCircuitTimestamp),
+    ]);
+  } catch (error) {
+    throw new DependencyUnavailableError("durable-state.cleanup", "Expired Agent runtime state could not be cleaned up", { cause: error });
   }
 }

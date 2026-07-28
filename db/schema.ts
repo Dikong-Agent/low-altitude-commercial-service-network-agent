@@ -86,8 +86,10 @@ CREATE TABLE IF NOT EXISTS agent_tasks (
   roles_json TEXT NOT NULL,
   agent_id TEXT NOT NULL,
   idempotency_key TEXT NOT NULL,
+  request_hash TEXT NOT NULL,
   request_json TEXT NOT NULL,
   state TEXT NOT NULL,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
   result_json TEXT,
   error_code TEXT,
   created_at TEXT NOT NULL,
@@ -137,3 +139,17 @@ CREATE TABLE IF NOT EXISTS idempotency_records (
 export const CREATE_IDEMPOTENCY_EXPIRY_INDEX_SQL = `
 CREATE INDEX IF NOT EXISTS idempotency_expiry_idx
 ON idempotency_records (expires_at)`;
+
+export const CREATE_AUTH_NONCE_RECORDS_SQL = `
+CREATE TABLE IF NOT EXISTS auth_nonce_records (
+  tenant_id TEXT NOT NULL,
+  nonce TEXT NOT NULL,
+  subject_id TEXT NOT NULL,
+  received_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, nonce)
+)`;
+
+export const CREATE_AUTH_NONCE_EXPIRY_INDEX_SQL = `
+CREATE INDEX IF NOT EXISTS auth_nonce_expiry_idx
+ON auth_nonce_records (expires_at)`;

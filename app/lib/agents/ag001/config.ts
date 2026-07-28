@@ -1,4 +1,5 @@
 import type { NumericDimension } from "./types";
+import { capabilityCoverageForAgent } from "../../capability-coverage";
 
 export const AG001_CONFIG = {
   workflowVersion: "1.2.0",
@@ -8,6 +9,7 @@ export const AG001_CONFIG = {
     aiPlatform: { timeoutMs: 3_000, maxAttempts: 2, circuitFailureThreshold: 3, circuitResetMs: 30_000 },
     businessData: { timeoutMs: 3_000, maxAttempts: 2, circuitFailureThreshold: 3, circuitResetMs: 30_000 },
   },
+  capabilityCoverage: capabilityCoverageForAgent("AG-001"),
   scoring: {
     base: 20,
     focusWeight: 60,

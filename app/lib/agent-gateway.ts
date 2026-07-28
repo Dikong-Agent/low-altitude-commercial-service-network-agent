@@ -1,7 +1,7 @@
 import { AgentInvokeResponseSchema, type AgentInvokeRequest, type AgentInvokeResponse } from "./contracts";
 
 const AGENT_API_BASE = "/api";
-const CLIENT_TIMEOUT_MS = 15_000;
+const CLIENT_TIMEOUT_MS = 17_000;
 
 export class AgentGatewayError extends Error {
   constructor(public readonly code: string, message: string, public readonly status?: number) {

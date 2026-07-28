@@ -1,0 +1,997 @@
+{
+  "AG-001": [
+    {
+      "function_id": "F-0190",
+      "source_requirement_id": "83",
+      "capability": "候选方案差异分析"
+    },
+    {
+      "function_id": "F-0505",
+      "source_requirement_id": "121",
+      "capability": "对比需求理解"
+    },
+    {
+      "function_id": "F-0506",
+      "source_requirement_id": "121",
+      "capability": "产品参数提取"
+    },
+    {
+      "function_id": "F-0507",
+      "source_requirement_id": "121",
+      "capability": "参数单位与口径统一"
+    },
+    {
+      "function_id": "F-0508",
+      "source_requirement_id": "121",
+      "capability": "参数缺失识别"
+    },
+    {
+      "function_id": "F-0509",
+      "source_requirement_id": "121",
+      "capability": "参数矛盾识别"
+    },
+    {
+      "function_id": "F-0510",
+      "source_requirement_id": "121",
+      "capability": "单型号能力画像生成"
+    },
+    {
+      "function_id": "F-0511",
+      "source_requirement_id": "121",
+      "capability": "关键参数差异分析"
+    },
+    {
+      "function_id": "F-0512",
+      "source_requirement_id": "83",
+      "capability": "型号适用场景差异分析"
+    },
+    {
+      "function_id": "F-0513",
+      "source_requirement_id": "83",
+      "capability": "型号优势项分析"
+    },
+    {
+      "function_id": "F-0514",
+      "source_requirement_id": "83",
+      "capability": "型号限制项分析"
+    },
+    {
+      "function_id": "F-0515",
+      "source_requirement_id": "121",
+      "capability": "型号综合对比结论生成"
+    }
+  ],
+  "AG-002": [
+    {
+      "function_id": "F-0204",
+      "source_requirement_id": "121",
+      "capability": "操作步骤摘要"
+    },
+    {
+      "function_id": "F-0205",
+      "source_requirement_id": "121",
+      "capability": "用户说明书故障排查路径摘要"
+    },
+    {
+      "function_id": "F-0206",
+      "source_requirement_id": "121",
+      "capability": "产品核心能力与适用边界摘要"
+    },
+    {
+      "function_id": "F-0207",
+      "source_requirement_id": "85",
+      "capability": "说明书图示含义解读"
+    },
+    {
+      "function_id": "F-0208",
+      "source_requirement_id": "85",
+      "capability": "说明书章节与图表关系理解"
+    },
+    {
+      "function_id": "F-0209",
+      "source_requirement_id": "85",
+      "capability": "说明书场景语义检索"
+    },
+    {
+      "function_id": "F-0210",
+      "source_requirement_id": "85",
+      "capability": "专业术语转换"
+    },
+    {
+      "function_id": "F-0211",
+      "source_requirement_id": "85",
+      "capability": "说明书操作步骤通俗解读"
+    },
+    {
+      "function_id": "F-0212",
+      "source_requirement_id": "85",
+      "capability": "场景化操作指引生成"
+    },
+    {
+      "function_id": "F-0213",
+      "source_requirement_id": "121",
+      "capability": "安全事项要点提取"
+    },
+    {
+      "function_id": "F-0214",
+      "source_requirement_id": "85",
+      "capability": "安全风险提示生成"
+    },
+    {
+      "function_id": "F-0215",
+      "source_requirement_id": "85",
+      "capability": "禁止操作提示生成"
+    },
+    {
+      "function_id": "F-0216",
+      "source_requirement_id": "85",
+      "capability": "合规要求场景提示生成"
+    }
+  ],
+  "AG-003": [
+    {
+      "function_id": "F-0001",
+      "source_requirement_id": "214",
+      "capability": "商品搜索意图理解"
+    },
+    {
+      "function_id": "F-0002",
+      "source_requirement_id": "214",
+      "capability": "商品搜索词纠错"
+    },
+    {
+      "function_id": "F-0003",
+      "source_requirement_id": "214",
+      "capability": "商品型号识别"
+    },
+    {
+      "function_id": "F-0004",
+      "source_requirement_id": "214",
+      "capability": "商品类目推断"
+    },
+    {
+      "function_id": "F-0005",
+      "source_requirement_id": "214",
+      "capability": "商品搜索候选匹配"
+    },
+    {
+      "function_id": "F-0006",
+      "source_requirement_id": "214",
+      "capability": "商品搜索相关性评分"
+    },
+    {
+      "function_id": "F-0007",
+      "source_requirement_id": "89",
+      "capability": "图片可识别性判断"
+    },
+    {
+      "function_id": "F-0008",
+      "source_requirement_id": "89",
+      "capability": "图片主体识别"
+    },
+    {
+      "function_id": "F-0009",
+      "source_requirement_id": "89",
+      "capability": "产品特征提取"
+    },
+    {
+      "function_id": "F-0010",
+      "source_requirement_id": "89",
+      "capability": "图片相似商品匹配"
+    },
+    {
+      "function_id": "F-0011",
+      "source_requirement_id": "89",
+      "capability": "相似候选商品业务适配判断"
+    },
+    {
+      "function_id": "F-0012",
+      "source_requirement_id": "89",
+      "capability": "相似程度排序"
+    },
+    {
+      "function_id": "F-0013",
+      "source_requirement_id": "89",
+      "capability": "差异特征说明"
+    },
+    {
+      "function_id": "F-0014",
+      "source_requirement_id": "89",
+      "capability": "相似特征说明"
+    },
+    {
+      "function_id": "F-0015",
+      "source_requirement_id": "89",
+      "capability": "图片匹配效果判断"
+    },
+    {
+      "function_id": "F-0016",
+      "source_requirement_id": "89",
+      "capability": "图片匹配调整方向识别"
+    },
+    {
+      "function_id": "F-0017",
+      "source_requirement_id": "89",
+      "capability": "反馈条件再匹配"
+    },
+    {
+      "function_id": "F-0024",
+      "source_requirement_id": "110",
+      "capability": "商城场景方案需求识别"
+    },
+    {
+      "function_id": "F-0025",
+      "source_requirement_id": "110",
+      "capability": "商城场景方案类目匹配"
+    },
+    {
+      "function_id": "F-0026",
+      "source_requirement_id": "110",
+      "capability": "已上架场景方案候选匹配"
+    },
+    {
+      "function_id": "F-0027",
+      "source_requirement_id": "110",
+      "capability": "商城场景方案适用条件判断"
+    },
+    {
+      "function_id": "F-0028",
+      "source_requirement_id": "110",
+      "capability": "商城场景方案推荐结果生成"
+    },
+    {
+      "function_id": "F-0029",
+      "source_requirement_id": "110",
+      "capability": "商城场景方案推荐依据生成"
+    },
+    {
+      "function_id": "F-0030",
+      "source_requirement_id": "110",
+      "capability": "商城场景方案差距事项生成"
+    },
+    {
+      "function_id": "F-0048",
+      "source_requirement_id": "232",
+      "capability": "整机类商品匹配"
+    },
+    {
+      "function_id": "F-0049",
+      "source_requirement_id": "232",
+      "capability": "零件类商品匹配"
+    },
+    {
+      "function_id": "F-0050",
+      "source_requirement_id": "232",
+      "capability": "同城交易条件适配判断"
+    },
+    {
+      "function_id": "F-0051",
+      "source_requirement_id": "232",
+      "capability": "二手商品可推荐性判断"
+    },
+    {
+      "function_id": "F-0052",
+      "source_requirement_id": "232",
+      "capability": "二手商品候选评分"
+    },
+    {
+      "function_id": "F-0053",
+      "source_requirement_id": "232",
+      "capability": "二手商品推荐结果生成"
+    },
+    {
+      "function_id": "F-0054",
+      "source_requirement_id": "232",
+      "capability": "二手商品推荐依据生成"
+    },
+    {
+      "function_id": "F-0055",
+      "source_requirement_id": "232",
+      "capability": "二手冷启动条件识别"
+    },
+    {
+      "function_id": "F-0056",
+      "source_requirement_id": "232",
+      "capability": "二手冷启动推荐结果生成"
+    },
+    {
+      "function_id": "F-0057",
+      "source_requirement_id": "232",
+      "capability": "二手商品推荐反馈识别"
+    },
+    {
+      "function_id": "F-0058",
+      "source_requirement_id": "232",
+      "capability": "二手商品推荐效果评价"
+    },
+    {
+      "function_id": "F-0686",
+      "source_requirement_id": "144",
+      "capability": "商品上架内容场景理解"
+    },
+    {
+      "function_id": "F-0687",
+      "source_requirement_id": "140",
+      "capability": "商品类目与标题一致性判断"
+    },
+    {
+      "function_id": "F-0690",
+      "source_requirement_id": "144",
+      "capability": "禁止销售商品风险识别"
+    },
+    {
+      "function_id": "F-0691",
+      "source_requirement_id": "144",
+      "capability": "限制销售商品条件风险识别"
+    },
+    {
+      "function_id": "F-0694",
+      "source_requirement_id": "205",
+      "capability": "二手上架物品类别识别"
+    },
+    {
+      "function_id": "F-0695",
+      "source_requirement_id": "233",
+      "capability": "二手违禁物品风险识别"
+    },
+    {
+      "function_id": "F-0696",
+      "source_requirement_id": "233",
+      "capability": "二手限制交易物品风险识别"
+    },
+    {
+      "function_id": "F-0697",
+      "source_requirement_id": "205",
+      "capability": "二手商品图片与描述一致性判断"
+    },
+    {
+      "function_id": "F-0698",
+      "source_requirement_id": "206",
+      "capability": "二手商品型号与实物特征一致性判断"
+    },
+    {
+      "function_id": "F-0699",
+      "source_requirement_id": "207",
+      "capability": "二手商品成色披露缺口识别"
+    },
+    {
+      "function_id": "F-0700",
+      "source_requirement_id": "206",
+      "capability": "二手商品故障信息披露缺口识别"
+    },
+    {
+      "function_id": "F-0701",
+      "source_requirement_id": "206",
+      "capability": "二手商品维修史披露缺口识别"
+    },
+    {
+      "function_id": "F-0702",
+      "source_requirement_id": "210",
+      "capability": "二手上架内容个人信息泄露识别"
+    },
+    {
+      "function_id": "F-0703",
+      "source_requirement_id": "210",
+      "capability": "二手上架内容站外引流识别"
+    },
+    {
+      "function_id": "F-0704",
+      "source_requirement_id": "210",
+      "capability": "二手上架疑似诈骗话术识别"
+    }
+  ],
+  "AG-012": [
+    {
+      "function_id": "F-0270",
+      "source_requirement_id": "241",
+      "capability": "飞行限制条件解释"
+    },
+    {
+      "function_id": "F-0271",
+      "source_requirement_id": "241",
+      "capability": "空域政策场景解读"
+    },
+    {
+      "function_id": "F-0272",
+      "source_requirement_id": "241",
+      "capability": "申请要求场景解读"
+    },
+    {
+      "function_id": "F-0273",
+      "source_requirement_id": "241",
+      "capability": "空域信息核验路径生成"
+    },
+    {
+      "function_id": "F-0274",
+      "source_requirement_id": "241",
+      "capability": "空域申请办理路径生成"
+    },
+    {
+      "function_id": "F-0307",
+      "source_requirement_id": "286",
+      "capability": "政策适用问题理解"
+    },
+    {
+      "function_id": "F-0308",
+      "source_requirement_id": "287",
+      "capability": "政策条款关联"
+    },
+    {
+      "function_id": "F-0309",
+      "source_requirement_id": "290",
+      "capability": "政策版本关系说明"
+    },
+    {
+      "function_id": "F-0310",
+      "source_requirement_id": "290",
+      "capability": "政策适用条件判断"
+    },
+    {
+      "function_id": "F-0311",
+      "source_requirement_id": "287",
+      "capability": "政策条款场景解释"
+    },
+    {
+      "function_id": "F-0312",
+      "source_requirement_id": "290",
+      "capability": "当前政策场景影响解释"
+    },
+    {
+      "function_id": "F-0313",
+      "source_requirement_id": "290",
+      "capability": "政策咨询综合结论生成"
+    },
+    {
+      "function_id": "F-0314",
+      "source_requirement_id": "290",
+      "capability": "政策咨询待核实事项生成"
+    },
+    {
+      "function_id": "F-0315",
+      "source_requirement_id": "291",
+      "capability": "适航动态问答"
+    },
+    {
+      "function_id": "F-0316",
+      "source_requirement_id": "294",
+      "capability": "适航案例适用性解释"
+    },
+    {
+      "function_id": "F-0317",
+      "source_requirement_id": "293",
+      "capability": "适航要求场景解读"
+    },
+    {
+      "function_id": "F-0318",
+      "source_requirement_id": "293",
+      "capability": "适航合规要点说明"
+    },
+    {
+      "function_id": "F-0319",
+      "source_requirement_id": "293",
+      "capability": "适航权威依据追溯解释"
+    },
+    {
+      "function_id": "F-0320",
+      "source_requirement_id": "293",
+      "capability": "适航咨询待确认事项生成"
+    },
+    {
+      "function_id": "F-0327",
+      "source_requirement_id": "279",
+      "capability": "跨知识来源问题语义理解"
+    },
+    {
+      "function_id": "F-0328",
+      "source_requirement_id": "281",
+      "capability": "复杂问题条件理解"
+    },
+    {
+      "function_id": "F-0329",
+      "source_requirement_id": "284",
+      "capability": "专业术语关联理解"
+    },
+    {
+      "function_id": "F-0330",
+      "source_requirement_id": "284",
+      "capability": "专业表达规范理解"
+    },
+    {
+      "function_id": "F-0331",
+      "source_requirement_id": "279",
+      "capability": "知识对象范围理解"
+    },
+    {
+      "function_id": "F-0332",
+      "source_requirement_id": "279",
+      "capability": "跨来源知识内容关联"
+    },
+    {
+      "function_id": "F-0333",
+      "source_requirement_id": "282",
+      "capability": "知识内容问题适配判断"
+    },
+    {
+      "function_id": "F-0334",
+      "source_requirement_id": "279",
+      "capability": "跨来源冲突信息识别"
+    },
+    {
+      "function_id": "F-0335",
+      "source_requirement_id": "279",
+      "capability": "知识答案综合生成"
+    },
+    {
+      "function_id": "F-0336",
+      "source_requirement_id": "279",
+      "capability": "答案依据关联"
+    },
+    {
+      "function_id": "F-0337",
+      "source_requirement_id": "279",
+      "capability": "答案时效适用性解释"
+    },
+    {
+      "function_id": "F-0338",
+      "source_requirement_id": "279",
+      "capability": "答案待核实事项生成"
+    },
+    {
+      "function_id": "F-0339",
+      "source_requirement_id": "284",
+      "capability": "延伸知识方向建议"
+    },
+    {
+      "function_id": "F-0772",
+      "source_requirement_id": "293",
+      "capability": "专业内容类型与场景识别"
+    },
+    {
+      "function_id": "F-0773",
+      "source_requirement_id": "293",
+      "capability": "专业内容来源依据完整性判断"
+    },
+    {
+      "function_id": "F-0775",
+      "source_requirement_id": "293",
+      "capability": "专业结论越界表述风险识别"
+    },
+    {
+      "function_id": "F-0559",
+      "source_requirement_id": "290",
+      "capability": "政策基本信息提取"
+    },
+    {
+      "function_id": "F-0560",
+      "source_requirement_id": "290",
+      "capability": "政策时效信息提取"
+    },
+    {
+      "function_id": "F-0561",
+      "source_requirement_id": "290",
+      "capability": "政策适用范围提取"
+    },
+    {
+      "function_id": "F-0562",
+      "source_requirement_id": "290",
+      "capability": "政策关键要素摘要生成"
+    },
+    {
+      "function_id": "F-0563",
+      "source_requirement_id": "290",
+      "capability": "新政策语义识别"
+    },
+    {
+      "function_id": "F-0564",
+      "source_requirement_id": "290",
+      "capability": "政策版本链识别"
+    },
+    {
+      "function_id": "F-0565",
+      "source_requirement_id": "290",
+      "capability": "政策修订承接关系识别"
+    },
+    {
+      "function_id": "F-0566",
+      "source_requirement_id": "290",
+      "capability": "政策修订状态识别"
+    },
+    {
+      "function_id": "F-0567",
+      "source_requirement_id": "290",
+      "capability": "现行政策版本辅助判断"
+    },
+    {
+      "function_id": "F-0568",
+      "source_requirement_id": "290",
+      "capability": "政策条款差异识别"
+    },
+    {
+      "function_id": "F-0569",
+      "source_requirement_id": "290",
+      "capability": "政策变化类型识别"
+    },
+    {
+      "function_id": "F-0570",
+      "source_requirement_id": "290",
+      "capability": "政策变化摘要生成"
+    },
+    {
+      "function_id": "F-0571",
+      "source_requirement_id": "290",
+      "capability": "政策变化业务影响辅助分析"
+    },
+    {
+      "function_id": "F-0650",
+      "source_requirement_id": "291",
+      "capability": "官方适航动态识别"
+    },
+    {
+      "function_id": "F-0651",
+      "source_requirement_id": "291",
+      "capability": "适航动态关键字段提取"
+    },
+    {
+      "function_id": "F-0652",
+      "source_requirement_id": "291",
+      "capability": "适航状态变化识别"
+    },
+    {
+      "function_id": "F-0653",
+      "source_requirement_id": "291",
+      "capability": "适航档案关联建议"
+    },
+    {
+      "function_id": "F-0654",
+      "source_requirement_id": "291",
+      "capability": "适航动态摘要生成"
+    },
+    {
+      "function_id": "F-0655",
+      "source_requirement_id": "291",
+      "capability": "适航动态影响摘要生成"
+    },
+    {
+      "function_id": "F-0656",
+      "source_requirement_id": "293",
+      "capability": "适航主题语义分类"
+    },
+    {
+      "function_id": "F-0657",
+      "source_requirement_id": "293",
+      "capability": "适航材料相关性辅助判断"
+    },
+    {
+      "function_id": "F-0658",
+      "source_requirement_id": "293",
+      "capability": "适航材料来源权威性辅助判断"
+    },
+    {
+      "function_id": "F-0659",
+      "source_requirement_id": "293",
+      "capability": "适航材料时效适用性辅助判断"
+    },
+    {
+      "function_id": "F-0660",
+      "source_requirement_id": "293",
+      "capability": "适航新规解读稿生成"
+    },
+    {
+      "function_id": "F-0661",
+      "source_requirement_id": "293",
+      "capability": "适航行业影响解读稿生成"
+    },
+    {
+      "function_id": "F-0662",
+      "source_requirement_id": "293",
+      "capability": "适航合规要点解读稿生成"
+    },
+    {
+      "function_id": "F-0663",
+      "source_requirement_id": "293",
+      "capability": "适航解读稿结构组织"
+    },
+    {
+      "function_id": "F-0664",
+      "source_requirement_id": "293",
+      "capability": "适航解读引用依据标注生成"
+    },
+    {
+      "function_id": "F-0665",
+      "source_requirement_id": "293",
+      "capability": "适航条款依据缺口识别"
+    },
+    {
+      "function_id": "F-0666",
+      "source_requirement_id": "293",
+      "capability": "适航专业事实疑点识别"
+    },
+    {
+      "function_id": "F-0667",
+      "source_requirement_id": "293",
+      "capability": "适航解读稿修改建议"
+    }
+  ],
+  "AG-025": [
+    {
+      "function_id": "F-0001",
+      "source_requirement_id": "214",
+      "capability": "商品搜索意图理解"
+    },
+    {
+      "function_id": "F-0002",
+      "source_requirement_id": "214",
+      "capability": "商品搜索词纠错"
+    },
+    {
+      "function_id": "F-0003",
+      "source_requirement_id": "214",
+      "capability": "商品型号识别"
+    },
+    {
+      "function_id": "F-0004",
+      "source_requirement_id": "214",
+      "capability": "商品类目推断"
+    },
+    {
+      "function_id": "F-0005",
+      "source_requirement_id": "214",
+      "capability": "商品搜索候选匹配"
+    },
+    {
+      "function_id": "F-0006",
+      "source_requirement_id": "214",
+      "capability": "商品搜索相关性评分"
+    },
+    {
+      "function_id": "F-0237",
+      "source_requirement_id": "353",
+      "capability": "投融资问题识别"
+    },
+    {
+      "function_id": "F-0238",
+      "source_requirement_id": "353",
+      "capability": "投融资阶段流程场景解答"
+    },
+    {
+      "function_id": "F-0239",
+      "source_requirement_id": "353",
+      "capability": "融资阶段关键事项解答"
+    },
+    {
+      "function_id": "F-0240",
+      "source_requirement_id": "353",
+      "capability": "融资方式适用特点解释"
+    },
+    {
+      "function_id": "F-0241",
+      "source_requirement_id": "353",
+      "capability": "投融资通用风险事项场景解释"
+    },
+    {
+      "function_id": "F-0242",
+      "source_requirement_id": "353",
+      "capability": "融资沟通材料清单生成"
+    },
+    {
+      "function_id": "F-0243",
+      "source_requirement_id": "353",
+      "capability": "融资沟通材料缺口说明"
+    },
+    {
+      "function_id": "F-0244",
+      "source_requirement_id": "358",
+      "capability": "信贷问题识别"
+    },
+    {
+      "function_id": "F-0245",
+      "source_requirement_id": "358",
+      "capability": "企业信贷申请流程场景解答"
+    },
+    {
+      "function_id": "F-0246",
+      "source_requirement_id": "358",
+      "capability": "信贷条件场景适用性解释"
+    },
+    {
+      "function_id": "F-0247",
+      "source_requirement_id": "358",
+      "capability": "还款方式差异解读"
+    },
+    {
+      "function_id": "F-0248",
+      "source_requirement_id": "358",
+      "capability": "信贷通用风险事项场景解释"
+    },
+    {
+      "function_id": "F-0249",
+      "source_requirement_id": "358",
+      "capability": "信贷材料清单生成"
+    },
+    {
+      "function_id": "F-0250",
+      "source_requirement_id": "358",
+      "capability": "信贷材料缺口说明"
+    },
+    {
+      "function_id": "F-0285",
+      "source_requirement_id": "85",
+      "capability": "咨询板块识别"
+    },
+    {
+      "function_id": "F-0286",
+      "source_requirement_id": "85",
+      "capability": "咨询问题类型识别"
+    },
+    {
+      "function_id": "F-0287",
+      "source_requirement_id": "76",
+      "capability": "投诉问题要素理解"
+    },
+    {
+      "function_id": "F-0288",
+      "source_requirement_id": "85",
+      "capability": "缺失信息智能追问"
+    },
+    {
+      "function_id": "F-0289",
+      "source_requirement_id": "85",
+      "capability": "平台通用规则解答"
+    },
+    {
+      "function_id": "F-0290",
+      "source_requirement_id": "85",
+      "capability": "商品信息场景化解答"
+    },
+    {
+      "function_id": "F-0291",
+      "source_requirement_id": "85",
+      "capability": "订单咨询协同答复"
+    },
+    {
+      "function_id": "F-0292",
+      "source_requirement_id": "85",
+      "capability": "售后规则与办理说明"
+    },
+    {
+      "function_id": "F-0293",
+      "source_requirement_id": "85",
+      "capability": "跨板块咨询协同答复"
+    },
+    {
+      "function_id": "F-0294",
+      "source_requirement_id": "85",
+      "capability": "客服答复有效性判断"
+    },
+    {
+      "function_id": "F-0295",
+      "source_requirement_id": "85",
+      "capability": "未解决问题原因识别"
+    },
+    {
+      "function_id": "F-0296",
+      "source_requirement_id": "85",
+      "capability": "人工介入条件判断"
+    },
+    {
+      "function_id": "F-0297",
+      "source_requirement_id": "85",
+      "capability": "人工转接建议"
+    },
+    {
+      "function_id": "F-0298",
+      "source_requirement_id": "139",
+      "capability": "客服业务上下文识别"
+    },
+    {
+      "function_id": "F-0299",
+      "source_requirement_id": "139",
+      "capability": "相关订单语义关联"
+    },
+    {
+      "function_id": "F-0300",
+      "source_requirement_id": "139",
+      "capability": "相关服务语义关联"
+    },
+    {
+      "function_id": "F-0301",
+      "source_requirement_id": "139",
+      "capability": "相关商品语义关联"
+    },
+    {
+      "function_id": "F-0302",
+      "source_requirement_id": "85",
+      "capability": "用户问题摘要"
+    },
+    {
+      "function_id": "F-0303",
+      "source_requirement_id": "85",
+      "capability": "会话已确认信息摘要"
+    },
+    {
+      "function_id": "F-0304",
+      "source_requirement_id": "85",
+      "capability": "会话处理轨迹摘要生成"
+    },
+    {
+      "function_id": "F-0305",
+      "source_requirement_id": "139",
+      "capability": "人工客服答复建议生成"
+    },
+    {
+      "function_id": "F-0306",
+      "source_requirement_id": "139",
+      "capability": "人工答复依据摘要生成"
+    },
+    {
+      "function_id": "F-0760",
+      "source_requirement_id": "1",
+      "capability": "即时沟通语境理解"
+    },
+    {
+      "function_id": "F-0761",
+      "source_requirement_id": "1",
+      "capability": "即时沟通骚扰内容识别"
+    },
+    {
+      "function_id": "F-0762",
+      "source_requirement_id": "1",
+      "capability": "即时沟通攻击威胁内容识别"
+    },
+    {
+      "function_id": "F-0763",
+      "source_requirement_id": "1",
+      "capability": "即时沟通疑似诈骗话术识别"
+    },
+    {
+      "function_id": "F-0764",
+      "source_requirement_id": "1",
+      "capability": "即时沟通站外交易引导识别"
+    },
+    {
+      "function_id": "F-0765",
+      "source_requirement_id": "1",
+      "capability": "即时沟通个人信息泄露识别"
+    },
+    {
+      "function_id": "F-0390",
+      "source_requirement_id": "85",
+      "capability": "客服会话违规风险线索识别"
+    },
+    {
+      "function_id": "F-0391",
+      "source_requirement_id": "85",
+      "capability": "违规行为证据提取"
+    },
+    {
+      "function_id": "F-0392",
+      "source_requirement_id": "85",
+      "capability": "重复违规线索识别"
+    },
+    {
+      "function_id": "F-0396",
+      "source_requirement_id": "85",
+      "capability": "信用影响复核材料生成"
+    },
+    {
+      "function_id": "F-0584",
+      "source_requirement_id": "70",
+      "capability": "运营问数意图理解"
+    },
+    {
+      "function_id": "F-0588",
+      "source_requirement_id": "70",
+      "capability": "缺失问数条件追问"
+    },
+    {
+      "function_id": "F-0600",
+      "source_requirement_id": "85",
+      "capability": "未解决问题类型聚类分析"
+    },
+    {
+      "function_id": "F-0601",
+      "source_requirement_id": "85",
+      "capability": "人工转接原因趋势分析"
+    }
+  ]
+}

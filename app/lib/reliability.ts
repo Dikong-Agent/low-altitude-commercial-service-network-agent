@@ -59,6 +59,10 @@ export function runWithAgentExecutionContext<T>(context: AgentExecutionContext, 
   return contexts.run(context, operation);
 }
 
+export function currentAgentTraceId(): string | undefined {
+  return contexts.getStore()?.traceId;
+}
+
 async function ensureCircuitSchema(db: D1Database): Promise<void> {
   const key = db as object;
   let pending = initializedDatabases.get(key);
