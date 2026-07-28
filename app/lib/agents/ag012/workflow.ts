@@ -9,6 +9,7 @@ import {
   type AgentPolicyOutput,
 } from "../../contracts";
 import { executeWithPolicy } from "../../reliability";
+import type { RequestIdentity } from "../../request-identity";
 import { AG012_CONFIG } from "./config";
 import { buildPolicyOutput, effectiveStatus } from "./engine";
 import { getAg012ProviderRevision, resolveAg012Dependencies, type Ag012Dependencies } from "./providers";
@@ -271,8 +272,9 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
 
 let cachedWorkflow: { providerName: string; revision: number; workflow: ReturnType<typeof createAg012Workflow> } | undefined;
 
-function getDefaultWorkflow() {
+function getDefaultWorkflow(identity?: RequestIdentity) {
   const providerName = process.env.AG012_PROVIDER ?? "demo";
+  if (providerName === "production") return createAg012Workflow(resolveAg012Dependencies(providerName, identity));
   const revision = getAg012ProviderRevision();
   if (!cachedWorkflow || cachedWorkflow.providerName !== providerName || cachedWorkflow.revision !== revision) {
     cachedWorkflow = { providerName, revision, workflow: createAg012Workflow(resolveAg012Dependencies(providerName)) };
@@ -280,8 +282,8 @@ function getDefaultWorkflow() {
   return cachedWorkflow.workflow;
 }
 
-export async function invokeAg012(request: Ag012InvokeRequest, traceId: string): Promise<AgentInvokeResponse> {
-  const result = await getDefaultWorkflow().invoke({ request, traceId, trace: [] });
+export async function invokeAg012(request: Ag012InvokeRequest, traceId: string, identity?: RequestIdentity): Promise<AgentInvokeResponse> {
+  const result = await getDefaultWorkflow(identity).invoke({ request, traceId, trace: [] });
   if (!result.response) throw new Error("AG-012 workflow completed without a response");
   return AgentInvokeResponseSchema.parse(result.response);
 }

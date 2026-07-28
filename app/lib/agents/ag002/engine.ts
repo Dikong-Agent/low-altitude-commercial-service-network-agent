@@ -58,6 +58,7 @@ export function buildManualOutput(
   manual: ParsedManual,
   intent: ManualIntent,
   rankedSections: RankedManualSection[],
+  engine: AgentManualOutput["engine"] = "langgraph-demo",
 ): AgentManualOutput {
   const includeOperationalDetail = intent.topics.some((topic) => ["operation", "safety", "troubleshooting", "compliance"].includes(topic));
   const stepCandidates = includeOperationalDetail
@@ -105,7 +106,7 @@ export function buildManualOutput(
     : selectAnswerSections(intent, rankedSections).map((section) => section.plainLanguage).join(" ");
 
   return {
-    engine: "langgraph-demo",
+    engine,
     document: {
       id: manual.id,
       title: manual.title,

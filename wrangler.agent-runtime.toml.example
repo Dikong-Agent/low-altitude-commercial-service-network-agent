@@ -1,0 +1,28 @@
+name = "jdz-agent-runtime"
+main = "worker/agent-runtime.ts"
+compatibility_date = "2026-07-28"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jdz-agent-runtime"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[[queues.producers]]
+binding = "AGENT_TASKS"
+queue = "jdz-agent-tasks"
+
+[[queues.consumers]]
+queue = "jdz-agent-tasks"
+max_batch_size = 5
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "jdz-agent-tasks-dlq"
+
+[vars]
+AGENT_RUNTIME_MODE = "production"
+AG001_PROVIDER = "production"
+AG002_PROVIDER = "production"
+AG003_PROVIDER = "production"
+AG012_PROVIDER = "production"
+AG025_PROVIDER = "production"

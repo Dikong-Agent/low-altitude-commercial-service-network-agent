@@ -10,9 +10,10 @@ import {
   type ComparisonTableRow,
 } from "../../contracts";
 import { executeWithPolicy } from "../../reliability";
+import type { RequestIdentity } from "../../request-identity";
 import { AG001_CONFIG } from "./config";
 import { buildComparisonTable, evaluateProducts, selectCandidates } from "./engine";
-import { resolveAg001Dependencies, type Ag001Dependencies } from "./providers";
+import { getAg001ProviderRevision, resolveAg001Dependencies, type Ag001Dependencies } from "./providers";
 import {
   ComparisonIntentSchema,
   DemoProductSchema,
@@ -77,7 +78,7 @@ export function createAg001Workflow(dependencies: Ag001Dependencies) {
       trace_id: state.traceId,
       agent_id: "AG-001",
       status: "needs_clarification",
-      environment: "demo",
+      environment: dependencies.environment,
       output: {
         title: "需要补充选型条件",
         summary: message,
@@ -154,7 +155,7 @@ export function createAg001Workflow(dependencies: Ag001Dependencies) {
     }));
 
     const comparison: AgentComparisonOutput = {
-      engine: "langgraph-demo",
+      engine: dependencies.engine,
       intent: intentView(state.intent!, candidates),
       products: evaluations.map((evaluation) => ({
         id: evaluation.product.id,
@@ -175,7 +176,9 @@ export function createAg001Workflow(dependencies: Ag001Dependencies) {
       },
       conflicts,
       missing_data: missingData,
-      data_notice: "当前结果仅基于虚构样例产品和 Mock 规则生成，不代表正式商品、价格、库存或采购结论。",
+      data_notice: dependencies.environment === "demo"
+        ? "当前结果仅基于虚构样例产品和 Mock 规则生成，不代表正式商品、价格、库存或采购结论。"
+        : "当前结果基于已接入的数据源与规则生成；涉及采购、价格、库存和适用性的结论仍需按业务流程复核。",
       rule_version: AG001_CONFIG.ruleVersion,
     };
 
@@ -184,7 +187,7 @@ export function createAg001Workflow(dependencies: Ag001Dependencies) {
       trace_id: state.traceId,
       agent_id: "AG-001",
       status: primary ? "completed" : "needs_review",
-      environment: "demo",
+      environment: dependencies.environment,
       output: {
         title: primary ? "产品型号智能比较结果" : "候选条件冲突，需要调整",
         summary: primary
@@ -218,10 +221,20 @@ export function createAg001Workflow(dependencies: Ag001Dependencies) {
     .compile();
 }
 
-const defaultWorkflow = createAg001Workflow(resolveAg001Dependencies());
+let cachedWorkflow: { providerName: string; revision: number; workflow: ReturnType<typeof createAg001Workflow> } | undefined;
 
-export async function invokeAg001(request: AgentInvokeRequest, traceId: string): Promise<AgentInvokeResponse> {
-  const result = await defaultWorkflow.invoke({ request, traceId, trace: [] });
+function getDefaultWorkflow(identity?: RequestIdentity) {
+  const providerName = process.env.AG001_PROVIDER ?? "demo";
+  if (providerName === "production") return createAg001Workflow(resolveAg001Dependencies(providerName, identity));
+  const revision = getAg001ProviderRevision();
+  if (!cachedWorkflow || cachedWorkflow.providerName !== providerName || cachedWorkflow.revision !== revision) {
+    cachedWorkflow = { providerName, revision, workflow: createAg001Workflow(resolveAg001Dependencies(providerName, identity)) };
+  }
+  return cachedWorkflow.workflow;
+}
+
+export async function invokeAg001(request: AgentInvokeRequest, traceId: string, identity?: RequestIdentity): Promise<AgentInvokeResponse> {
+  const result = await getDefaultWorkflow(identity).invoke({ request, traceId, trace: [] });
   if (!result.response) throw new Error("AG-001 workflow completed without a response");
   return AgentInvokeResponseSchema.parse(result.response);
 }

@@ -1,5 +1,6 @@
 import type { Ag025InvokeRequest, CustomerServiceDomainSchema, CustomerServiceIssueSchema } from "../../contracts";
 import type { z } from "zod/v4";
+import type { CommonAIPlatformPort, CommonDomainDataPort } from "../../runtime-ports";
 import { AG025_CONFIG } from "./config";
 import { DEMO_CUSTOMER_ORDERS, DEMO_CUSTOMER_PRODUCTS, DEMO_CUSTOMER_SERVICE_GUIDES, DEMO_CUSTOMER_SERVICE_KNOWLEDGE } from "./catalog";
 import type {
@@ -22,12 +23,12 @@ export interface RankedCustomerKnowledge {
   relevance: number;
 }
 
-export interface AIPlatformPort {
+export interface AIPlatformPort extends CommonAIPlatformPort {
   understandCustomerRequest(request: Ag025InvokeRequest, conversation: CustomerConversationState | null, options?: { signal?: AbortSignal }): Promise<CustomerServiceIntent>;
   rankCustomerKnowledge(entries: CustomerServiceKnowledgeEntry[], intent: CustomerServiceIntent, query: string, options?: { signal?: AbortSignal }): Promise<RankedCustomerKnowledge[]>;
 }
 
-export interface CustomerServiceDataPort {
+export interface CustomerServiceDataPort extends CommonDomainDataPort {
   searchKnowledge(intent: CustomerServiceIntent, query: string, limit: number, options?: { signal?: AbortSignal }): Promise<CustomerServiceKnowledgeEntry[]>;
   getOrders(ids: string[], accessScope: CustomerAccessScope, options?: { signal?: AbortSignal }): Promise<CustomerOrderSnapshot[]>;
   findProducts(models: string[], accessScope: CustomerAccessScope, options?: { signal?: AbortSignal }): Promise<CustomerProductSnapshot[]>;
@@ -127,6 +128,8 @@ function detectIssues(input: string): Issue[] {
 }
 
 export class DemoAIPlatformAdapter implements AIPlatformPort {
+  readonly portKind = "ai-platform" as const;
+  readonly capabilities = ["understanding", "retrieval", "reranking", "generation"] as const;
   async understandCustomerRequest(request: Ag025InvokeRequest, conversation: CustomerConversationState | null): Promise<CustomerServiceIntent> {
     const input = request.input.trim();
     const domains = detectDomains(input);
@@ -196,6 +199,8 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
 }
 
 export class MockCustomerServiceDataAdapter implements CustomerServiceDataPort {
+  readonly portKind = "domain-data" as const;
+  readonly domain = "customer-service" as const;
   async searchKnowledge(intent: CustomerServiceIntent, query: string, limit: number): Promise<CustomerServiceKnowledgeEntry[]> {
     const matches = DEMO_CUSTOMER_SERVICE_KNOWLEDGE.filter((entry) =>
       intent.issueTypes.includes(entry.issueType) || intent.domains.includes(entry.domain) || entry.keywords.some((keyword) => query.includes(keyword)),

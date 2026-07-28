@@ -3,8 +3,19 @@ import { DEMO_MANUALS } from "../../../lib/agents/ag002/catalog";
 import { DEMO_SCENARIO_SOLUTIONS } from "../../../lib/agents/ag003/catalog";
 import { DEMO_POLICY_DOCUMENTS } from "../../../lib/agents/ag012/catalog";
 import { DEMO_CUSTOMER_ORDERS, DEMO_CUSTOMER_SERVICE_KNOWLEDGE } from "../../../lib/agents/ag025/catalog";
+import { getAgentRuntimeMode, RequestIdentityError } from "../../../lib/request-identity";
 
 export async function GET(request: Request, context: { params: Promise<{ resource: string }> }) {
+  try {
+    if (getAgentRuntimeMode() === "production") {
+      return Response.json({ code: "DATA_RESOURCE_NOT_FOUND", message: "Business data diagnostics are disabled" }, { status: 404, headers: { "Cache-Control": "no-store" } });
+    }
+  } catch (error) {
+    if (error instanceof RequestIdentityError) {
+      return Response.json({ code: error.code, message: error.message }, { status: error.status, headers: { "Cache-Control": "no-store" } });
+    }
+    return Response.json({ code: "AUTH_CONFIGURATION_ERROR", message: "Agent runtime configuration is unavailable" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
   const { resource } = await context.params;
   if (resource === "products") {
     const url = new URL(request.url);

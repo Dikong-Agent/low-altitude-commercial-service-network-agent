@@ -1,12 +1,13 @@
 import type { AgentInvokeRequest } from "../../contracts";
+import type { CommonAIPlatformPort, CommonDomainDataPort } from "../../runtime-ports";
 import { DEMO_PRODUCT_CATALOG } from "./catalog";
 import type { ComparisonIntent, DemoProduct, HardConstraint, NumericDimension } from "./types";
 
-export interface AIPlatformPort {
+export interface AIPlatformPort extends CommonAIPlatformPort {
   understandComparisonRequest(request: AgentInvokeRequest, options?: { signal?: AbortSignal }): Promise<ComparisonIntent>;
 }
 
-export interface BusinessDataPort {
+export interface BusinessDataPort extends CommonDomainDataPort {
   listProducts(options?: { signal?: AbortSignal }): Promise<DemoProduct[]>;
   getProducts(ids: string[], options?: { signal?: AbortSignal }): Promise<DemoProduct[]>;
 }
@@ -67,6 +68,8 @@ function inferUseCases(input: string): string[] {
 }
 
 export class DemoAIPlatformAdapter implements AIPlatformPort {
+  readonly portKind = "ai-platform" as const;
+  readonly capabilities = ["understanding"] as const;
   async understandComparisonRequest(request: AgentInvokeRequest): Promise<ComparisonIntent> {
     const input = request.input.trim();
     const contextIds = Array.isArray(request.context?.product_ids)
@@ -122,6 +125,8 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
 }
 
 export class MockBusinessDataAdapter implements BusinessDataPort {
+  readonly portKind = "domain-data" as const;
+  readonly domain = "product" as const;
   async listProducts() {
     return DEMO_PRODUCT_CATALOG.map((product) => ({ ...product }));
   }

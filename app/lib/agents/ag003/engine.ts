@@ -115,7 +115,11 @@ function toCandidate(item: RecommendationEvaluation): RecommendationCandidate {
   };
 }
 
-export function buildRecommendationOutput(intent: RecommendationIntent, evaluations: RecommendationEvaluation[]): AgentRecommendationOutput {
+export function buildRecommendationOutput(
+  intent: RecommendationIntent,
+  evaluations: RecommendationEvaluation[],
+  engine: AgentRecommendationOutput["engine"] = "langgraph-demo",
+): AgentRecommendationOutput {
   const eligible = evaluations.filter((item) => item.eligible);
   const primary = eligible.find((item) => item.requestMatch) ?? null;
   const alternatives = eligible.filter((item) => item.id !== primary?.id).slice(0, 2);
@@ -124,7 +128,7 @@ export function buildRecommendationOutput(intent: RecommendationIntent, evaluati
     ? primary.limitations.filter((item) => /正式|真实|需|不含|未包含/.test(item))
     : [...new Set(evaluations.filter((item) => item.requestMatch).flatMap((item) => item.limitations))];
   return {
-    engine: "langgraph-demo",
+    engine,
     mode: intent.mode,
     intent: {
       use_cases: intent.useCases, budget_yuan: intent.budgetYuan, focus_tags: intent.focusTags,

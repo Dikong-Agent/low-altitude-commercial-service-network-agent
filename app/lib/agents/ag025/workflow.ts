@@ -8,9 +8,10 @@ import {
   type AgentInvokeResponse,
 } from "../../contracts";
 import { DependencyUnavailableError, executeWithPolicy } from "../../reliability";
+import type { RequestIdentity } from "../../request-identity";
 import { AG025_CONFIG } from "./config";
 import { buildCustomerServiceOutput } from "./engine";
-import { createDemoCustomerAccessScope, getAg025ProviderRevision, resolveAg025Dependencies, type Ag025Dependencies } from "./providers";
+import { getAg025ProviderRevision, resolveAg025Dependencies, type Ag025Dependencies } from "./providers";
 import {
   CustomerAccessScopeSchema,
   CustomerConversationStateSchema,
@@ -237,8 +238,9 @@ export function createAg025Workflow(dependencies: Ag025Dependencies) {
 
 let cachedWorkflow: { providerName: string; revision: number; workflow: ReturnType<typeof createAg025Workflow> } | undefined;
 
-function getDefaultWorkflow() {
+function getDefaultWorkflow(identity?: RequestIdentity) {
   const providerName = process.env.AG025_PROVIDER ?? "demo";
+  if (providerName === "production") return createAg025Workflow(resolveAg025Dependencies(providerName, identity));
   const revision = getAg025ProviderRevision();
   if (!cachedWorkflow || cachedWorkflow.providerName !== providerName || cachedWorkflow.revision !== revision) {
     cachedWorkflow = { providerName, revision, workflow: createAg025Workflow(resolveAg025Dependencies(providerName)) };
@@ -249,9 +251,10 @@ function getDefaultWorkflow() {
 export async function invokeAg025(
   request: Ag025InvokeRequest,
   traceId: string,
-  accessScope: CustomerAccessScope = createDemoCustomerAccessScope(),
+  accessScope: CustomerAccessScope,
+  identity?: RequestIdentity,
 ): Promise<AgentInvokeResponse> {
-  const result = await getDefaultWorkflow().invoke({ request, traceId, accessScope, trace: [] });
+  const result = await getDefaultWorkflow(identity).invoke({ request, traceId, accessScope, trace: [] });
   if (!result.response) throw new Error("AG-025 workflow completed without a response");
   return AgentInvokeResponseSchema.parse(result.response);
 }

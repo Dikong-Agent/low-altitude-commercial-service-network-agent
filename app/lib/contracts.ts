@@ -68,8 +68,7 @@ export type Ag012InvokeRequest = z.infer<typeof Ag012InvokeRequestSchema>;
 export const Ag025ContextSchema = z.object({
   order_id: z.string().trim().min(1).max(64).optional(),
   product_id: z.string().trim().min(1).max(64).optional(),
-  user_role: z.enum(["buyer", "seller", "operator", "visitor"]).optional(),
-}).passthrough();
+}).strict();
 
 export const Ag025InvokeRequestSchema = AgentInvokeRequestSchema.extend({
   agent_id: z.literal("AG-025"),
@@ -113,7 +112,7 @@ export const ComparedProductViewSchema = z.object({
 export type ComparedProductView = z.infer<typeof ComparedProductViewSchema>;
 
 export const AgentComparisonOutputSchema = z.object({
-  engine: z.literal("langgraph-demo"),
+  engine: z.enum(["langgraph-demo", "langgraph-adapter"]),
   intent: ComparisonIntentViewSchema,
   products: z.array(ComparedProductViewSchema),
   table: z.array(ComparisonTableRowSchema),
@@ -401,6 +400,11 @@ export const AgentInvokeResponseSchema = z.object({
     policy: AgentPolicyOutputSchema.optional(),
     customer_service: AgentCustomerServiceOutputSchema.optional(),
   }),
-  trace: z.array(z.object({ name: z.string(), detail: z.string() })),
+  processing_steps: z.array(z.object({
+    name: z.string(),
+    status: z.enum(["completed", "needs_review", "stopped"]),
+  })).optional(),
+  /** Internal workflow trace. Returned only by the local demonstration runtime. */
+  trace: z.array(z.object({ name: z.string(), detail: z.string() })).optional(),
 });
 export type AgentInvokeResponse = z.infer<typeof AgentInvokeResponseSchema>;

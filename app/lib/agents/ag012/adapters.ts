@@ -1,9 +1,10 @@
 import type { Ag012InvokeRequest, PolicyMode, PolicyTopic } from "../../contracts";
+import type { CommonAIPlatformPort, CommonDomainDataPort } from "../../runtime-ports";
 import { DEMO_POLICY_DOCUMENTS } from "./catalog";
 import { rankPolicyEvidence } from "./engine";
 import type { DemoPolicyDocument, PolicyIntent, RankedPolicyEvidence } from "./types";
 
-export interface AIPlatformPort {
+export interface AIPlatformPort extends CommonAIPlatformPort {
   understandPolicyRequest(request: Ag012InvokeRequest, options?: { signal?: AbortSignal }): Promise<PolicyIntent>;
   retrievePolicyEvidence(documents: DemoPolicyDocument[], intent: PolicyIntent, query: string, options?: { signal?: AbortSignal }): Promise<RankedPolicyEvidence[]>;
 }
@@ -14,7 +15,7 @@ export interface PolicyDocumentSearch {
   limit: number;
 }
 
-export interface PolicyDataPort {
+export interface PolicyDataPort extends CommonDomainDataPort {
   searchDocuments(search: PolicyDocumentSearch, options?: { signal?: AbortSignal }): Promise<DemoPolicyDocument[]>;
   getDocuments(ids: string[], options?: { signal?: AbortSignal }): Promise<DemoPolicyDocument[]>;
   getVersionChains(chainIds: string[], options?: { signal?: AbortSignal }): Promise<DemoPolicyDocument[]>;
@@ -119,6 +120,8 @@ function documentAliasMatches(input: string, document: DemoPolicyDocument): { an
 }
 
 export class DemoAIPlatformAdapter implements AIPlatformPort {
+  readonly portKind = "ai-platform" as const;
+  readonly capabilities = ["understanding", "retrieval", "reranking"] as const;
   constructor(private readonly clock: PolicyClock = shanghaiClock) {}
 
   async understandPolicyRequest(request: Ag012InvokeRequest): Promise<PolicyIntent> {
@@ -159,6 +162,8 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
 }
 
 export class MockPolicyDataAdapter implements PolicyDataPort {
+  readonly portKind = "domain-data" as const;
+  readonly domain = "policy" as const;
   async searchDocuments(search: PolicyDocumentSearch): Promise<DemoPolicyDocument[]> {
     const candidates = DEMO_POLICY_DOCUMENTS.filter((document) => search.documentTypes.includes(document.documentType));
     const directlyMatched = candidates.filter((document) => documentAliasMatches(search.query, document).any);

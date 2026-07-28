@@ -9,6 +9,7 @@ import {
   type AgentManualOutput,
 } from "../../contracts";
 import { executeWithPolicy } from "../../reliability";
+import type { RequestIdentity } from "../../request-identity";
 import { AG002_CONFIG } from "./config";
 import { buildManualOutput } from "./engine";
 import { getAg002ProviderRevision, resolveAg002Dependencies, type Ag002Dependencies } from "./providers";
@@ -70,7 +71,7 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
       trace_id: state.traceId,
       agent_id: "AG-002",
       status: "needs_clarification",
-      environment: "demo",
+      environment: dependencies.environment,
       output: {
         title: "需要补充说明书问题",
         summary: message,
@@ -103,7 +104,7 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
       trace_id: state.traceId,
       agent_id: "AG-002",
       status: "needs_clarification",
-      environment: "demo",
+      environment: dependencies.environment,
       output: {
         title: "未找到指定说明书",
         summary: "当前演示环境没有找到指定文档，请改用预置样例说明书。",
@@ -147,7 +148,7 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
       trace_id: state.traceId,
       agent_id: "AG-002",
       status: "needs_clarification",
-      environment: "demo",
+      environment: dependencies.environment,
       output: {
         title: "说明书中未找到可靠依据",
         summary: "当前样例说明书中没有找到与该问题直接相关的内容，请换一种描述或选择已收录的说明书场景。",
@@ -160,7 +161,7 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
   };
 
   const composeGuidance = (state: typeof Ag002GraphState.State) => {
-    const manualOutput = buildManualOutput(state.parsedManual!, state.intent!, state.rankedSections ?? []);
+    const manualOutput = buildManualOutput(state.parsedManual!, state.intent!, state.rankedSections ?? [], dependencies.engine);
     return {
       manualOutput,
       trace: appendTrace(state, "生成通俗化指引", `形成${manualOutput.steps.length}个步骤、${manualOutput.glossary.length}条术语解释和${manualOutput.citations.length}处原文定位。`),
@@ -184,7 +185,7 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
       trace_id: state.traceId,
       agent_id: "AG-002",
       status: reviewRequired ? "needs_review" : "completed",
-      environment: "demo",
+      environment: dependencies.environment,
       output: {
         title: responseTitle(manual),
         summary: `${manual.answer}${reviewRequired ? " 涉及操作、安全或合规判断，请在执行前核对真实有效手册并由专业人员确认。" : ""}`,
@@ -224,8 +225,9 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
 
 let cachedWorkflow: { providerName: string; revision: number; workflow: ReturnType<typeof createAg002Workflow> } | undefined;
 
-function getDefaultWorkflow() {
+function getDefaultWorkflow(identity?: RequestIdentity) {
   const providerName = process.env.AG002_PROVIDER ?? "demo";
+  if (providerName === "production") return createAg002Workflow(resolveAg002Dependencies(providerName, identity));
   const revision = getAg002ProviderRevision();
   if (!cachedWorkflow || cachedWorkflow.providerName !== providerName || cachedWorkflow.revision !== revision) {
     cachedWorkflow = { providerName, revision, workflow: createAg002Workflow(resolveAg002Dependencies(providerName)) };
@@ -233,8 +235,8 @@ function getDefaultWorkflow() {
   return cachedWorkflow.workflow;
 }
 
-export async function invokeAg002(request: AgentInvokeRequest, traceId: string): Promise<AgentInvokeResponse> {
-  const result = await getDefaultWorkflow().invoke({ request, traceId, trace: [] });
+export async function invokeAg002(request: AgentInvokeRequest, traceId: string, identity?: RequestIdentity): Promise<AgentInvokeResponse> {
+  const result = await getDefaultWorkflow(identity).invoke({ request, traceId, trace: [] });
   if (!result.response) throw new Error("AG-002 workflow completed without a response");
   return AgentInvokeResponseSchema.parse(result.response);
 }

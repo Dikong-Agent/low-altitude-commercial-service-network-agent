@@ -1,14 +1,15 @@
 import type { AgentInvokeRequest } from "../../contracts";
+import type { CommonAIPlatformPort, CommonDomainDataPort } from "../../runtime-ports";
 import { DEMO_PRODUCT_CATALOG } from "../ag001/catalog";
 import type { DemoProduct, HardConstraint, NumericDimension } from "../ag001/types";
 import { DEMO_SCENARIO_SOLUTIONS } from "./catalog";
 import type { RecommendationIntent, ScenarioSolution } from "./types";
 
-export interface AIPlatformPort {
+export interface AIPlatformPort extends CommonAIPlatformPort {
   understandRecommendationRequest(request: AgentInvokeRequest, options?: { signal?: AbortSignal }): Promise<RecommendationIntent>;
 }
 
-export interface BusinessDataPort {
+export interface BusinessDataPort extends CommonDomainDataPort {
   listProducts(options?: { signal?: AbortSignal }): Promise<DemoProduct[]>;
   listScenarioSolutions(options?: { signal?: AbortSignal }): Promise<ScenarioSolution[]>;
 }
@@ -116,6 +117,8 @@ const corrections: Array<[string, string]> = [
 ];
 
 export class DemoAIPlatformAdapter implements AIPlatformPort {
+  readonly portKind = "ai-platform" as const;
+  readonly capabilities = ["understanding"] as const;
   async understandRecommendationRequest(request: AgentInvokeRequest): Promise<RecommendationIntent> {
     const input = request.input.trim();
     const normalized = normalize(input);
@@ -182,6 +185,8 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
 }
 
 export class MockBusinessDataAdapter implements BusinessDataPort {
+  readonly portKind = "domain-data" as const;
+  readonly domain = "product" as const;
   async listProducts(): Promise<DemoProduct[]> {
     return DEMO_PRODUCT_CATALOG.map((product) => ({ ...product, aliases: [...product.aliases], scenarios: [...product.scenarios] }));
   }

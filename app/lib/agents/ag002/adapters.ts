@@ -1,4 +1,5 @@
 import type { AgentInvokeRequest, ManualTopic } from "../../contracts";
+import type { CommonAIPlatformPort, CommonDomainDataPort } from "../../runtime-ports";
 import { DependencyUnavailableError } from "../../reliability";
 import { DEMO_MANUALS } from "./catalog";
 import { AG002_CONFIG } from "./config";
@@ -11,7 +12,7 @@ import {
   type RankedManualSection,
 } from "./types";
 
-export interface AIPlatformPort {
+export interface AIPlatformPort extends CommonAIPlatformPort {
   understandManualRequest(request: AgentInvokeRequest, options?: { signal?: AbortSignal }): Promise<ManualIntent>;
   parseManualDocument(document: ManualDocumentSource, options?: { signal?: AbortSignal }): Promise<ParsedManual>;
   retrieveManualEvidence(
@@ -22,7 +23,7 @@ export interface AIPlatformPort {
   ): Promise<RankedManualSection[]>;
 }
 
-export interface DocumentDataPort {
+export interface DocumentDataPort extends CommonDomainDataPort {
   listDocuments(options?: { signal?: AbortSignal }): Promise<ManualDocumentSource[]>;
   getDocument(id: string, options?: { signal?: AbortSignal }): Promise<ManualDocumentSource | null>;
 }
@@ -77,6 +78,8 @@ function toDocumentSource(manual: (typeof DEMO_MANUALS)[number]): ManualDocument
 }
 
 export class DemoAIPlatformAdapter implements AIPlatformPort {
+  readonly portKind = "ai-platform" as const;
+  readonly capabilities = ["understanding", "retrieval", "ocr", "multimodal"] as const;
   async understandManualRequest(request: AgentInvokeRequest): Promise<ManualIntent> {
     const input = request.input.trim();
     const topics = topicRules.filter(([, rule]) => rule.test(input)).map(([topic]) => topic);
@@ -133,6 +136,8 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
 }
 
 export class MockDocumentDataAdapter implements DocumentDataPort {
+  readonly portKind = "domain-data" as const;
+  readonly domain = "document" as const;
   async listDocuments(): Promise<ManualDocumentSource[]> {
     return DEMO_MANUALS.map(toDocumentSource);
   }

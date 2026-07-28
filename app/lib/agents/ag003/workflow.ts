@@ -2,6 +2,7 @@ import { END, START, StateGraph, StateSchema } from "@langchain/langgraph";
 import { z } from "zod/v4";
 import { AgentInvokeRequestSchema, AgentInvokeResponseSchema, type AgentInvokeRequest, type AgentInvokeResponse } from "../../contracts";
 import { executeWithPolicy } from "../../reliability";
+import type { RequestIdentity } from "../../request-identity";
 import { AG003_CONFIG } from "./config";
 import { buildRecommendationOutput, evaluateRecommendation } from "./engine";
 import { getAg003ProviderRevision, resolveAg003Dependencies, type Ag003Dependencies } from "./providers";
@@ -24,7 +25,11 @@ function appendTrace(state: { trace?: Array<{ name: string; detail: string }> },
   return [...(state.trace ?? []), { name, detail }];
 }
 
-function buildStopResponse(state: typeof Ag003GraphState.State, adapter = false) {
+function buildStopResponse(
+  state: typeof Ag003GraphState.State,
+  environment: Ag003Dependencies["environment"],
+  adapter = false,
+) {
   const message = adapter ? state.intent?.adapterMessage : state.intent?.clarificationMessage;
   const imageBoundary = adapter && state.intent?.mode === "image_search";
   const c2cBoundary = adapter && state.intent?.mode === "c2c_recommendation";
@@ -33,7 +38,7 @@ function buildStopResponse(state: typeof Ag003GraphState.State, adapter = false)
     trace_id: state.traceId,
     agent_id: "AG-003",
     status: "needs_clarification",
-    environment: "demo",
+    environment,
     output: {
       title: imageBoundary
         ? "图片找货暂需补充正式识别与商品数据"
@@ -73,8 +78,8 @@ export function createAg003Workflow(dependencies: Ag003Dependencies) {
     };
   };
 
-  const clarify = (state: typeof Ag003GraphState.State) => buildStopResponse(state, false);
-  const adapterBoundary = (state: typeof Ag003GraphState.State) => buildStopResponse(state, true);
+  const clarify = (state: typeof Ag003GraphState.State) => buildStopResponse(state, dependencies.environment, false);
+  const adapterBoundary = (state: typeof Ag003GraphState.State) => buildStopResponse(state, dependencies.environment, true);
 
   const loadCatalog = async (state: typeof Ag003GraphState.State) => {
     if (state.intent?.mode === "scenario_solution") {
@@ -107,14 +112,14 @@ export function createAg003Workflow(dependencies: Ag003Dependencies) {
   });
 
   const buildResponse = (state: typeof Ag003GraphState.State) => {
-    const recommendation = buildRecommendationOutput(state.intent!, state.evaluations ?? []);
+    const recommendation = buildRecommendationOutput(state.intent!, state.evaluations ?? [], dependencies.engine);
     const primary = recommendation.recommendation.primary_name;
     const response: AgentInvokeResponse = {
       request_id: `AG003-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
       trace_id: state.traceId,
       agent_id: "AG-003",
       status: primary ? "completed" : "needs_review",
-      environment: "demo",
+      environment: dependencies.environment,
       output: {
         title: state.intent?.mode === "scenario_solution" ? "商城场景方案导购建议" : "商品搜索与分类推荐",
         summary: primary ? `基于当前虚构样例目录，首选为${primary}。正式采购前仍需核对真实上架、库存、价格与实施条件。` : recommendation.recommendation.reason,
@@ -150,8 +155,9 @@ export function createAg003Workflow(dependencies: Ag003Dependencies) {
 
 let cachedWorkflow: { providerName: string; revision: number; workflow: ReturnType<typeof createAg003Workflow> } | undefined;
 
-function getDefaultWorkflow() {
+function getDefaultWorkflow(identity?: RequestIdentity) {
   const providerName = process.env.AG003_PROVIDER ?? "demo";
+  if (providerName === "production") return createAg003Workflow(resolveAg003Dependencies(providerName, identity));
   const revision = getAg003ProviderRevision();
   if (!cachedWorkflow || cachedWorkflow.providerName !== providerName || cachedWorkflow.revision !== revision) {
     cachedWorkflow = { providerName, revision, workflow: createAg003Workflow(resolveAg003Dependencies(providerName)) };
@@ -159,8 +165,8 @@ function getDefaultWorkflow() {
   return cachedWorkflow.workflow;
 }
 
-export async function invokeAg003(request: AgentInvokeRequest, traceId: string): Promise<AgentInvokeResponse> {
-  const result = await getDefaultWorkflow().invoke({ request, traceId, trace: [] });
+export async function invokeAg003(request: AgentInvokeRequest, traceId: string, identity?: RequestIdentity): Promise<AgentInvokeResponse> {
+  const result = await getDefaultWorkflow(identity).invoke({ request, traceId, trace: [] });
   if (!result.response) throw new Error("AG-003 workflow completed without a response");
   return AgentInvokeResponseSchema.parse(result.response);
 }

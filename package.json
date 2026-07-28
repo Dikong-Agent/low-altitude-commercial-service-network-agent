@@ -10,8 +10,8 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "node scripts/start-production.mjs",
-    "test": "pnpm run build && node --test tests/rendered-html.test.mjs tests/reliability.test.mjs tests/production-start.test.mjs",
-    "test:runtime": "node --test tests/rendered-html.test.mjs tests/reliability.test.mjs tests/production-start.test.mjs",
+    "test": "pnpm run build && node --test tests/rendered-html.test.mjs tests/reliability.test.mjs tests/runtime-architecture.test.mjs tests/production-start.test.mjs",
+    "test:runtime": "node --test tests/rendered-html.test.mjs tests/reliability.test.mjs tests/runtime-architecture.test.mjs tests/production-start.test.mjs",
     "typecheck": "tsc --noEmit --incremental false",
     "lint": "eslint app worker tests scripts",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test"
