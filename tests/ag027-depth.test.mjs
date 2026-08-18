@@ -30,7 +30,12 @@ test("AG-027 executes an 8-week comparison, category drill-down and chart plan",
   assert.equal(analysis.breakdown.length, 3);
   assert.ok(analysis.comparison.change_rate > 0);
   assert.ok(analysis.lineage.length >= 3);
+  assert.ok(["completed", "evidence_only"].includes(analysis.rag_runtime.status));
+  assert.ok(analysis.rag_runtime.evidence.length >= 1);
+  assert.ok(analysis.rag_runtime.evidence.every((item) => item.knowledge_id.startsWith("KB-AG027-")));
+  assert.ok(analysis.rag_runtime.evidence.some((item) => item.source_uri.includes("knowledge/AG-027_指标与分析治理")));
   assert.ok(response.trace.some((item) => item.name === "执行指标查询计划"));
+  assert.ok(response.trace.some((item) => item.name === "检索指标治理知识"));
 });
 
 test("AG-027 clarifies an ambiguous metric before querying data", async () => {
@@ -41,6 +46,8 @@ test("AG-027 clarifies an ambiguous metric before querying data", async () => {
   assert.deepEqual(analysis.clarification.options.map((item) => item.label), ["订单转化率", "线索转化率"]);
   assert.equal(analysis.observations.length, 0);
   assert.match(analysis.warnings[0], /未向数据端发起/);
+  assert.ok(["completed", "evidence_only"].includes(analysis.rag_runtime.status));
+  assert.ok(analysis.rag_runtime.evidence.some((item) => item.knowledge_id === "KB-AG027-0001"));
 });
 
 test("AG-027 reuses metric context in a follow-up drill-down", async () => {
@@ -84,4 +91,15 @@ test("AG-027 gates poor quality, causal claims, restricted detail and business e
   assert.equal(restricted.status, "needs_review");
   assert.ok(!restricted.output.data_analysis.query_scope.dimensions.includes("客户"));
   assert.ok(restricted.output.data_analysis.warnings.some((item) => /未返回客户/.test(item)));
+});
+
+test("AG-027 reports only the capabilities actually demonstrated by the current sample", async () => {
+  const response = await invoke(await loadWorker(), "分析近8周B2C成交额趋势，按品类分解");
+  const coverage = response.output.data_analysis.capability_coverage;
+  assert.equal(coverage.length, 50);
+  assert.equal(coverage.filter((item) => item.status === "mock-demonstrated").length, 14);
+  assert.equal(coverage.filter((item) => item.status === "adapter-ready").length, 36);
+  assert.equal(coverage.find((item) => item.function_id === "F-0585")?.status, "mock-demonstrated");
+  assert.equal(coverage.find((item) => item.function_id === "F-0516")?.status, "adapter-ready");
+  assert.equal(coverage.find((item) => item.function_id === "F-0544")?.status, "adapter-ready");
 });

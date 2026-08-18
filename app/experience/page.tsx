@@ -139,7 +139,8 @@ function extractRagRuntime(output: AgentInvokeResponse["output"]): AgentRagRunti
     ?? output.recommendation?.rag_runtime
     ?? output.policy?.rag_runtime
     ?? output.news_recommendation?.rag_runtime
-    ?? output.customer_service?.rag_runtime;
+    ?? output.customer_service?.rag_runtime
+    ?? output.data_analysis?.rag_runtime;
 }
 
 function RagEvidencePanel({ rag }: { rag?: AgentRagRuntime }) {

@@ -45,7 +45,13 @@ const demonstratedFunctionIds: Record<AgentId, ReadonlySet<string>> = {
     "F-0584", "F-0588",
   ]),
   "AG-026": new Set(rawCoverage["AG-026"].map((item) => item.function_id)),
-  "AG-027": new Set(rawCoverage["AG-027"].map((item) => item.function_id)),
+  // Current AG-027 demo proves B2C scope/trend/structure analysis plus the
+  // common metric-query path. B2B diagnosis, cross-metric attribution,
+  // recommendation feedback and knowledge-gap aggregation remain adapter-ready.
+  "AG-027": new Set([
+    "F-0535", "F-0536", "F-0538", "F-0543", "F-0548", "F-0549", "F-0551",
+    "F-0585", "F-0586", "F-0587", "F-0589", "F-0590", "F-0592", "F-0593",
+  ]),
   "AG-028": new Set(rawCoverage["AG-028"].map((item) => item.function_id)),
 };
 

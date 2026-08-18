@@ -104,6 +104,7 @@ test("experience page renders actual execution traces for the flagship Agents", 
   assert.match(source, /需求功能已关联/);
   assert.match(source, /DataAnalysisPanel/);
   assert.match(source, /response\.output\.data_analysis/);
+  assert.match(source, /output\.data_analysis\?\.rag_runtime/);
 });
 
 test("AG-027 exposes metric semantics, data quality and non-causal analysis boundaries", async () => {
@@ -118,6 +119,9 @@ test("AG-027 exposes metric semantics, data quality and non-causal analysis boun
   assert.ok(analysis.anomaly_signals.length > 0);
   assert.ok(analysis.hypotheses_to_verify.length > 0);
   assert.equal(analysis.result.business_action_execution, "not_performed");
+  assert.ok(["completed", "evidence_only"].includes(analysis.rag_runtime.status));
+  assert.ok(analysis.rag_runtime.evidence.some((item) => item.knowledge_id.startsWith("KB-AG027-")));
   assert.ok(response.trace.some((item) => item.name === "理解分析问题"));
+  assert.ok(response.trace.some((item) => item.name === "检索指标治理知识"));
   assert.ok(response.trace.some((item) => item.name === "生成分析结果"));
 });

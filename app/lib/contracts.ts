@@ -808,6 +808,7 @@ export const AgentDataAnalysisOutputSchema = z.object({
   quality: z.object({ completeness_rate: z.number().min(0).max(1), consistency_rate: z.number().min(0).max(1), freshness_at: z.string(), row_count: z.number().int().nonnegative(), status: z.enum(["passed", "limited", "failed"]) }),
   lineage: z.array(z.object({ asset_id: z.string(), asset_name: z.string(), layer: z.enum(["metric", "semantic", "aggregate", "source"]), version: z.string(), source_id: z.string() })),
   evidence: z.array(z.string()), confidence: z.number().min(0).max(1), warnings: z.array(z.string()), review_required: z.boolean(),
+  rag_runtime: AgentRagRuntimeSchema.optional(),
   capability_coverage: z.array(CapabilityCoverageItemSchema), data_notice: z.string(), rule_version: z.string(),
 });
 export type AgentDataAnalysisOutput = z.infer<typeof AgentDataAnalysisOutputSchema>;

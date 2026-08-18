@@ -1,16 +1,20 @@
 import { END, START, StateGraph, StateSchema } from "@langchain/langgraph";
 import { z } from "zod/v4";
 import { AgentInvokeRequestSchema, AgentInvokeResponseSchema, type AgentDataAnalysisOutput, type AgentInvokeRequest, type AgentInvokeResponse } from "../../contracts";
+import { RagAugmentationSchema, type RagAugmentation } from "../../rag/contracts.ts";
+import { rankLegacyKnowledge } from "../../rag/legacy-bridge.ts";
+import { toAgentRagRuntime } from "../../rag/output.ts";
 import { executeWithPolicy } from "../../reliability";
 import type { RequestIdentity } from "../../request-identity";
 import { AG027_CONFIG } from "./config";
+import { AG027_GOVERNANCE_KNOWLEDGE } from "./knowledge.ts";
 import { resolveAg027Dependencies, type Ag027Dependencies } from "./providers";
 import { AnalysisConversationStateSchema, AnalysisIntentSchema, AnalysisSnapshotSchema, type AnalysisConversationState, type AnalysisIntent, type AnalysisSnapshot } from "./types";
 
 const TraceSchema = z.object({ name: z.string(), detail: z.string() });
 const State = new StateSchema({
   request: AgentInvokeRequestSchema, traceId: z.string(), conversation: AnalysisConversationStateSchema.nullable().optional(),
-  intent: AnalysisIntentSchema.optional(), snapshot: AnalysisSnapshotSchema.optional(), response: AgentInvokeResponseSchema.optional(), trace: z.array(TraceSchema).optional(),
+  intent: AnalysisIntentSchema.optional(), rag: RagAugmentationSchema.optional(), snapshot: AnalysisSnapshotSchema.optional(), response: AgentInvokeResponseSchema.optional(), trace: z.array(TraceSchema).optional(),
 });
 const traced = (state: { trace?: { name: string; detail: string }[] }, name: string, detail: string) => [...(state.trace ?? []), { name, detail }];
 const aggregate = (values: number[], unit: string | undefined) => values.length === 0 ? 0 : unit === "ratio" ? values.reduce((sum, value) => sum + value, 0) / values.length : values.reduce((sum, value) => sum + value, 0);
@@ -25,7 +29,7 @@ function conversationView(request: AgentInvokeRequest, conversation: AnalysisCon
   };
 }
 
-function clarificationOutput(deps: Ag027Dependencies, request: AgentInvokeRequest, conversation: AnalysisConversationState | null | undefined, intent: AnalysisIntent): AgentDataAnalysisOutput {
+function clarificationOutput(deps: Ag027Dependencies, request: AgentInvokeRequest, conversation: AnalysisConversationState | null | undefined, intent: AnalysisIntent, rag?: RagAugmentation): AgentDataAnalysisOutput {
   const summary = intent.clarificationMessage ?? "需要补充指标口径后再执行查询。";
   return {
     engine: deps.engine, result: { summary, business_action_execution: "not_performed" }, metric: null,
@@ -37,12 +41,13 @@ function clarificationOutput(deps: Ag027Dependencies, request: AgentInvokeReques
     next_questions: intent.clarificationOptions.map((item) => `按${item.label}继续分析`),
     quality: { completeness_rate: 0, consistency_rate: 0, freshness_at: "未查询", row_count: 0, status: "limited" }, lineage: [],
     evidence: [AG027_CONFIG.ruleVersion], confidence: 0.2, warnings: ["未确认唯一指标口径，未向数据端发起正式查询"], review_required: false,
+    rag_runtime: toAgentRagRuntime(rag),
     capability_coverage: AG027_CONFIG.capabilityCoverage.map((item) => ({ ...item })),
     data_notice: "当前仅完成指标口径确认，未生成经营结论，也未执行任何业务操作。", rule_version: AG027_CONFIG.ruleVersion,
   };
 }
 
-function buildOutput(deps: Ag027Dependencies, request: AgentInvokeRequest, conversation: AnalysisConversationState | null | undefined, intent: AnalysisIntent, snap: AnalysisSnapshot): AgentDataAnalysisOutput {
+function buildOutput(deps: Ag027Dependencies, request: AgentInvokeRequest, conversation: AnalysisConversationState | null | undefined, intent: AnalysisIntent, snap: AnalysisSnapshot, rag?: RagAugmentation): AgentDataAnalysisOutput {
   const grainConflict = intent.scenario === "grain_conflict"; const low = snap.qualityStatus !== "passed";
   const noData = snap.observations.length === 0 && !grainConflict; const anomaly = snap.threshold != null && snap.observations.some((item) => item.value > snap.threshold!);
   const restrictedDimensions = intent.requestsRestrictedDetail ? intent.dimensions.filter((item) => !["客户", "用户"].includes(item)) : intent.dimensions;
@@ -94,6 +99,7 @@ function buildOutput(deps: Ag027Dependencies, request: AgentInvokeRequest, conve
     quality: { completeness_rate: snap.completenessRate, consistency_rate: snap.consistencyRate, freshness_at: snap.freshnessAt, row_count: snap.rowCount, status: snap.qualityStatus },
     lineage: snap.lineage.map((item) => ({ asset_id: item.assetId, asset_name: item.assetName, layer: item.layer, version: item.version, source_id: item.sourceId })),
     evidence, confidence: noData ? 0.4 : review ? 0.56 : 0.9, warnings, review_required: review,
+    rag_runtime: toAgentRagRuntime(rag),
     capability_coverage: AG027_CONFIG.capabilityCoverage.map((item) => ({ ...item })),
     data_notice: deps.environment === "demo" ? "当前使用虚构指标、观测、质量状态和阈值验证问数流程；不代表甲方正式经营数据。" : "正式结论依赖数据中台提供的指标字典、来源关系、权限、质量与刷新状态。",
     rule_version: AG027_CONFIG.ruleVersion,
@@ -110,8 +116,25 @@ export function createAg027Workflow(deps: Ag027Dependencies) {
     intent: await executeWithPolicy("ag027.ai-platform", AG027_CONFIG.reliability.aiPlatform, (signal) => deps.aiPlatform.understandAnalysis(state.request, state.conversation ?? null, { signal })),
     trace: traced(state, "理解分析问题", "识别指标、周期、维度、对比方式、权限与处置边界"),
   });
+  const retrieveGovernance = async (state: typeof State.State) => {
+    const common = await executeWithPolicy(
+      "ag027.rag-governance",
+      AG027_CONFIG.reliability.ragGovernance,
+      () => rankLegacyKnowledge("AG-027", state.request.input, AG027_GOVERNANCE_KNOWLEDGE),
+    );
+    const rag: RagAugmentation = {
+      status: common.status,
+      ...(common.answer ? { answer: common.answer } : {}),
+      evidence: common.evidence,
+      audit: common.audit,
+    };
+    return {
+      rag,
+      trace: traced(state, "检索指标治理知识", `已检索指标字典、数据血缘与分析边界资料，获得${common.evidence.length}条受治理证据`),
+    };
+  };
   const clarify = (state: typeof State.State) => {
-    const output = clarificationOutput(deps, state.request, state.conversation, state.intent!); const trace = traced(state, "澄清指标口径", "存在同名指标或指标未命中，未向数据端发起查询");
+    const output = clarificationOutput(deps, state.request, state.conversation, state.intent!, state.rag); const trace = traced(state, "澄清指标口径", "存在同名指标或指标未命中，未向数据端发起查询");
     return { response: { request_id: `AG027-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, trace_id: state.traceId, agent_id: "AG-027" as const, status: "needs_clarification" as const, environment: deps.environment, output: { title: "需要确认指标口径", summary: output.result.summary, points: [output.result.summary, ...output.next_questions], evidence: output.evidence, data_analysis: output }, trace }, trace };
   };
   const load = async (state: typeof State.State) => ({
@@ -119,7 +142,7 @@ export function createAg027Workflow(deps: Ag027Dependencies) {
     trace: traced(state, "执行指标查询计划", "从指标数据接口读取指标、观测、对比基准、维度汇总、质量和来源关系"),
   });
   const build = (state: typeof State.State) => {
-    const output = buildOutput(deps, state.request, state.conversation, state.intent!, state.snapshot!);
+    const output = buildOutput(deps, state.request, state.conversation, state.intent!, state.snapshot!, state.rag);
     const response: AgentInvokeResponse = { request_id: `AG027-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, trace_id: state.traceId, agent_id: "AG-027", status: output.review_required ? "needs_review" : "completed", environment: deps.environment, output: { title: "经营数据分析结果", summary: output.result.summary, points: [output.result.summary, ...output.insights, ...output.warnings], evidence: output.evidence, data_analysis: output }, trace: traced(state, "生成分析结果", "输出趋势、对比、维度分析、图表数据、异常线索、来源关系和后续问题，未执行经营处置") };
     return { response, trace: response.trace };
   };
@@ -139,8 +162,8 @@ export function createAg027Workflow(deps: Ag027Dependencies) {
     return { conversation: next, trace, response: { ...state.response, trace } };
   };
   return new StateGraph(State)
-    .addNode("loadConversation", loadConversation).addNode("understand", understand).addNode("clarify", clarify).addNode("load", load).addNode("build", build).addNode("saveConversation", saveConversation)
-    .addEdge(START, "loadConversation").addEdge("loadConversation", "understand").addConditionalEdges("understand", (state) => state.intent?.needsClarification ? "clarify" : "load")
+    .addNode("loadConversation", loadConversation).addNode("understand", understand).addNode("retrieveGovernance", retrieveGovernance).addNode("clarify", clarify).addNode("load", load).addNode("build", build).addNode("saveConversation", saveConversation)
+    .addEdge(START, "loadConversation").addEdge("loadConversation", "understand").addEdge("understand", "retrieveGovernance").addConditionalEdges("retrieveGovernance", (state) => state.intent?.needsClarification ? "clarify" : "load")
     .addEdge("clarify", "saveConversation").addEdge("load", "build").addEdge("build", "saveConversation").addEdge("saveConversation", END).compile();
 }
 
