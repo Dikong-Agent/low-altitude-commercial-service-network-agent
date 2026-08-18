@@ -136,7 +136,7 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
       }
     }
 
-    const imageRequested = /图片|拍照|以图|上传图|相似商品/.test(input);
+    const imageRequested = /图片|照片|相片|截图|实拍|拍照|以图|上传图|相似商品|找同款/.test(input);
     const c2cRequested = /C2C|二手|同城|卖家|闲置|零件交易/i.test(input);
     const mode = imageRequested
       ? "image_search"

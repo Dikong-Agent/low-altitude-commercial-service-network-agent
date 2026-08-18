@@ -8,6 +8,7 @@ export const AG002_CONFIG = {
   maxSteps: 8,
   reliability: {
     aiPlatform: { timeoutMs: 3_000, maxAttempts: 2, circuitFailureThreshold: 3, circuitResetMs: 30_000 },
+    ragGeneration: { timeoutMs: 12_000, maxAttempts: 1, circuitFailureThreshold: 3, circuitResetMs: 30_000 },
     documentData: { timeoutMs: 3_000, maxAttempts: 2, circuitFailureThreshold: 3, circuitResetMs: 30_000 },
   },
   capabilityCoverage: capabilityCoverageForAgent("AG-002"),

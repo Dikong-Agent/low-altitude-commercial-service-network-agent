@@ -1,0 +1,218 @@
+{
+  "schema_version": "1.0",
+  "baseline": "R2-third-batch-20260810",
+  "evaluated_at": "2026-08-15T08:34:33.509Z",
+  "environment": "demo",
+  "source": "evals/r2-batch3-golden-cases.json",
+  "total": 24,
+  "passed": 24,
+  "failed": 0,
+  "agents": {
+    "AG-006": 8,
+    "AG-009": 8,
+    "AG-015": 8
+  },
+  "categories": {
+    "adapter_boundary": 4,
+    "conflict": 3,
+    "missing_input": 3,
+    "no_data": 3,
+    "normal": 8,
+    "timeout": 3
+  },
+  "results": [
+    {
+      "id": "R2B3-AG006-NORMAL-001",
+      "agent_id": "AG-006",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-A1E34A87-16D9-45F6-B6D9-DF03B1E5650B",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG006-NORMAL-002",
+      "agent_id": "AG-006",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-79C64F2C-B67C-459C-BDD5-92A9626EDDB3",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG006-MISSING-001",
+      "agent_id": "AG-006",
+      "category": "missing_input",
+      "passed": true,
+      "trace_id": "TRC-5CEBF207-8B0E-4CA2-A146-D609A6C1535B",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG006-CONFLICT-001",
+      "agent_id": "AG-006",
+      "category": "conflict",
+      "passed": true,
+      "trace_id": "TRC-3F3F6C1F-57A5-46BE-B56A-A3C4C0D98DB5",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG006-NODATA-001",
+      "agent_id": "AG-006",
+      "category": "no_data",
+      "passed": true,
+      "trace_id": "TRC-C3157AC8-1DA9-4759-A0AC-392E72083511",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG006-TIMEOUT-001",
+      "agent_id": "AG-006",
+      "category": "timeout",
+      "passed": true,
+      "trace_id": "TRC-F98A43CF-3A96-459D-9C88-B5A62E5860C3",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG006-BOUNDARY-001",
+      "agent_id": "AG-006",
+      "category": "adapter_boundary",
+      "passed": true,
+      "trace_id": "TRC-E5C5DFFD-7FDD-4F2B-9115-C49EB1E2E9E1",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG006-EXCEPTION-001",
+      "agent_id": "AG-006",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-308927E2-EEF9-4678-8274-A38A1CDFB06D",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG009-NORMAL-001",
+      "agent_id": "AG-009",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-C6976EA2-625A-43EB-B9D0-F58BE621E255",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG009-NORMAL-002",
+      "agent_id": "AG-009",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-D2355268-1168-44D6-8DE2-B69E43FA066F",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG009-MISSING-001",
+      "agent_id": "AG-009",
+      "category": "missing_input",
+      "passed": true,
+      "trace_id": "TRC-45088823-D5E7-49F2-A106-C2A039974AB1",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG009-CONFLICT-001",
+      "agent_id": "AG-009",
+      "category": "conflict",
+      "passed": true,
+      "trace_id": "TRC-9563435F-2195-4606-AB3C-49B376208F32",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG009-NODATA-001",
+      "agent_id": "AG-009",
+      "category": "no_data",
+      "passed": true,
+      "trace_id": "TRC-26C4C3C0-BB1A-4E1A-94D3-F4C5FAD1DA6A",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG009-TIMEOUT-001",
+      "agent_id": "AG-009",
+      "category": "timeout",
+      "passed": true,
+      "trace_id": "TRC-642CC12F-3750-4851-8B65-8EBAC09CC61E",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG009-BOUNDARY-001",
+      "agent_id": "AG-009",
+      "category": "adapter_boundary",
+      "passed": true,
+      "trace_id": "TRC-32446499-BDBA-459D-866D-1E441D313952",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG009-PURCHASE-001",
+      "agent_id": "AG-009",
+      "category": "adapter_boundary",
+      "passed": true,
+      "trace_id": "TRC-38932090-9210-42C8-8819-9B501ABDB02D",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG015-NORMAL-001",
+      "agent_id": "AG-015",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-3FE5721D-5720-42E9-AA7B-6C04F51D8DAE",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG015-NORMAL-002",
+      "agent_id": "AG-015",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-D18309D2-8D28-4249-9958-DC07198F41C8",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG015-MISSING-001",
+      "agent_id": "AG-015",
+      "category": "missing_input",
+      "passed": true,
+      "trace_id": "TRC-19A1947E-AAB8-4A06-8CE5-96B4235908BE",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG015-CONFLICT-001",
+      "agent_id": "AG-015",
+      "category": "conflict",
+      "passed": true,
+      "trace_id": "TRC-BC0B9394-704C-4925-B3AC-C7B16505F9DB",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG015-NODATA-001",
+      "agent_id": "AG-015",
+      "category": "no_data",
+      "passed": true,
+      "trace_id": "TRC-E69C5A94-134B-44F4-97BD-DF15F197891F",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG015-TIMEOUT-001",
+      "agent_id": "AG-015",
+      "category": "timeout",
+      "passed": true,
+      "trace_id": "TRC-5B3A5A97-AD85-441F-97E5-C5209481BBC2",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG015-BOUNDARY-001",
+      "agent_id": "AG-015",
+      "category": "adapter_boundary",
+      "passed": true,
+      "trace_id": "TRC-3D11C7BF-5859-4C49-8A5F-C33A5EB30F8B",
+      "failures": []
+    },
+    {
+      "id": "R2B3-AG015-SUMMARY-001",
+      "agent_id": "AG-015",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-2C0858BE-A4A8-4005-B999-9E4AE05D097C",
+      "failures": []
+    }
+  ],
+  "boundary": "本报告仅证明R2第三批AG006、AG009、AG015在Mock阶段的可重复行为，不代表正式接口联调、真实订单履约、保险核保理赔、内容发布或生产验收。"
+}

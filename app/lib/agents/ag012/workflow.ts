@@ -24,6 +24,7 @@ const Ag012GraphState = new StateSchema({
   documents: z.array(DemoPolicyDocumentSchema).optional(),
   documentsMissing: z.boolean().optional(),
   versionComparisonIssue: z.string().nullable().optional(),
+  evidenceCoverageIssue: z.string().nullable().optional(),
   rankedEvidence: z.array(RankedPolicyEvidenceSchema).optional(),
   policyOutput: AgentPolicyOutputSchema.optional(),
   response: AgentInvokeResponseSchema.optional(),
@@ -70,7 +71,7 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
         points: ["可以概括当前有效政策的核心要求。", "可以比较新旧政策在报备、适用范围和记录期限方面的变化。", "也可以说明企业场景，并询问可能适用的条件。"],
         evidence: ["AG-012 输入完整性规则 v1.0"],
       },
-      trace: appendTrace(state, "请求补充信息", "工作流未检索材料，避免生成脱离政策依据的答复。"),
+      trace: appendTrace(state, "请求补充信息", "本次未检索政策材料，以免形成缺少依据的答复。"),
     };
     return { response, trace: response.trace };
   };
@@ -103,6 +104,14 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
         : dependencies.policyData.searchDocuments({ documentTypes: intent.documentTypes, query: state.request.input, limit: 20 }, { signal }),
     );
     let versionComparisonIssue: string | null = null;
+    let evidenceCoverageIssue: string | null = null;
+    if (intent.realWorldJurisdiction && documents.some((document) => !document.id.startsWith("OFFICIAL-"))) {
+      evidenceCoverageIssue = `提问涉及${intent.jurisdictions.join("、")}等真实地域，当前仅有虚构样例地方材料，不能替代当地正式政策或主管部门口径。`;
+    }
+    const chainIdsBeforeExpansion = new Set(documents.map((document) => document.versionChainId));
+    if (intent.mode !== "version_compare" && chainIdsBeforeExpansion.size > 1) {
+      evidenceCoverageIssue = "当前问题命中了多个互不隶属的政策或标准对象，需先明确具体文件，不能把不同来源拼接成同一结论。";
+    }
     if (intent.mode === "version_compare") {
       const chainIds = new Set(documents.map((document) => document.versionChainId));
       if (chainIds.size !== 1) {
@@ -118,14 +127,40 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
         if (documents.length < 2) versionComparisonIssue = "当前资料库只收录了一个版本，暂时无法进行新旧版本比较。";
       }
     }
+    if (!evidenceCoverageIssue && intent.requestedLocators.length) {
+      const availableLocators = new Set(documents.flatMap((document) => document.sections.map((section) => section.locator)));
+      const missingLocators = intent.requestedLocators.filter((locator) => !availableLocators.has(locator));
+      if (missingLocators.length) {
+        evidenceCoverageIssue = `当前已收录材料未包含用户点名的${missingLocators.join("、")}，不能使用邻近条款替代作答。`;
+      }
+    }
     return {
       documents,
       documentsMissing: documents.length === 0,
       versionComparisonIssue,
-      trace: appendTrace(state, "加载样例政策库", documents.length
-        ? `通过 ${dependencies.providerName} PolicyDataPort 加载${documents.length}份虚构样例政策或标准。`
-        : "当前样例政策库中没有找到指定材料。"),
+      evidenceCoverageIssue,
+        trace: appendTrace(state, "加载政策与标准资料", documents.length
+          ? `从政策与标准资料接口读取${documents.length}份资料，其中公开权威资料${documents.filter((item) => item.id.startsWith("OFFICIAL-")).length}份。`
+        : "当前资料库中没有找到指定材料。"),
     };
+  };
+
+  const buildEvidenceCoverageGap = (state: typeof Ag012GraphState.State) => {
+    const response: AgentInvokeResponse = {
+      request_id: `AG012-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+      trace_id: state.traceId,
+      agent_id: "AG-012",
+      status: "needs_clarification",
+      environment: dependencies.environment,
+      output: {
+        title: "政策依据尚不完整",
+        summary: state.evidenceCoverageIssue ?? "当前资料不足以支持该问题，未生成替代性政策结论。",
+        points: ["不会用其他政策、其他版本链或邻近条款替代用户指定依据。", "可补充具体文件、正式地域政策或缺失条款后重新解读。", "涉及实际飞行与合规事项仍需通过正式渠道核验。"],
+        evidence: ["AG-012 政策对象隔离规则 v1.4", "AG-012 指定条款与交叉引用核验规则 v1.4"],
+      },
+        trace: appendTrace(state, "停止无依据推断", "政策对象、地域材料或指定条款覆盖不足，本次未形成政策结论。"),
+    };
+    return { response, trace: response.trace };
   };
 
   const buildMissingDocuments = (state: typeof Ag012GraphState.State) => {
@@ -139,7 +174,7 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
         title: "未找到指定政策材料",
         summary: "当前演示环境没有找到指定政策或标准，请改用预置样例材料。",
         points: ["可查询样例飞行活动管理办法。", "可查询样例低空物流运行安全规范。", "正式政策库与适航资料接口将在三方接口确认后接入。"],
-        evidence: ["AG-012 Mock 政策目录"],
+        evidence: ["AG-012 演示政策目录"],
       },
       trace: appendTrace(state, "请求选择材料", "材料不存在，工作流在检索前安全停止。"),
     };
@@ -159,7 +194,7 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
         points: ["一次只比较同一政策或标准的关联版本。", "至少需要两个能够确认版本关系的材料。", "不会使用其他政策的版本变化替代当前问题。"],
         evidence: ["AG-012 版本链完整性规则 v1.1"],
       },
-      trace: appendTrace(state, "请求确认比较对象", "版本链不唯一或版本数量不足，工作流未生成替代性比较结论。"),
+        trace: appendTrace(state, "请求确认比较对象", "版本关系不唯一或版本数量不足，本次未形成替代性比较结论。"),
     };
     return { response, trace: response.trace };
   };
@@ -172,13 +207,13 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
   const retrieveEvidence = async (state: typeof Ag012GraphState.State) => {
     const rankedEvidence = await executeWithPolicy(
       "ag012.ai-platform-retrieval",
-      AG012_CONFIG.reliability.aiPlatform,
+      AG012_CONFIG.reliability.ragGeneration,
       (signal) => dependencies.aiPlatform.retrievePolicyEvidence(state.documents ?? [], state.intent!, state.request.input, { signal }),
     );
     return {
       rankedEvidence,
-      trace: appendTrace(state, "检索并重排依据", rankedEvidence.length
-        ? `检索并重排${rankedEvidence.length}个条款片段，保留文号、版本、条款和生效状态。`
+      trace: appendTrace(state, "检索并整理依据", rankedEvidence.length
+        ? `检索并整理${rankedEvidence.length}个条款片段，保留文号、版本、条款和生效状态。`
         : "没有找到与问题直接相关且可引用的政策条款。"),
     };
   };
@@ -196,7 +231,7 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
         points: ["可以询问适用范围、活动报备、运行记录或物流运行安全。", "也可以比较2025试行版和2026修订稿。"],
         evidence: ["AG-012 证据充分性规则 v1.0"],
       },
-      trace: appendTrace(state, "请求补充信息", "证据门控未通过，工作流未生成政策结论。"),
+        trace: appendTrace(state, "请求补充信息", "依据检查未通过，本次未形成政策结论。"),
     };
     return { response, trace: response.trace };
   };
@@ -205,7 +240,7 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
     const policyOutput = buildPolicyOutput(state.documents ?? [], state.intent!, state.rankedEvidence ?? [], dependencies.engine);
     return {
       policyOutput,
-      trace: appendTrace(state, "生成带依据解读", `形成${policyOutput.key_points.length}项要点、${policyOutput.changes.length}项版本变化和${policyOutput.citations.length}处条款引用。`),
+      trace: appendTrace(state, "整理政策解读", `形成${policyOutput.key_points.length}项要点、${policyOutput.requirement_items.length}项要求、${policyOutput.verification_steps.length}个核对步骤、${policyOutput.changes.length}项版本变化和${policyOutput.citations.length}处条款引用。`),
     };
   };
 
@@ -244,6 +279,7 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
     .addNode("load_documents", loadDocuments)
     .addNode("missing_documents", buildMissingDocuments)
     .addNode("version_comparison_unavailable", buildVersionComparisonUnavailable)
+    .addNode("evidence_coverage_gap", buildEvidenceCoverageGap)
     .addNode("resolve_versions", resolveVersions)
     .addNode("retrieve_evidence", retrieveEvidence)
     .addNode("no_evidence", buildNoEvidence)
@@ -258,9 +294,12 @@ export function createAg012Workflow(dependencies: Ag012Dependencies) {
       ? "missing_documents"
       : state.versionComparisonIssue
         ? "version_comparison_unavailable"
+        : state.evidenceCoverageIssue
+          ? "evidence_coverage_gap"
         : "resolve_versions")
     .addEdge("missing_documents", END)
     .addEdge("version_comparison_unavailable", END)
+    .addEdge("evidence_coverage_gap", END)
     .addEdge("resolve_versions", "retrieve_evidence")
     .addConditionalEdges("retrieve_evidence", (state) => state.rankedEvidence?.length ? "compose_interpretation" : "no_evidence")
     .addEdge("no_evidence", END)

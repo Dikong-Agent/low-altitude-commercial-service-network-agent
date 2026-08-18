@@ -8,9 +8,9 @@ async function source(path) {
 
 test("registers every runnable Agent with schemas, policies, versions, and invocation factories", async () => {
   const registry = await source("../app/lib/agent-runtime-registry.ts");
-  for (const id of ["AG-001", "AG-002", "AG-003", "AG-012", "AG-025"]) {
-    assert.match(registry, new RegExp(`id: "${id}"`));
-  }
+  for (const symbol of ["ag001Module", "ag012Module", "ag025Module", "ag027Module"]) assert.match(registry, new RegExp(symbol));
+  for (const symbol of ["ag002Module", "ag003Module", "ag004Module", "ag006Module", "ag016Module", "ag023Module", "ag028Module"]) assert.doesNotMatch(registry, new RegExp(symbol));
+  assert.match(registry, /only these[\s\S]*four engineering examples are deployable/);
   assert.match(registry, /requestSchema:/);
   assert.match(registry, /responseSchema:/);
   assert.match(registry, /accessPolicy:/);
@@ -63,8 +63,27 @@ test("locks showcase traceability to the current v2.14 function and source ident
     "AG-001": 12,
     "AG-002": 13,
     "AG-003": 50,
+    "AG-004": 19,
+    "AG-005": 7,
+    "AG-006": 8,
+    "AG-007": 13,
+    "AG-008": 28,
+    "AG-009": 20,
+    "AG-010": 16,
     "AG-012": 66,
+    "AG-013": 32,
+    "AG-014": 3,
+    "AG-015": 23,
+    "AG-016": 8,
+    "AG-017": 12,
+    "AG-018": 36,
+    "AG-019": 3,
+    "AG-020": 16,
+    "AG-023": 29,
     "AG-025": 56,
+    "AG-026": 82,
+    "AG-027": 50,
+    "AG-028": 15,
   });
   for (const items of Object.values(coverage)) {
     assert.equal(new Set(items.map((item) => item.function_id)).size, items.length);

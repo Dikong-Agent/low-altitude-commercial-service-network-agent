@@ -109,7 +109,7 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
         title: "未找到指定说明书",
         summary: "当前演示环境没有找到指定文档，请改用预置样例说明书。",
         points: [`当前可用文档：${AG002_CONFIG.defaultManualId}`, "正式文档上传与文档库接口将在三方接口确认后接入。"],
-        evidence: ["AG-002 Mock 文档目录"],
+        evidence: ["AG-002 演示文档目录"],
       },
       trace: appendTrace(state, "请求选择文档", "文档不存在，工作流在解析前安全停止。"),
     };
@@ -124,20 +124,20 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
     );
     return {
       parsedManual,
-      trace: appendTrace(state, "解析文档结构", `识别${parsedManual.structure.chapters}个章节、${parsedManual.structure.figures}个图示；当前为预解析 Mock 文档。`),
+      trace: appendTrace(state, "解析文档结构", `识别${parsedManual.structure.chapters}个章节、${parsedManual.structure.figures}个图示；当前使用预解析演示文档。`),
     };
   };
 
   const retrieveEvidence = async (state: typeof Ag002GraphState.State) => {
     const rankedSections = await executeWithPolicy(
       "ag002.ai-platform-retrieval",
-      AG002_CONFIG.reliability.aiPlatform,
+      AG002_CONFIG.reliability.ragGeneration,
       (signal) => dependencies.aiPlatform.retrieveManualEvidence(state.parsedManual!, state.intent!, state.request.input, { signal }),
     );
     return {
       rankedSections,
       trace: appendTrace(state, "定位相关章节", rankedSections.length
-        ? `${dependencies.providerName === "demo" ? "样例标签与规则" : "语义"}检索并重排${rankedSections.length}个相关章节，保留页码和章节定位。`
+        ? `${dependencies.providerName === "demo" ? "按样例标签和规则" : "按问题含义"}检索并整理${rankedSections.length}个相关章节，保留页码和章节定位。`
         : "没有检索到与问题直接相关且可引用的说明书章节。"),
     };
   };
@@ -164,7 +164,7 @@ export function createAg002Workflow(dependencies: Ag002Dependencies) {
     const manualOutput = buildManualOutput(state.parsedManual!, state.intent!, state.rankedSections ?? [], dependencies.engine);
     return {
       manualOutput,
-      trace: appendTrace(state, "生成通俗化指引", `形成${manualOutput.steps.length}个步骤、${manualOutput.glossary.length}条术语解释和${manualOutput.citations.length}处原文定位。`),
+      trace: appendTrace(state, "整理答复与操作说明", `整理${manualOutput.steps.length}个步骤、${manualOutput.glossary.length}条术语解释和${manualOutput.citations.length}处原文位置。`),
     };
   };
 

@@ -1,4 +1,6 @@
 import path from "node:path";
+import { existsSync } from "node:fs";
+import { loadEnvFile } from "node:process";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 
@@ -44,6 +46,13 @@ export function parsePort(value) {
   return port;
 }
 
+export function loadLocalRuntimeEnvironment(cwd = process.cwd()) {
+  for (const filename of [".env.local", ".env"]) {
+    const candidate = path.resolve(cwd, filename);
+    if (existsSync(candidate)) loadEnvFile(candidate);
+  }
+}
+
 export async function runProductionServer(options = {}) {
   await installWindowsStaticCacheCompatibility();
   const { startProdServer } = await import(productionServerUrl);
@@ -55,6 +64,7 @@ export async function runProductionServer(options = {}) {
 }
 
 if (process.argv?.[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  loadLocalRuntimeEnvironment();
   const { values } = parseArgs({
     options: {
       port: { type: "string", short: "p" },

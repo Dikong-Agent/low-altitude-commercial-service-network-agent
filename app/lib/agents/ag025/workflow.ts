@@ -8,6 +8,7 @@ import {
   type AgentInvokeResponse,
 } from "../../contracts";
 import { DependencyUnavailableError, executeWithPolicy } from "../../reliability";
+import { RagAugmentationSchema } from "../../rag/contracts.ts";
 import type { RequestIdentity } from "../../request-identity";
 import { AG025_CONFIG } from "./config";
 import { buildCustomerServiceOutput } from "./engine";
@@ -24,7 +25,7 @@ import {
 } from "./types";
 
 const TraceStepSchema = z.object({ name: z.string(), detail: z.string() });
-const RankedKnowledgeSchema = z.object({ entry: CustomerServiceKnowledgeEntrySchema, relevance: z.number().min(0).max(1) });
+const RankedKnowledgeSchema = z.object({ entry: CustomerServiceKnowledgeEntrySchema, relevance: z.number().min(0).max(1), rag: RagAugmentationSchema.optional() });
 
 const Ag025GraphState = new StateSchema({
   request: Ag025InvokeRequestSchema,
@@ -37,6 +38,7 @@ const Ag025GraphState = new StateSchema({
   orders: z.array(CustomerOrderSnapshotSchema).optional(),
   products: z.array(CustomerProductSnapshotSchema).optional(),
   services: z.array(CustomerServiceGuideSchema).optional(),
+  specialistResponse: AgentInvokeResponseSchema.optional(),
   customerServiceOutput: AgentCustomerServiceOutputSchema.optional(),
   response: AgentInvokeResponseSchema.optional(),
   trace: z.array(TraceStepSchema).optional(),
@@ -117,19 +119,37 @@ export function createAg025Workflow(dependencies: Ag025Dependencies) {
     ]);
     return {
       knowledge, orders, products, services,
-      trace: appendTrace(state, "调用知识与业务工具", `通过 ${dependencies.providerName} CustomerServiceDataPort 加载${knowledge.length}条知识、${orders.length}个订单、${products.length}个商品和${services.length}项服务指引。`),
+      trace: appendTrace(state, "查询知识与业务数据", `从客服知识和业务数据接口读取${knowledge.length}条知识、${orders.length}个订单、${products.length}个商品和${services.length}项服务指引。`),
     };
   };
 
   const rankKnowledge = async (state: typeof Ag025GraphState.State) => {
     const rankedKnowledge = await executeWithPolicy(
       "ag025.ai-platform-knowledge-ranking",
-      AG025_CONFIG.reliability.aiPlatform,
+      AG025_CONFIG.reliability.ragGeneration,
       (signal) => dependencies.aiPlatform.rankCustomerKnowledge(state.knowledge ?? [], state.intent!, state.request.input, { signal }),
     );
     return {
       rankedKnowledge,
-      trace: appendTrace(state, "重排答复依据", rankedKnowledge.length ? `保留${rankedKnowledge.length}条与当前意图直接相关的样例依据。` : "未找到可直接支撑答复的样例知识。"),
+      trace: appendTrace(state, "整理答复依据", rankedKnowledge.length ? `保留${rankedKnowledge.length}条与当前问题直接相关的样例依据。` : "未找到可直接支撑答复的样例知识。"),
+    };
+  };
+
+  const collaborateWithSpecialist = async (state: typeof Ag025GraphState.State) => {
+    const specialistAgentId = state.intent?.specialistAgentId;
+    if (!specialistAgentId) return {};
+    const specialistInput = state.request.input;
+    const specialistResponse = await executeWithPolicy(
+      `ag025.specialist-agent-${specialistAgentId.toLowerCase().replace("-", "")}`,
+      AG025_CONFIG.reliability.ragGeneration,
+      () => dependencies.specialistAgent.invoke(
+        { agent_id: specialistAgentId, input: specialistInput },
+        `${state.traceId}-${specialistAgentId.replace("-", "")}`,
+      ),
+    );
+    return {
+      specialistResponse,
+      trace: appendTrace(state, "转交专业业务Agent", `根据问题类型调用${specialistAgentId}：${state.intent?.specialistReason ?? "专业问题协同"}；处理状态为${specialistResponse.status}。`),
     };
   };
 
@@ -144,10 +164,12 @@ export function createAg025Workflow(dependencies: Ag025Dependencies) {
       dependencies.engine,
       state.request.session_id ?? null,
       state.conversation ?? null,
+      state.specialistResponse ?? null,
+      state.request.context?.as_of_date ?? new Date().toISOString().slice(0, 10),
     );
     return {
       customerServiceOutput,
-      trace: appendTrace(state, "生成客服答复与路由", `形成${customerServiceOutput.intent.route}结果，并保留${customerServiceOutput.handoff.pending_items.length}项待处理信息。`),
+      trace: appendTrace(state, "生成客服答复", `形成${customerServiceOutput.intent.route}处理结果；本轮解决状态为${customerServiceOutput.resolution_assessment.status}，整理${customerServiceOutput.handoff.pending_items.length}项待处理信息${customerServiceOutput.risk_review.review_required ? `和${customerServiceOutput.risk_review.signals.length}类风险线索` : ""}。`),
     };
   };
 
@@ -155,11 +177,16 @@ export function createAg025Workflow(dependencies: Ag025Dependencies) {
     const customerService = state.customerServiceOutput!;
     const missingOrder = customerService.intent.entities.order_ids.length > 0
       && customerService.tool_results.some((item) => item.tool === "order_lookup" && item.status === "not_found");
+    const specialistStatus = customerService.specialist_collaboration?.status;
     const status: AgentInvokeResponse["status"] = missingOrder
       ? "needs_clarification"
       : customerService.handoff.required
         ? "needs_review"
-        : "completed";
+        : specialistStatus === "needs_clarification" || customerService.answer_coverage.status === "missing"
+          ? "needs_clarification"
+          : specialistStatus === "needs_review" || customerService.answer_coverage.status === "partial"
+            ? "needs_review"
+            : "completed";
     const evidence = [
       ...customerService.knowledge_matches.map((item) => item.source_ref),
       ...customerService.tool_results.filter((item) => item.status === "found").map((item) => item.source_ref),
@@ -172,7 +199,23 @@ export function createAg025Workflow(dependencies: Ag025Dependencies) {
       status,
       environment: dependencies.environment,
       output: {
-        title: missingOrder ? "需要核对订单号" : customerService.handoff.required ? "客服转人工建议与会话摘要" : "智能客服路由与答复",
+        title: missingOrder
+          ? "需要核对订单号"
+          : customerService.risk_review.review_required
+            ? "沟通风险线索与人工复核材料"
+            : customerService.service_guidance?.category === "complaint"
+              ? "投诉信息整理与人工接续建议"
+              : customerService.service_guidance?.category === "finance" || customerService.service_guidance?.category === "credit"
+                ? "商业服务咨询与准备清单"
+                : customerService.handoff.required
+                  ? "人工处理建议与会话摘要"
+                  : customerService.answer_coverage.status === "missing"
+                    ? "当前依据不足"
+                    : customerService.answer_coverage.status === "partial"
+                      ? "客服答复与待核实事项"
+                      : customerService.specialist_collaboration
+                        ? "专业Agent调用结果"
+                        : "客服答复",
         summary: customerService.answer,
         points: [
           ...customerService.tool_results.map((item) => `${item.label}：${item.value}`),
@@ -182,8 +225,10 @@ export function createAg025Workflow(dependencies: Ag025Dependencies) {
         customer_service: customerService,
       },
       trace: appendTrace(state, "输出客服处理结果", customerService.handoff.required
-        ? "输出人工介入原因、目标团队、已确认信息和待处理事项；未声称已完成真实转接。"
-        : "输出可核验答复、工具结果或专业 Agent 路由建议。"),
+        ? "输出人工介入原因、目标团队、已确认信息、接续依据、建议答复和待处理事项；未声称已完成真实转接或业务处置。"
+        : customerService.specialist_collaboration
+          ? `已返回 ${customerService.specialist_collaboration.agent_id} 的实际协同结果和子链路 ${customerService.specialist_collaboration.trace_id}。`
+          : "输出可核验答复或业务工具结果。"),
     };
     return { response, trace: response.trace };
   };
@@ -221,6 +266,7 @@ export function createAg025Workflow(dependencies: Ag025Dependencies) {
     .addNode("clarify", buildClarification)
     .addNode("load_resources", loadResources)
     .addNode("rank_knowledge", rankKnowledge)
+    .addNode("collaborate_with_specialist", collaborateWithSpecialist)
     .addNode("compose_answer", composeAnswer)
     .addNode("build_response", buildResponse)
     .addNode("save_conversation", saveConversation)
@@ -229,7 +275,8 @@ export function createAg025Workflow(dependencies: Ag025Dependencies) {
     .addConditionalEdges("understand_request", (state) => state.intent?.needsClarification ? "clarify" : "load_resources")
     .addEdge("clarify", "save_conversation")
     .addEdge("load_resources", "rank_knowledge")
-    .addEdge("rank_knowledge", "compose_answer")
+    .addConditionalEdges("rank_knowledge", (state) => state.intent?.route === "specialist_agent" ? "collaborate_with_specialist" : "compose_answer")
+    .addEdge("collaborate_with_specialist", "compose_answer")
     .addEdge("compose_answer", "build_response")
     .addEdge("build_response", "save_conversation")
     .addEdge("save_conversation", END)

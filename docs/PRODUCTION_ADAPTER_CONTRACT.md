@@ -34,13 +34,14 @@
 
 `POST /v1/agent-ports/{agent-id}/{port}/{operation}`
 
-`port` 为 `ai-platform` 或 `business-data`。五个 Agent 当前操作如下：
+`port` 为 `ai-platform` 或 `business-data`。当前四个注册 Agent 的操作如下：
 
-- AG-001：`understand-comparison-request`、`list-products`、`get-products`
-- AG-002：`understand-manual-request`、`parse-manual-document`、`retrieve-manual-evidence`、`list-documents`、`get-document`
-- AG-003：`understand-recommendation-request`、`list-products`、`list-scenario-solutions`
-- AG-012：`understand-policy-request`、`retrieve-policy-evidence`、`search-documents`、`get-documents`、`get-version-chains`
-- AG-025：`understand-customer-request`、`rank-customer-knowledge`、`search-knowledge`、`get-orders`、`find-products`、`get-service-guides`。会话状态由 Agent 服务的 D1 持久化层承载，不委托给业务数据适配器。
+- AG-001：`understand-comparison-request`、`list-products`、`get-products`。
+- AG-012：`understand-policy-request`、`retrieve-policy-evidence`、`search-documents`、`get-documents`、`get-version-chains`。
+- AG-025：`understand-customer-request`、`rank-customer-knowledge`、`search-knowledge`、`get-orders`、`find-products`、`get-service-guides`。会话状态由 Agent 服务持久化层承载，不委托给业务数据适配器。
+- AG-027：`understand-analysis`、`get-analysis-snapshot`。Agent不执行调价、停用供应商或修改活动。
+
+其他Agent操作不在当前生产白名单。保留的旧适配器源码仅用于追溯或后续设计参考，不构成可调用接口。
 
 操作的准确输入与输出类型以 `app/lib/production-adapters.ts` 及各 Agent `types.ts` 中的 Zod Schema 为准。
 

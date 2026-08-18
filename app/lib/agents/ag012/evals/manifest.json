@@ -1,0 +1,1 @@
+{"agent_id":"AG-012","suite":"four-agent-r0","central_dataset":"evals/four-agent-golden-cases.json","required_categories":["normal","high_risk"]}

@@ -101,6 +101,31 @@ CREATE TABLE IF NOT EXISTS agent_tasks (
 export const CREATE_AGENT_TASKS_EXPIRY_INDEX_SQL = `
 CREATE INDEX IF NOT EXISTS agent_tasks_expiry_idx ON agent_tasks (expires_at)`;
 
+export const CREATE_AGENT_REVIEW_REQUESTS_SQL = `
+CREATE TABLE IF NOT EXISTS agent_review_requests (
+  review_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  subject_id TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  trace_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  evidence_json TEXT NOT NULL,
+  proposed_action TEXT,
+  resolution_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+)`;
+
+export const CREATE_AGENT_REVIEW_REQUESTS_OWNER_INDEX_SQL = `
+CREATE INDEX IF NOT EXISTS agent_review_requests_owner_idx
+ON agent_review_requests (tenant_id, subject_id, updated_at DESC)`;
+
+export const CREATE_AGENT_REVIEW_REQUESTS_EXPIRY_INDEX_SQL = `
+CREATE INDEX IF NOT EXISTS agent_review_requests_expiry_idx
+ON agent_review_requests (expires_at)`;
+
 export const CREATE_AGENT_RUNS_LOOKUP_INDEX_SQL = `
 CREATE INDEX IF NOT EXISTS agent_runs_tenant_created_idx
 ON agent_runs (tenant_id, created_at DESC)`;
@@ -153,3 +178,43 @@ CREATE TABLE IF NOT EXISTS auth_nonce_records (
 export const CREATE_AUTH_NONCE_EXPIRY_INDEX_SQL = `
 CREATE INDEX IF NOT EXISTS auth_nonce_expiry_idx
 ON auth_nonce_records (expires_at)`;
+
+export const CREATE_RAG_NAMESPACE_SNAPSHOTS_SQL = `
+CREATE TABLE IF NOT EXISTS rag_namespace_snapshots (
+  namespace TEXT PRIMARY KEY,
+  digest TEXT NOT NULL,
+  embedding_version TEXT,
+  chunks_json TEXT NOT NULL,
+  chunk_count INTEGER NOT NULL,
+  updated_at TEXT NOT NULL
+)`;
+
+export const CREATE_RAG_NAMESPACE_SNAPSHOTS_UPDATED_INDEX_SQL = `
+CREATE INDEX IF NOT EXISTS idx_rag_namespace_snapshots_updated_at
+ON rag_namespace_snapshots(updated_at)`;
+
+export const CREATE_KNOWLEDGE_ADMIN_SNAPSHOTS_SQL = `
+CREATE TABLE IF NOT EXISTS knowledge_admin_snapshots (
+  tenant_id TEXT NOT NULL,
+  snapshot_id TEXT NOT NULL,
+  snapshot_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, snapshot_id)
+)`;
+
+export const CREATE_KNOWLEDGE_ADMIN_SNAPSHOTS_UPDATED_INDEX_SQL = `
+CREATE INDEX IF NOT EXISTS knowledge_admin_snapshots_updated_idx
+ON knowledge_admin_snapshots (updated_at)`;
+
+export const CREATE_RAG_EVALUATION_SNAPSHOTS_SQL = `
+CREATE TABLE IF NOT EXISTS rag_evaluation_snapshots (
+  tenant_id TEXT NOT NULL,
+  snapshot_id TEXT NOT NULL,
+  snapshot_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, snapshot_id)
+)`;
+
+export const CREATE_RAG_EVALUATION_SNAPSHOTS_UPDATED_INDEX_SQL = `
+CREATE INDEX IF NOT EXISTS rag_evaluation_snapshots_updated_idx
+ON rag_evaluation_snapshots (updated_at)`;

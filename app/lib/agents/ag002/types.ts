@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { ManualTopicSchema, type ManualTopic } from "../../contracts";
+import { RagAugmentationSchema, type RagAugmentation } from "../../rag/contracts.ts";
 
 export interface ManualIntent {
   manualId: string;
@@ -85,6 +86,7 @@ export interface RankedManualSection {
   section: ManualSourceSection;
   relevance: number;
   matchReasons: string[];
+  rag?: RagAugmentation;
 }
 
 export const ManualIntentSchema = z.object({
@@ -150,4 +152,5 @@ export const RankedManualSectionSchema = z.object({
   section: ManualSourceSectionSchema,
   relevance: z.number().min(0).max(1),
   matchReasons: z.array(z.string()),
+  rag: RagAugmentationSchema.optional(),
 });

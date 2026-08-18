@@ -18,6 +18,9 @@ import {
   CREATE_AGENT_TASKS_EXPIRY_INDEX_SQL,
   CREATE_AUTH_NONCE_RECORDS_SQL,
   CREATE_AUTH_NONCE_EXPIRY_INDEX_SQL,
+  CREATE_AGENT_REVIEW_REQUESTS_SQL,
+  CREATE_AGENT_REVIEW_REQUESTS_OWNER_INDEX_SQL,
+  CREATE_AGENT_REVIEW_REQUESTS_EXPIRY_INDEX_SQL,
 } from "../../db/schema";
 import type { CustomerConversationPort } from "./agents/ag025/adapters";
 import {
@@ -77,6 +80,9 @@ async function ensureSchema(db: D1Database): Promise<void> {
       db.prepare(CREATE_AGENT_TASKS_EXPIRY_INDEX_SQL),
       db.prepare(CREATE_AUTH_NONCE_RECORDS_SQL),
       db.prepare(CREATE_AUTH_NONCE_EXPIRY_INDEX_SQL),
+      db.prepare(CREATE_AGENT_REVIEW_REQUESTS_SQL),
+      db.prepare(CREATE_AGENT_REVIEW_REQUESTS_OWNER_INDEX_SQL),
+      db.prepare(CREATE_AGENT_REVIEW_REQUESTS_EXPIRY_INDEX_SQL),
     ]).then(() => undefined);
     initialized.set(key, pending);
   }
@@ -95,6 +101,7 @@ export async function assertDurableStateAvailable(): Promise<void> {
     await db.prepare("SELECT capability_version, retry_count, internal_trace_json FROM agent_runs LIMIT 1").first();
     await db.prepare("SELECT roles_json, request_hash, attempt_count, result_json, error_code FROM agent_tasks LIMIT 1").first();
     await db.prepare("SELECT tenant_id, nonce, expires_at FROM auth_nonce_records LIMIT 1").first();
+    await db.prepare("SELECT review_id, status, resolution_json FROM agent_review_requests LIMIT 1").first();
   } catch (error) {
     throw new DependencyUnavailableError("durable-state.migration", "Required Agent runtime migrations have not been applied", { cause: error, retryable: false });
   }
@@ -248,6 +255,7 @@ export async function cleanupExpiredRuntimeState(now = new Date()): Promise<void
       db.prepare("DELETE FROM callback_receipts WHERE expires_at <= ?").bind(timestamp),
       db.prepare("DELETE FROM agent_tasks WHERE expires_at <= ?").bind(timestamp),
       db.prepare("DELETE FROM auth_nonce_records WHERE expires_at <= ?").bind(timestamp),
+      db.prepare("DELETE FROM agent_review_requests WHERE expires_at <= ?").bind(timestamp),
       db.prepare("DELETE FROM dependency_circuits WHERE open_until_ms <= ? AND updated_at <= ?").bind(now.getTime(), staleCircuitTimestamp),
     ]);
   } catch (error) {

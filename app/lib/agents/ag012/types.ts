@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { RagAugmentationSchema, type RagAugmentation } from "../../rag/contracts.ts";
 import { PolicyModeSchema, PolicyTopicSchema, type PolicyMode, type PolicyTopic } from "../../contracts";
 
 export interface PolicyIntent {
@@ -10,6 +11,8 @@ export interface PolicyIntent {
   subjectTypes: string[];
   scenarios: string[];
   requestedDocumentIds: string[];
+  requestedLocators: string[];
+  realWorldJurisdiction: boolean;
   asOfDate: string;
   needsClarification: boolean;
   clarificationMessage: string | null;
@@ -25,6 +28,7 @@ export interface PolicySourceSection {
   keywords: string[];
   appliesTo: string[];
   scenarios: string[];
+  referencedLocators?: string[];
 }
 
 export interface PolicyVersionChange {
@@ -52,6 +56,7 @@ export interface DemoPolicyDocument {
   replacesId: string | null;
   aliases: string[];
   sourceType: string;
+  sourceUrl: string | null;
   sections: PolicySourceSection[];
   versionChanges: PolicyVersionChange[];
 }
@@ -61,6 +66,7 @@ export interface RankedPolicyEvidence {
   section: PolicySourceSection;
   relevance: number;
   matchReasons: string[];
+  rag?: RagAugmentation;
 }
 
 export const PolicyIntentSchema = z.object({
@@ -72,6 +78,8 @@ export const PolicyIntentSchema = z.object({
   subjectTypes: z.array(z.string()),
   scenarios: z.array(z.string()),
   requestedDocumentIds: z.array(z.string()),
+  requestedLocators: z.array(z.string()).default([]),
+  realWorldJurisdiction: z.boolean().default(false),
   asOfDate: z.iso.date(),
   needsClarification: z.boolean(),
   clarificationMessage: z.string().nullable(),
@@ -80,6 +88,7 @@ export const PolicyIntentSchema = z.object({
 export const PolicySourceSectionSchema = z.object({
   id: z.string(), heading: z.string(), locator: z.string(), text: z.string(), plainLanguage: z.string(),
   topics: z.array(PolicyTopicSchema), keywords: z.array(z.string()), appliesTo: z.array(z.string()), scenarios: z.array(z.string()),
+  referencedLocators: z.array(z.string()).default([]),
 });
 
 export const PolicyVersionChangeSchema = z.object({
@@ -91,7 +100,7 @@ export const DemoPolicyDocumentSchema = z.object({
   id: z.string(), title: z.string(), documentNumber: z.string(), issuer: z.string(),
   documentType: z.enum(["policy", "standard", "airworthiness_notice"]), jurisdiction: z.string(), version: z.string(),
   publishedAt: z.string(), effectiveFrom: z.string(), effectiveTo: z.string().nullable(), versionChainId: z.string(),
-  replacesId: z.string().nullable(), aliases: z.array(z.string()), sourceType: z.string(),
+  replacesId: z.string().nullable(), aliases: z.array(z.string()), sourceType: z.string(), sourceUrl: z.string().nullable(),
   sections: z.array(PolicySourceSectionSchema), versionChanges: z.array(PolicyVersionChangeSchema),
 });
 
@@ -100,4 +109,5 @@ export const RankedPolicyEvidenceSchema = z.object({
   section: PolicySourceSectionSchema,
   relevance: z.number().min(0).max(1),
   matchReasons: z.array(z.string()),
+  rag: RagAugmentationSchema.optional(),
 });

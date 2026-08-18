@@ -26,11 +26,11 @@
 
 ## 统一注册表
 
-每个可运行 Agent 必须登记请求与响应 Schema、访问策略、总请求时限、同步上限、执行模式、能力/工作流/Prompt/规则/模型版本及工作流工厂。新增第六个 Agent 时，只新增定义和工作流，不修改调用路由的分发判断。
+每个可运行 Agent 必须登记请求与响应 Schema、访问策略、总请求时限、同步上限、执行模式、能力/工作流/Prompt/规则/模型版本及工作流工厂。新增 Agent 时只增加定义和工作流，不修改调用路由的分发判断。
 
 ## 公共端口
 
-`app/lib/runtime-ports.ts` 统一定义可信业务访问上下文、公共 AI 能力、领域数据和工具执行端口。现有五个 Agent 的专用方法仍保留领域类型，但全部继承公共端口约束。业务动作的“建议”和“执行”严格分离；执行必须同时提供审批令牌和幂等键。
+`app/lib/runtime-ports.ts` 统一定义可信业务访问上下文、公共 AI 能力、领域数据和工具执行端口。当前四个 Agent 的专用方法保留领域类型，但全部继承公共端口约束。业务动作的“建议”和“执行”严格分离；执行必须同时提供审批令牌和幂等键。
 
 ## 可靠性
 
@@ -39,7 +39,7 @@
 - 仅临时错误重试；配置、契约和权限错误不重试。
 - 重试使用指数退避和随机抖动。
 - 熔断状态存入 D1，在多实例间共享；本地 Demo 才使用内存降级。
-- AG-002、AG-012 标记为 `async-capable`。生产请求携带 `Prefer: respond-async` 时写入 D1 任务表并进入 Queue，返回 `202` 和任务地址。
+- AG-012 标记为 `async-capable`。生产请求携带 `Prefer: respond-async` 时写入 D1 任务表并进入 Queue，返回 `202` 和任务地址。
 - 异步幂等记录同时校验请求哈希；同一幂等键对应不同请求时返回冲突。Queue 消费前使用条件更新原子领取任务，失败任务明确落为 `failed` 后才允许重试。
 - 回调使用 `source + callback_id + payload_hash` 去重；同一 ID 携带不同内容会拒绝。
 
@@ -53,19 +53,23 @@
 
 - `GET /health/live`：进程存活；
 - `GET /health/ready`：D1迁移、Queue、运行模式、生产 Provider、网关密钥和两个上游适配器配置就绪；
+- `GET /openapi.json`：R0公共接口与外部Provider端口契约；
 - `GET /v1/agents`：运行时注册信息；
 - `POST /v1/agents/:agentId/invoke`：同步或异步调用；
+- `POST /v1/agents/:agentId/tasks`：显式创建异步任务；
 - `GET /v1/tasks/:taskId`：按租户和用户查询任务；
+- `POST /v1/tasks/:taskId/cancel`：取消尚未开始执行的任务；
+- `POST /v1/reviews`、`GET /v1/reviews/:reviewId`、`POST /v1/reviews/:reviewId/callback`：高风险人工复核闭环；
 - `POST /v1/callbacks/:source`：签名回调去重入口。
 
 `wrangler.agent-runtime.toml.example` 只是部署样例。甲方采用私有云、政务云或本地 Kubernetes 时，应将 D1/Queue 端口替换为其数据库与消息队列实现，注册表、工作流和业务端口契约不变。
 
 ## 上线顺序
 
-1. 依次执行 `db/migrations/0001_agent_runtime_state.sql`、`0002_commercial_runtime_p1.sql` 和 `0003_commercial_runtime_hardening.sql`。
+1. 依次执行 `db/migrations/0001`至`0007`；R0人工复核依赖`0007_r0_agent_foundation.sql`。
 2. 创建任务队列及死信队列，配置独立 Runtime 的 `DB`、`AGENT_TASKS` 绑定。
 3. 注入网关签名密钥、AI 中台和业务数据适配器密钥。
-4. 将五个 Provider 全部设为 `production`，通过 `/health/ready` 后再接流量。
+4. 将二十四个 Provider 全部设为 `production`，通过 `/health/ready` 后再接流量。
 5. 用甲方正式角色、租户、超时、限流和故障场景完成联调；Demo 数据不得作为验收数据。
 
 可信网关签名覆盖请求方法、路径与查询串、请求体哈希、租户、用户、角色、`Idempotency-Key`、`Prefer` 和 `X-JDZ-Callback-Id`。签名 nonce 在租户维度只能使用一次，过期 nonce、幂等、回调、任务、会话和运行审计数据由每日定时清理任务按保留期删除。

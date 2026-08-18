@@ -1,5 +1,5 @@
 import { z } from "zod/v4";
-import { CustomerServiceDomainSchema, CustomerServiceIssueSchema, CustomerServiceRouteSchema } from "../../contracts";
+import { CustomerServiceDomainSchema, CustomerServiceIssueSchema, CustomerServiceRouteSchema, CustomerServiceSpecialistAgentSchema } from "../../contracts";
 
 export interface CustomerServiceIntent {
   domains: Array<z.infer<typeof CustomerServiceDomainSchema>>;
@@ -16,6 +16,8 @@ export interface CustomerServiceIntent {
   highRiskBoundary: boolean;
   priorContextUsed: boolean;
   conflicts: string[];
+  specialistAgentId: z.infer<typeof CustomerServiceSpecialistAgentSchema> | null;
+  specialistReason: string | null;
   complaintElements: CustomerComplaintElements | null;
 }
 
@@ -56,6 +58,7 @@ export interface CustomerServiceKnowledgeEntry {
   keywords: string[];
   sourceRef: string;
   updatedAt: string;
+  checklistItems?: string[];
 }
 
 export interface CustomerOrderSnapshot {
@@ -66,6 +69,8 @@ export interface CustomerOrderSnapshot {
   updatedAt: string;
   logisticsSummary: string;
   nextStep: string;
+  promisedBy: string | null;
+  anomalyReason: string | null;
   sourceRef: string;
 }
 
@@ -101,6 +106,8 @@ export const CustomerServiceIntentSchema = z.object({
   highRiskBoundary: z.boolean(),
   priorContextUsed: z.boolean(),
   conflicts: z.array(z.string()),
+  specialistAgentId: CustomerServiceSpecialistAgentSchema.nullable(),
+  specialistReason: z.string().nullable(),
   complaintElements: z.object({
     topic: z.string().nullable(),
     relatedObject: z.string().nullable(),
@@ -131,11 +138,13 @@ export const CustomerConversationStateSchema = z.object({
 export const CustomerServiceKnowledgeEntrySchema = z.object({
   id: z.string(), title: z.string(), domain: CustomerServiceDomainSchema, issueType: CustomerServiceIssueSchema,
   answer: z.string(), keywords: z.array(z.string()), sourceRef: z.string(), updatedAt: z.string(),
+  checklistItems: z.array(z.string()).optional(),
 });
 
 export const CustomerOrderSnapshotSchema = z.object({
   id: z.string(), status: z.enum(["awaiting_payment", "processing", "shipped", "delivered", "after_sales"]),
-  statusLabel: z.string(), productName: z.string(), updatedAt: z.string(), logisticsSummary: z.string(), nextStep: z.string(), sourceRef: z.string(),
+  statusLabel: z.string(), productName: z.string(), updatedAt: z.string(), logisticsSummary: z.string(), nextStep: z.string(),
+  promisedBy: z.string().nullable(), anomalyReason: z.string().nullable(), sourceRef: z.string(),
 });
 
 export const CustomerProductSnapshotSchema = z.object({

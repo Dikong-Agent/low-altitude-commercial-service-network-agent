@@ -1,5 +1,6 @@
 import type { Ag012InvokeRequest, PolicyMode, PolicyTopic } from "../../contracts";
 import type { CommonAIPlatformPort, CommonDomainDataPort } from "../../runtime-ports";
+import { rankLegacyKnowledge } from "../../rag/legacy-bridge";
 import { DEMO_POLICY_DOCUMENTS } from "./catalog";
 import { rankPolicyEvidence } from "./engine";
 import type { DemoPolicyDocument, PolicyIntent, RankedPolicyEvidence } from "./types";
@@ -26,8 +27,9 @@ export interface PolicyClock {
 }
 
 const topicRules: Array<[PolicyTopic, RegExp, string]> = [
+  ["operation", /实名登记|所有者登记|国籍登记/, "实名登记"],
   ["scope", /适用范围|适用对象|哪些主体|覆盖范围/, "适用范围"],
-  ["filing", /报备|申报|提交|提前几天|工作日/, "报备"],
+  ["filing", /报备|申报|申请|提交|提前几天|提前多久|工作日/, "申请报备"],
   ["record_retention", /记录|保存|留存|归档|存多久/, "运行记录"],
   ["operation_safety", /安全|风险评估|应急|天气|载荷|电池/, "运行安全"],
   ["logistics", /物流|配送/, "低空物流"],
@@ -59,6 +61,23 @@ function modeFromInput(input: string): PolicyMode {
   if (/影响|准备|调整|改造|企业要求/.test(input)) return "business_impact";
   if (/摘要|概括|总结|核心要求|主要内容|要点/.test(input)) return "policy_summary";
   return "policy_qa";
+}
+
+function requestedLocatorsFromInput(input: string): string[] {
+  const articleLocators = [...input.matchAll(/第\s*([〇零一二三四五六七八九十百\d]+)\s*条/g)]
+    .map((match) => `第${match[1]}条`);
+  const decimalLocators = [...input.matchAll(/(?:第\s*)?(\d+\.\d+)\s*条/g)]
+    .map((match) => `第${match[1]}条`);
+  return [...new Set([...articleLocators, ...decimalLocators])];
+}
+
+function jurisdictionsFromInput(input: string): { values: string[]; realWorld: boolean } {
+  const values: string[] = [];
+  if (/样例示范区/.test(input)) values.push("样例示范区");
+  if (/景德镇/.test(input)) values.push("景德镇市");
+  if (/江西/.test(input)) values.push("江西省");
+  if (/全国|国家层面/.test(input)) values.push("全国");
+  return { values: [...new Set(values)], realWorld: values.some((item) => item !== "样例示范区") };
 }
 
 function contextDocumentIds(request: Ag012InvokeRequest): string[] {
@@ -122,7 +141,8 @@ function documentAliasMatches(input: string, document: DemoPolicyDocument): { an
 export class DemoAIPlatformAdapter implements AIPlatformPort {
   readonly portKind = "ai-platform" as const;
   readonly capabilities = ["understanding", "retrieval", "reranking"] as const;
-  constructor(private readonly clock: PolicyClock = shanghaiClock) {}
+  private readonly clock: PolicyClock;
+  constructor(clock: PolicyClock = shanghaiClock) { this.clock = clock; }
 
   async understandPolicyRequest(request: Ag012InvokeRequest): Promise<PolicyIntent> {
     const input = request.input.trim();
@@ -131,14 +151,19 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
     const queryTerms = topicRules.filter(([, rule]) => rule.test(input)).map(([, , term]) => term);
     const subjectTypes = subjectRules.filter(([, rule]) => rule.test(input)).map(([subject]) => subject);
     const scenarios = scenarioRules.filter(([, rule]) => rule.test(input)).map(([scenario]) => scenario);
-    const jurisdictions = /样例示范区/.test(input) ? ["样例示范区"] : [];
-    const documentTypes: PolicyIntent["documentTypes"] = /适航/.test(input) ? ["airworthiness_notice"] : /标准|规范/.test(input) ? ["standard"] : ["policy"];
+    const jurisdiction = jurisdictionsFromInput(input);
+    const jurisdictions = jurisdiction.values;
+    const documentTypes: PolicyIntent["documentTypes"] = /适航/.test(input)
+      ? ["airworthiness_notice"]
+      : /政策|办法|规定|条例/.test(input) && /标准|规范/.test(input)
+        ? ["policy", "standard"]
+        : /标准|规范/.test(input) ? ["standard"] : ["policy"];
     const explicitIds = contextDocumentIds(request);
     const aliasMatches = DEMO_POLICY_DOCUMENTS.map((document) => ({ document, ...documentAliasMatches(input, document) }));
     const specificAliasIds = aliasMatches.filter((item) => item.specific).map((item) => item.document.id);
     const aliasIds = (specificAliasIds.length ? specificAliasIds : aliasMatches.filter((item) => item.any).map((item) => item.document.id));
     const requestedDocumentIds = explicitIds.length ? [...new Set(explicitIds)] : [...new Set(aliasIds)];
-    const domainSignal = /政策|办法|规定|标准|规范|适航|报备|申报|运行记录|物流|巡检|测绘|航拍|生效|版本/.test(input);
+    const domainSignal = /政策|办法|规定|条例|标准|规范|适航|报备|申报|申请|实名登记|管制空域|运行记录|飞行活动|无人机|无人驾驶航空器|物流|巡检|测绘|航拍|生效|版本/.test(input);
     const parsedDate = request.context?.as_of_date ? { date: request.context.as_of_date, issue: null } : dateFromInput(input);
     const needsClarification = !domainSignal || Boolean(parsedDate.issue);
     return {
@@ -150,6 +175,8 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
       subjectTypes,
       scenarios,
       requestedDocumentIds,
+      requestedLocators: requestedLocatorsFromInput(input),
+      realWorldJurisdiction: jurisdiction.realWorld,
       asOfDate: parsedDate.date ?? this.clock.today(),
       needsClarification,
       clarificationMessage: parsedDate.issue ?? (needsClarification ? "请说明需要查询的政策、标准或适航主题，并补充业务场景；例如政策要点、版本变化、报备要求或适用性问题。" : null),
@@ -157,7 +184,14 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
   }
 
   async retrievePolicyEvidence(documents: DemoPolicyDocument[], intent: PolicyIntent, query: string): Promise<RankedPolicyEvidence[]> {
-    return rankPolicyEvidence(documents, intent, query);
+    const common = await rankLegacyKnowledge("AG-012", [query, ...intent.queryTerms, ...intent.topics, ...intent.scenarios, ...intent.subjectTypes].join(" "), documents.flatMap((document) => document.sections.map((section) => ({
+      id: `${document.id}:${section.id}`, title: `${document.title} ${section.heading}`, content: JSON.stringify({ documentNumber: document.documentNumber, section }),
+      sourceUri: `demo-policy://${document.id}/${section.id}`, domain: document.documentType === "standard" ? "standard" : "policy",
+    }))));
+    const ranked = rankPolicyEvidence(documents, intent, query);
+    const retrieved = common.ranks.size ? ranked.filter((item) => common.ranks.has(`${item.document.id}:${item.section.id}`)) : ranked;
+    if (retrieved[0]) retrieved[0].rag = { status: common.status, answer: common.answer, evidence: common.evidence, audit: common.audit };
+    return retrieved;
   }
 }
 
@@ -167,7 +201,17 @@ export class MockPolicyDataAdapter implements PolicyDataPort {
   async searchDocuments(search: PolicyDocumentSearch): Promise<DemoPolicyDocument[]> {
     const candidates = DEMO_POLICY_DOCUMENTS.filter((document) => search.documentTypes.includes(document.documentType));
     const directlyMatched = candidates.filter((document) => documentAliasMatches(search.query, document).any);
-    return structuredClone((directlyMatched.length ? directlyMatched : candidates).slice(0, search.limit));
+    if (directlyMatched.length) return structuredClone(directlyMatched.slice(0, search.limit));
+
+    const officialSignal = /无人驾驶航空器飞行管理暂行条例|761号令|实名登记|国籍登记|飞行活动申请|申请内容|管制空域|120米|主体责任|景德镇|江西|全国/.test(search.query);
+    const demoPolicySignal = /样例|样政|试行版|修订稿|新旧政策|旧政策|新政策|报备|运行记录|记录保存|数字化记录/.test(search.query);
+    const scoped = candidates.filter((document) => {
+      if (document.documentType === "standard") return true;
+      if (officialSignal) return document.id.startsWith("OFFICIAL-");
+      if (demoPolicySignal) return document.id.startsWith("DEMO-POLICY-");
+      return document.id.startsWith("OFFICIAL-");
+    });
+    return structuredClone(scoped.slice(0, search.limit));
   }
 
   async getDocuments(ids: string[]): Promise<DemoPolicyDocument[]> {

@@ -10,12 +10,16 @@ export interface RequestIdentity {
 }
 
 export class RequestIdentityError extends Error {
+  readonly code: "AUTHENTICATION_REQUIRED" | "INVALID_AUTHENTICATION" | "AUTH_CONFIGURATION_ERROR";
+  readonly status: 401 | 503;
   constructor(
-    public readonly code: "AUTHENTICATION_REQUIRED" | "INVALID_AUTHENTICATION" | "AUTH_CONFIGURATION_ERROR",
-    public readonly status: 401 | 503,
+    code: "AUTHENTICATION_REQUIRED" | "INVALID_AUTHENTICATION" | "AUTH_CONFIGURATION_ERROR",
+    status: 401 | 503,
     message: string,
   ) {
     super(message);
+    this.code = code;
+    this.status = status;
     this.name = "RequestIdentityError";
   }
 }

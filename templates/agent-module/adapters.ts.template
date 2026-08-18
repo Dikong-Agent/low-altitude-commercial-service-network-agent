@@ -1,0 +1,12 @@
+import type { PortCallOptions } from "../../app/lib/runtime-ports";
+import type { AgentIntentSchema } from "./types";
+import type { z } from "zod/v4";
+
+export interface AgentAIPlatformPort { understand(input: string, options?: PortCallOptions): Promise<z.infer<typeof AgentIntentSchema>> }
+export interface AgentBusinessDataPort { loadEvidence(options?: PortCallOptions): Promise<Array<{ sourceId: string; generatedAt: string; fact: string }>> }
+
+// Mock内容必须确定、可追溯并明确标记为虚构数据。
+export class MockAgentBusinessDataAdapter implements AgentBusinessDataPort {
+  async loadEvidence() { return [{ sourceId: "MOCK-AG-XXX-001", generatedAt: new Date(0).toISOString(), fact: "虚构测试事实" }]; }
+}
+

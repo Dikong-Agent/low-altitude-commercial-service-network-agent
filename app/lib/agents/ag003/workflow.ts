@@ -3,6 +3,9 @@ import { z } from "zod/v4";
 import { AgentInvokeRequestSchema, AgentInvokeResponseSchema, type AgentInvokeRequest, type AgentInvokeResponse } from "../../contracts";
 import { executeWithPolicy } from "../../reliability";
 import type { RequestIdentity } from "../../request-identity";
+import { rankLegacyKnowledge } from "../../rag/legacy-bridge";
+import { RagAugmentationSchema } from "../../rag/contracts";
+import { toAgentRagRuntime } from "../../rag/output";
 import { AG003_CONFIG } from "./config";
 import { buildRecommendationOutput, evaluateRecommendation } from "./engine";
 import { getAg003ProviderRevision, resolveAg003Dependencies, type Ag003Dependencies } from "./providers";
@@ -17,6 +20,7 @@ const Ag003GraphState = new StateSchema({
   products: z.array(DemoProductSchema).optional(),
   solutions: z.array(ScenarioSolutionSchema).optional(),
   evaluations: z.array(RecommendationEvaluationSchema).optional(),
+  rag: RagAugmentationSchema.optional(),
   response: AgentInvokeResponseSchema.optional(),
   trace: z.array(TraceStepSchema).optional(),
 });
@@ -68,7 +72,7 @@ export function createAg003Workflow(dependencies: Ag003Dependencies) {
   const understandRequest = async (state: typeof Ag003GraphState.State) => {
     const intent = await executeWithPolicy("ag003.ai-platform-understanding", AG003_CONFIG.reliability.aiPlatform,
       (signal) => dependencies.aiPlatform.understandRecommendationRequest(state.request, { signal }));
-    const understoodTrace = appendTrace(state, "理解导购需求", `识别为${intent.mode}，提取${intent.useCases.length}个场景、${intent.hardConstraints.length}条硬条件。`);
+    const understoodTrace = appendTrace(state, "理解导购需求", `识别为${intent.mode}，提取${intent.useCases.length}个场景、${intent.hardConstraints.length}条必要条件。`);
     return {
       intent,
       trace: [...understoodTrace, {
@@ -88,7 +92,7 @@ export function createAg003Workflow(dependencies: Ag003Dependencies) {
       return {
         products: [],
         solutions,
-        trace: appendTrace(state, "加载样例目录", `通过 ${dependencies.providerName} BusinessDataPort 仅加载${solutions.length}个场景方案；未调用商品目录。`),
+        trace: appendTrace(state, "加载样例目录", `从方案数据接口加载${solutions.length}个场景方案；本次未查询商品目录。`),
       };
     }
     const products = await executeWithPolicy("ag003.business-data-products", AG003_CONFIG.reliability.businessData,
@@ -96,23 +100,28 @@ export function createAg003Workflow(dependencies: Ag003Dependencies) {
     return {
       products,
       solutions: [],
-      trace: appendTrace(state, "加载样例目录", `通过 ${dependencies.providerName} BusinessDataPort 仅加载${products.length}个商品；未调用场景方案目录。`),
+      trace: appendTrace(state, "加载样例目录", `从商品数据接口加载${products.length}个商品；本次未查询场景方案目录。`),
     };
   };
 
-  const rankCandidates = (state: typeof Ag003GraphState.State) => {
-    const evaluations = evaluateRecommendation(state.intent!, { products: state.products ?? [], solutions: state.solutions ?? [] });
-    return { evaluations, trace: appendTrace(state, "筛选并排序候选", `先执行硬条件，再对${evaluations.length}个候选进行可解释评分。`) };
+  const rankCandidates = async (state: typeof Ag003GraphState.State) => {
+    const records = state.intent?.mode === "scenario_solution"
+      ? (state.solutions ?? []).map((item) => ({ id: item.id, title: item.name, content: [item.summary, item.scenario, ...item.tags, ...item.suitableConditions, ...item.limitations].join(" "), sourceUri: item.source, domain: "scenario-solution" }))
+      : (state.products ?? []).map((item) => ({ id: item.id, title: item.name, content: [item.description, item.category, ...item.scenarios, `续航${item.enduranceMinutes}分钟`, `载荷${item.payloadKg}公斤`, `抗风${item.windResistanceMps}米每秒`].join(" "), sourceUri: item.source, domain: "product-catalog" }));
+    const common = await rankLegacyKnowledge("AG-003", state.request.input, records);
+    const evaluations = evaluateRecommendation(state.intent!, { products: state.products ?? [], solutions: state.solutions ?? [] })
+      .sort((left, right) => (common.ranks.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (common.ranks.get(right.id) ?? Number.MAX_SAFE_INTEGER) || right.score - left.score);
+    return { evaluations, rag: { status: common.status, answer: common.answer, evidence: common.evidence, audit: common.audit }, trace: appendTrace(state, "筛选并排序候选", `先核对必要条件，再对${evaluations.length}个候选进行知识检索和条件评分。`) };
   };
 
   const validateRecommendation = (state: typeof Ag003GraphState.State) => ({
     trace: appendTrace(state, "核验适用条件与差距", state.evaluations?.some((item) => item.eligible)
-      ? "存在通过硬条件的候选，并保留真实库存、价格和实施条件等缺口。"
-      : "没有候选通过全部硬条件，拒绝强行推荐。"),
+      ? "存在符合必要条件的候选，并保留真实库存、价格和实施条件等待确认信息。"
+      : "没有候选通过全部必要条件，因此不形成首选建议。"),
   });
 
   const buildResponse = (state: typeof Ag003GraphState.State) => {
-    const recommendation = buildRecommendationOutput(state.intent!, state.evaluations ?? [], dependencies.engine);
+    const recommendation = { ...buildRecommendationOutput(state.intent!, state.evaluations ?? [], dependencies.engine), rag_runtime: toAgentRagRuntime(state.rag) };
     const primary = recommendation.recommendation.primary_name;
     const response: AgentInvokeResponse = {
       request_id: `AG003-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
@@ -121,8 +130,8 @@ export function createAg003Workflow(dependencies: Ag003Dependencies) {
       status: primary ? "completed" : "needs_review",
       environment: dependencies.environment,
       output: {
-        title: state.intent?.mode === "scenario_solution" ? "商城场景方案导购建议" : "商品搜索与分类推荐",
-        summary: primary ? `基于当前虚构样例目录，首选为${primary}。正式采购前仍需核对真实上架、库存、价格与实施条件。` : recommendation.recommendation.reason,
+        title: state.intent?.mode === "scenario_solution" ? "产品方案推荐结果" : "商品匹配结果",
+        summary: primary ? `在当前演示目录中，首选为${primary}。正式采购前仍需核对上架状态、库存、价格和实施条件。` : recommendation.recommendation.reason,
         points: primary
           ? [recommendation.recommendation.reason, ...recommendation.gaps.slice(0, 2)]
           : recommendation.gaps.slice(0, 3),

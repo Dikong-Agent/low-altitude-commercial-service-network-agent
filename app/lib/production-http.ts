@@ -22,14 +22,12 @@ type AdapterKind = "ai-platform" | "business-data";
 const allowedOperations: Record<string, ReadonlySet<string>> = {
   "AG-001:ai-platform": new Set(["understand-comparison-request"]),
   "AG-001:business-data": new Set(["list-products", "get-products"]),
-  "AG-002:ai-platform": new Set(["understand-manual-request", "parse-manual-document", "retrieve-manual-evidence"]),
-  "AG-002:business-data": new Set(["list-documents", "get-document"]),
-  "AG-003:ai-platform": new Set(["understand-recommendation-request"]),
-  "AG-003:business-data": new Set(["list-products", "list-scenario-solutions"]),
   "AG-012:ai-platform": new Set(["understand-policy-request", "retrieve-policy-evidence"]),
   "AG-012:business-data": new Set(["search-documents", "get-documents", "get-version-chains"]),
   "AG-025:ai-platform": new Set(["understand-customer-request", "rank-customer-knowledge"]),
   "AG-025:business-data": new Set(["search-knowledge", "get-orders", "find-products", "get-service-guides"]),
+  "AG-027:ai-platform": new Set(["understand-analysis"]),
+  "AG-027:business-data": new Set(["get-analysis-snapshot", "load-analysis-session", "save-analysis-session"]),
 };
 
 const MAX_ADAPTER_RESPONSE_BYTES = 2_000_000;

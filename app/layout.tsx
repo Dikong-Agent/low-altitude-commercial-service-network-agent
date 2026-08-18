@@ -8,10 +8,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = requestHeaders.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
   const imageUrl = `${protocol}://${host}/og.png`;
   return {
-    title: "景德镇低空商业服务网 · 企业级业务智能体能力演示",
-    description: "以五个标杆Agent，展现可复制、可扩展的业务智能化能力。",
-    openGraph: { title: "景德镇低空商业服务网 · 企业级业务智能体能力演示", description: "五个可运行标杆Agent，展示可复制、可扩展的业务智能化能力。", images: [imageUrl], type: "website" },
-    twitter: { card: "summary_large_image", title: "景德镇低空商业服务网 · 企业级业务智能体能力演示", description: "五个可运行标杆Agent，展示可复制、可扩展的业务智能化能力。", images: [imageUrl] },
+    title: "景德镇低空商业服务网 · 业务智能体样例展示",
+    description: "景德镇低空商业服务网业务智能体阶段成果，展示经营问数、政策解读、客户服务和产品决策等场景样例。",
+    openGraph: { title: "景德镇低空商业服务网 · 业务智能体样例展示", description: "展示当前样例的业务用途、处理依据、输出结果和适用范围。", images: [imageUrl], type: "website" },
+    twitter: { card: "summary_large_image", title: "景德镇低空商业服务网 · 业务智能体样例展示", description: "展示当前样例的业务用途、处理依据、输出结果和适用范围。", images: [imageUrl] },
   };
 }
 

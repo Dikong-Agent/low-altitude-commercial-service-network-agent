@@ -2,6 +2,62 @@ import type { DemoPolicyDocument } from "./types";
 
 export const DEMO_POLICY_DOCUMENTS: DemoPolicyDocument[] = [
   {
+    id: "OFFICIAL-UAS-REG-2023",
+    title: "无人驾驶航空器飞行管理暂行条例",
+    documentNumber: "国务院、中央军委令第761号",
+    issuer: "中华人民共和国国务院、中华人民共和国中央军事委员会",
+    documentType: "policy",
+    jurisdiction: "全国",
+    version: "现行公开文本",
+    publishedAt: "2023-06-28",
+    effectiveFrom: "2024-01-01",
+    effectiveTo: null,
+    versionChainId: "OFFICIAL-CHAIN-UAS-REGULATION",
+    replacesId: null,
+    aliases: ["无人驾驶航空器飞行管理暂行条例", "暂行条例", "761号令", "无人机飞行管理条例"],
+    sourceType: "国务院官网公开现行行政法规（条款摘录已核验）",
+    sourceUrl: "https://www.gov.cn/zhengce/content/202306/content_6888799.htm",
+    versionChanges: [],
+    sections: [
+      {
+        id: "official-article-10", heading: "第十条 实名登记", locator: "第十条",
+        text: "民用无人驾驶航空器所有者应当依法进行实名登记，具体办法由国务院民用航空主管部门会同有关部门制定。涉及境外飞行的民用无人驾驶航空器，应当依法进行国籍登记。",
+        plainLanguage: "民用无人驾驶航空器所有者应依法实名登记；涉及境外飞行的，还应依法办理国籍登记。",
+        topics: ["operation", "applicability"], keywords: ["实名登记", "所有者", "国籍登记"],
+        appliesTo: ["运营企业", "飞行服务商", "巡检企业", "物流企业", "个人"], scenarios: ["园区巡检", "电力巡检", "测绘", "商业航拍", "物流配送"],
+      },
+      {
+        id: "official-article-19", heading: "第十九条 管制空域", locator: "第十九条",
+        text: "国家根据需要划设无人驾驶航空器管制空域。真高120米以上空域，空中禁区、空中限制区以及周边空域，军用航空超低空飞行空域，以及条例列明区域上方的空域应当划设为管制空域。管制空域的具体范围由有关机构确定并依法公布。",
+        plainLanguage: "真高120米以上以及机场、重要设施等条例列明区域上方属于或应划为管制空域；具体边界必须以有关机构公布的信息为准。",
+        topics: ["scope", "operation", "applicability", "operation_safety"], keywords: ["管制空域", "120米", "机场", "重要设施"],
+        appliesTo: ["运营企业", "飞行服务商", "巡检企业", "物流企业", "个人"], scenarios: ["园区巡检", "电力巡检", "测绘", "商业航拍", "物流配送"],
+      },
+      {
+        id: "official-article-25", heading: "第二十五条 飞行安全主体责任", locator: "第二十五条",
+        text: "组织无人驾驶航空器飞行活动的单位或者个人应当遵守有关法律法规和规章制度，主动采取事故预防措施，对飞行安全承担主体责任。",
+        plainLanguage: "飞行活动组织者需要主动采取事故预防措施，并对飞行安全承担主体责任。",
+        topics: ["operation", "operation_safety", "business_impact"], keywords: ["主体责任", "事故预防", "飞行安全"],
+        appliesTo: ["运营企业", "飞行服务商", "巡检企业", "物流企业", "个人"], scenarios: ["园区巡检", "电力巡检", "测绘", "商业航拍", "物流配送", "应急处置"],
+      },
+      {
+        id: "official-article-26", heading: "第二十六条 飞行活动申请", locator: "第二十六条",
+        text: "除本条例第三十一条另有规定外，组织无人驾驶航空器飞行活动的单位或者个人应当在拟飞行前1日12时前向空中交通管理机构提出飞行活动申请。空中交通管理机构应当在飞行前1日21时前作出批准或者不予批准的决定。固定空域内经批准实施常态飞行活动的，还应按规定报送飞行计划备案。",
+        plainLanguage: "一般情况下，组织飞行活动的单位或个人应在拟飞行前1日12时前提出申请；常态飞行仍需按规定报送计划备案。是否属于例外情形必须结合第三十一条和具体空域核验。",
+        topics: ["filing", "operation", "applicability"], keywords: ["飞行活动申请", "前1日12时", "备案", "常态飞行"],
+        appliesTo: ["运营企业", "飞行服务商", "巡检企业", "物流企业", "个人"], scenarios: ["园区巡检", "电力巡检", "测绘", "商业航拍", "物流配送"],
+        referencedLocators: ["第三十一条"],
+      },
+      {
+        id: "official-article-27", heading: "第二十七条 申请内容", locator: "第二十七条",
+        text: "无人驾驶航空器飞行活动申请应当包括组织者和操控人员信息、航空器类型和登记信息、任务性质、起降及备降场地、通信联络方法、飞行时间、航线高度速度和空域范围、通信导航与被监视能力、应急处置程序等条例列明的必要信息。",
+        plainLanguage: "飞行活动申请不是单一表单动作，需要准备主体与操控人员、航空器、任务、场地、时间空域、通信导航和应急程序等成套信息。",
+        topics: ["filing", "operation", "business_impact"], keywords: ["申请内容", "操控人员", "航空器", "应急处置程序"],
+        appliesTo: ["运营企业", "飞行服务商", "巡检企业", "物流企业", "个人"], scenarios: ["园区巡检", "电力巡检", "测绘", "商业航拍", "物流配送"],
+      },
+    ],
+  },
+  {
     id: "DEMO-POLICY-FLIGHT-2025",
     title: "样例·低空飞行活动管理办法（试行版）",
     documentNumber: "样政〔2025〕01号",
@@ -14,8 +70,9 @@ export const DEMO_POLICY_DOCUMENTS: DemoPolicyDocument[] = [
     effectiveTo: "2026-07-31",
     versionChainId: "DEMO-CHAIN-FLIGHT-MGMT",
     replacesId: null,
-    aliases: ["飞行活动管理办法", "试行版", "旧政策", "2025版"],
+    aliases: ["样例低空政策", "飞行活动管理办法", "试行版", "旧政策", "2025版"],
     sourceType: "虚构样例政策材料",
+    sourceUrl: null,
     versionChanges: [],
     sections: [
       {
@@ -54,8 +111,9 @@ export const DEMO_POLICY_DOCUMENTS: DemoPolicyDocument[] = [
     effectiveTo: null,
     versionChainId: "DEMO-CHAIN-FLIGHT-MGMT",
     replacesId: "DEMO-POLICY-FLIGHT-2025",
-    aliases: ["飞行活动管理办法", "修订稿", "新政策", "2026版"],
+    aliases: ["样例低空政策", "飞行活动管理办法", "修订稿", "新政策", "2026版"],
     sourceType: "虚构样例政策材料",
+    sourceUrl: null,
     sections: [
       {
         id: "flight-2026-scope", heading: "第四条 适用范围", locator: "第四条",
@@ -115,6 +173,7 @@ export const DEMO_POLICY_DOCUMENTS: DemoPolicyDocument[] = [
     replacesId: null,
     aliases: ["物流安全规范", "低空物流标准", "安全规范"],
     sourceType: "虚构样例行业标准",
+    sourceUrl: null,
     versionChanges: [],
     sections: [
       { id: "logistics-standard-risk", heading: "5.2 航线风险评估", locator: "第5.2条", text: "运行单位应在启用航线前识别人口密集区、障碍物、通信盲区和备降点，并形成可复核的风险评估记录。", plainLanguage: "物流航线启用前要评估人员、障碍物、通信和备降条件，并留下可复核记录。", topics: ["operation_safety", "logistics", "business_impact"], keywords: ["航线风险", "障碍物", "通信盲区", "备降点"], appliesTo: ["物流企业", "运营企业", "飞行服务商"], scenarios: ["物流配送"] },

@@ -6,6 +6,16 @@ import { assertProductionAuthConfiguration, RequestIdentityError, resolveRequest
 import { DependencyUnavailableError } from "../app/lib/reliability";
 import { getRuntimeBindings, runWithRuntimeBindings, type RuntimeBindings } from "../app/lib/runtime-bindings";
 import { assertProductionAdapterConfiguration } from "../app/lib/production-http";
+import { AGENT_INTERFACE_VERSION } from "../app/lib/contracts";
+import { R0_FOUNDATION_VERSION } from "../app/lib/r0/contracts";
+import { r0OpenApiDocument } from "../app/lib/r0/openapi";
+import {
+  handleAgentTaskCancellation,
+  handleAgentTaskCreation,
+  handleHumanReviewCallback,
+  handleHumanReviewRead,
+  handleHumanReviewSubmission,
+} from "../app/lib/r0/runtime-handlers";
 
 type Env = RuntimeBindings;
 interface QueueMessage { body: { taskId?: string }; ack(): void; retry(): void }
@@ -32,9 +42,10 @@ async function ready(): Promise<Response> {
     if (listRuntimeAgentDefinitions().some((definition) => definition.accessPolicy.requiredAnyRole.length === 0)) return json({ status: "not_ready" }, 503);
     assertProductionAuthConfiguration();
     assertProductionAdapterConfiguration();
-    return json({ status: "ready" });
+    return json({ status: "ready", foundation_version: R0_FOUNDATION_VERSION, interface_version: AGENT_INTERFACE_VERSION,
+      checks: { database: "ready", queue: "ready", providers: "ready", authentication: "ready", adapters: "ready" } });
   } catch {
-    return json({ status: "not_ready" }, 503);
+    return json({ status: "not_ready", foundation_version: R0_FOUNDATION_VERSION, interface_version: AGENT_INTERFACE_VERSION }, 503);
   }
 }
 
@@ -56,15 +67,19 @@ const runtime = {
   async fetch(request: Request, env: Env): Promise<Response> {
     return runWithRuntimeBindings(env, async () => {
       const url = new URL(request.url);
-      if (request.method === "GET" && url.pathname === "/health/live") return json({ status: "live" });
+      if (request.method === "GET" && url.pathname === "/health/live") return json({ status: "live", foundation_version: R0_FOUNDATION_VERSION, interface_version: AGENT_INTERFACE_VERSION });
       if (request.method === "GET" && url.pathname === "/health/ready") return ready();
+      if (request.method === "GET" && url.pathname === "/openapi.json") return json(r0OpenApiDocument(url.origin));
       if (request.method === "GET" && url.pathname === "/v1/agents") {
         const auth = await authenticatedIdentity(request, "");
         if ("response" in auth) return auth.response;
-        return json({ items: listRuntimeAgentDefinitions().map(({ id, executionMode, timeoutPolicy, versions }) => ({ id, execution_mode: executionMode, timeout_policy: timeoutPolicy, versions })) });
+        return json({ foundation_version: R0_FOUNDATION_VERSION, interface_version: AGENT_INTERFACE_VERSION, items: listRuntimeAgentDefinitions().map(({ id, executionMode, timeoutPolicy, versions }) => ({ id, execution_mode: executionMode, timeout_policy: timeoutPolicy, versions })) });
       }
       const invocation = url.pathname.match(/^\/v1\/agents\/(AG-\d{3})\/invoke$/);
       if (request.method === "POST" && invocation) return handleAgentInvocation(request, invocation[1]);
+
+      const taskCreation = url.pathname.match(/^\/v1\/agents\/(AG-\d{3})\/tasks$/);
+      if (request.method === "POST" && taskCreation) return handleAgentTaskCreation(request, taskCreation[1]);
 
       const callback = url.pathname.match(/^\/v1\/callbacks\/([a-z0-9._-]+)$/i);
       if (request.method === "POST" && callback) {
@@ -88,11 +103,19 @@ const runtime = {
         if ("response" in auth) return auth.response;
         try {
           const result = await getAgentTask(task[1], auth.identity);
-          return result ? json(result) : json({ code: "TASK_NOT_FOUND", message: "Agent task not found" }, 404);
+          return result ? json({ task_id: result.taskId, state: result.state, result: result.result, error_code: result.errorCode }) : json({ code: "TASK_NOT_FOUND", message: "Agent task not found" }, 404);
         } catch {
           return json({ code: "TASK_STORE_UNAVAILABLE", message: "Agent task status is unavailable" }, 503);
         }
       }
+      const taskCancellation = url.pathname.match(/^\/v1\/tasks\/(TSK-[A-Z0-9-]+)\/cancel$/);
+      if (request.method === "POST" && taskCancellation) return handleAgentTaskCancellation(request, taskCancellation[1]);
+
+      if (request.method === "POST" && url.pathname === "/v1/reviews") return handleHumanReviewSubmission(request);
+      const review = url.pathname.match(/^\/v1\/reviews\/(RVW-[A-Z0-9-]+)$/);
+      if (request.method === "GET" && review) return handleHumanReviewRead(request, review[1]);
+      const reviewCallback = url.pathname.match(/^\/v1\/reviews\/(RVW-[A-Z0-9-]+)\/callback$/);
+      if (request.method === "POST" && reviewCallback) return handleHumanReviewCallback(request, reviewCallback[1]);
       return json({ code: "ROUTE_NOT_FOUND", message: "Runtime route not found" }, 404);
     });
   },

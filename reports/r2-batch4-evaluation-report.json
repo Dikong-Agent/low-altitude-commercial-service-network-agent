@@ -1,0 +1,153 @@
+{
+  "schema_version": "1.0",
+  "baseline": "R2-final-batch-20260811",
+  "evaluated_at": "2026-08-15T08:34:34.096Z",
+  "environment": "demo",
+  "source": "evals/r2-batch4-golden-cases.json",
+  "total": 16,
+  "passed": 16,
+  "failed": 0,
+  "agents": {
+    "AG-013": 8,
+    "AG-018": 8
+  },
+  "categories": {
+    "adapter_boundary": 2,
+    "conflict": 2,
+    "missing_input": 2,
+    "no_data": 2,
+    "normal": 6,
+    "timeout": 2
+  },
+  "results": [
+    {
+      "id": "R2B4-AG013-NORMAL-001",
+      "agent_id": "AG-013",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-22D54FC8-47BF-4E89-9D4C-650EB5DB2CBB",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG013-NORMAL-002",
+      "agent_id": "AG-013",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-028A8A83-4D0C-4999-B470-4562D574931F",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG013-MISSING-001",
+      "agent_id": "AG-013",
+      "category": "missing_input",
+      "passed": true,
+      "trace_id": "TRC-ECF58689-EB26-418B-939A-A69D992F8ACA",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG013-CONFLICT-001",
+      "agent_id": "AG-013",
+      "category": "conflict",
+      "passed": true,
+      "trace_id": "TRC-218689CF-15AB-4E90-BFD4-412318C060BA",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG013-NODATA-001",
+      "agent_id": "AG-013",
+      "category": "no_data",
+      "passed": true,
+      "trace_id": "TRC-51DB819B-ADAC-42A8-9EBB-2AE8EBC27C18",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG013-TIMEOUT-001",
+      "agent_id": "AG-013",
+      "category": "timeout",
+      "passed": true,
+      "trace_id": "TRC-FF15C1BF-91B1-4306-8810-D6E6B655BF36",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG013-BOUNDARY-001",
+      "agent_id": "AG-013",
+      "category": "adapter_boundary",
+      "passed": true,
+      "trace_id": "TRC-82C8C297-5E5D-4606-95EC-2280BA47C69D",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG013-QUALITY-001",
+      "agent_id": "AG-013",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-DDBD9E89-2474-45F8-895F-8ACD0E1DB502",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG018-NORMAL-001",
+      "agent_id": "AG-018",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-76B0C55A-B1BA-49D6-AF61-A2B082B5C661",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG018-NORMAL-002",
+      "agent_id": "AG-018",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-5C16C5CA-48EE-4F0F-B3A2-9ED61F2BE0B6",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG018-MISSING-001",
+      "agent_id": "AG-018",
+      "category": "missing_input",
+      "passed": true,
+      "trace_id": "TRC-4A1280C2-5AB1-47AE-80B9-1153AA057CDD",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG018-CONFLICT-001",
+      "agent_id": "AG-018",
+      "category": "conflict",
+      "passed": true,
+      "trace_id": "TRC-21FBB5C4-2B9C-40C0-99CF-EDF91C7F8E48",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG018-NODATA-001",
+      "agent_id": "AG-018",
+      "category": "no_data",
+      "passed": true,
+      "trace_id": "TRC-72C1586F-D3C0-47C8-A1C0-BED2F6F5E8E4",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG018-TIMEOUT-001",
+      "agent_id": "AG-018",
+      "category": "timeout",
+      "passed": true,
+      "trace_id": "TRC-B9EF728F-ECA4-451C-8D61-463A9977D028",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG018-BOUNDARY-001",
+      "agent_id": "AG-018",
+      "category": "adapter_boundary",
+      "passed": true,
+      "trace_id": "TRC-26056C27-49EB-4DCC-9601-EDE1E30A4195",
+      "failures": []
+    },
+    {
+      "id": "R2B4-AG018-PRICE-001",
+      "agent_id": "AG-018",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-07F2DF26-16ED-4ABB-B2BC-D8023BF198F1",
+      "failures": []
+    }
+  ],
+  "boundary": "本报告仅证明R2最后批AG-013、AG-018在Mock阶段的可重复行为，不代表正式接口联调、内容发布、权威认定、违约法律判断、付款扣款或生产验收。"
+}

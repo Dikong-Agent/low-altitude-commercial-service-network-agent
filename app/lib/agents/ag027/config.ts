@@ -1,0 +1,2 @@
+import { capabilityCoverageForAgent } from "../../capability-coverage";
+export const AG027_CONFIG = { workflowVersion: "2.0.0", ruleVersion: "AG-027 指标口径、质量、权限与归因边界规则 v2.0", capabilityCoverage: capabilityCoverageForAgent("AG-027"), reliability: { aiPlatform: { timeoutMs: 3000, maxAttempts: 2, circuitFailureThreshold: 3, circuitResetMs: 30000 }, businessData: { timeoutMs: 3000, maxAttempts: 2, circuitFailureThreshold: 3, circuitResetMs: 30000 } } } as const;

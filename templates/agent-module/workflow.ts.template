@@ -1,0 +1,14 @@
+import { END, START, StateGraph, StateSchema } from "@langchain/langgraph";
+import { z } from "zod/v4";
+import { AgentBusinessOutputSchema, AgentEvidenceSchema, AgentIntentSchema } from "./types";
+
+const State = new StateSchema({ input: z.string(), traceId: z.string(), intent: AgentIntentSchema.optional(), evidence: z.array(AgentEvidenceSchema).optional(), output: AgentBusinessOutputSchema.optional() });
+
+export function createWorkflow() {
+  return new StateGraph(State)
+    .addNode("understand", async (state) => ({ intent: { objective: state.input, missingFields: [] } }))
+    .addNode("collect_evidence", async () => ({ evidence: [] }))
+    .addNode("decide", async (state) => ({ output: { summary: "待业务实现", evidence: state.evidence ?? [], reviewRequired: true, warnings: ["模板不得进入正式流量"] } }))
+    .addEdge(START, "understand").addEdge("understand", "collect_evidence").addEdge("collect_evidence", "decide").addEdge("decide", END).compile();
+}
+

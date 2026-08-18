@@ -1,0 +1,6 @@
+import { z } from "zod/v4";
+
+export const AgentIntentSchema = z.object({ objective: z.string().min(1), missingFields: z.array(z.string()) });
+export const AgentEvidenceSchema = z.object({ sourceId: z.string().min(1), generatedAt: z.string().datetime({ offset: true }), fact: z.string().min(1) });
+export const AgentBusinessOutputSchema = z.object({ summary: z.string(), evidence: z.array(AgentEvidenceSchema), reviewRequired: z.boolean(), warnings: z.array(z.string()) });
+

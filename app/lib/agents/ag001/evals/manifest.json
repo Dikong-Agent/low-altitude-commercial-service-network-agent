@@ -1,0 +1,1 @@
+{"agent_id":"AG-001","suite":"four-agent-r0","central_dataset":"evals/four-agent-golden-cases.json","required_categories":["normal","conflict"]}

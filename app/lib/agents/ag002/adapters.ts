@@ -1,6 +1,7 @@
 import type { AgentInvokeRequest, ManualTopic } from "../../contracts";
 import type { CommonAIPlatformPort, CommonDomainDataPort } from "../../runtime-ports";
 import { DependencyUnavailableError } from "../../reliability";
+import { rankLegacyKnowledge } from "../../rag/legacy-bridge";
 import { DEMO_MANUALS } from "./catalog";
 import { AG002_CONFIG } from "./config";
 import { rankManualSections } from "./engine";
@@ -82,6 +83,7 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
   readonly capabilities = ["understanding", "retrieval", "ocr", "multimodal"] as const;
   async understandManualRequest(request: AgentInvokeRequest): Promise<ManualIntent> {
     const input = request.input.trim();
+    const visualReference = input.match(/(?:第\s*\d+\s*页[^，。；]{0,12})?(?:图(?:示|表)?\s*[A-Za-z0-9一二三四五六七八九十-]+|图中|图片|插图|标识)/i)?.[0] ?? null;
     const topics = topicRules.filter(([, rule]) => rule.test(input)).map(([topic]) => topic);
     const scenarios = scenarioRules.filter(([, rule]) => rule.test(input)).map(([scenario]) => scenario);
     const terms = knownTerms.filter(([, rule]) => rule.test(input)).map(([term]) => term);
@@ -92,14 +94,16 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
     }
     if (terms.length && !topics.includes("terminology")) topics.push("terminology");
 
-    const needsClarification = topics.length === 0;
+    const needsClarification = Boolean(visualReference) || topics.length === 0;
     return {
       manualId: manualIdFromContext(request),
       topics,
       scenarios,
       terms,
       needsClarification,
-      clarificationMessage: needsClarification
+      clarificationMessage: visualReference
+        ? `当前样例说明书只收录了预解析文字，未收录“${visualReference}”对应的原始图像、图注和标注关系，不能据此解释图中标识。请提供原始页面或等待正式文档解析与多模态能力接入。`
+        : needsClarification
         ? "请说明想了解的产品手册问题，例如飞行前检查、充电、维护、定位漂移、专业术语或合规要求。"
         : null,
     };
@@ -131,7 +135,14 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
   }
 
   async retrieveManualEvidence(document: ParsedManual, intent: ManualIntent, query: string): Promise<RankedManualSection[]> {
-    return rankManualSections(document, intent, query);
+    const common = await rankLegacyKnowledge("AG-002", [query, ...intent.topics, ...intent.scenarios, ...intent.terms].join(" "), document.sections.map((section) => ({
+      id: section.id, title: section.title, content: [section.text, section.plainLanguage, ...section.topics, ...section.scenarios, ...section.glossary.flatMap((item) => [item.term, ...item.aliases])].join(" "),
+      sourceUri: `demo-manual://${document.id}/${section.id}`, domain: "product-manual",
+    })));
+    const ranked = rankManualSections(document, intent, query);
+    const retrieved = common.ranks.size ? ranked.filter((item) => common.ranks.has(item.section.id)) : ranked;
+    if (retrieved[0]) retrieved[0].rag = { status: common.status, answer: common.answer, evidence: common.evidence, audit: common.audit };
+    return retrieved.sort((left, right) => left.section.pageStart - right.section.pageStart);
   }
 }
 

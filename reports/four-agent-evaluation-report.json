@@ -1,0 +1,157 @@
+{
+  "schema_version": "1.0",
+  "baseline": "FOUR-AGENT-20260817",
+  "evaluated_at": "2026-08-18T11:18:37.548Z",
+  "environment": "demo",
+  "source": "evals/four-agent-golden-cases.json",
+  "total": 16,
+  "passed": 16,
+  "failed": 0,
+  "results": [
+    {
+      "id": "FOUR-AG001-NORMAL-001",
+      "agent_id": "AG-001",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-7937D6F0-E316-4CAF-B52D-2244B2B88C7A",
+      "review_id": null,
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG001-RECOMMEND-001",
+      "agent_id": "AG-001",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-F5D0289F-1B0A-40B8-9F19-DDE4F1A79323",
+      "review_id": null,
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG001-CONFLICT-001",
+      "agent_id": "AG-001",
+      "category": "conflict",
+      "passed": true,
+      "trace_id": "TRC-1FE4C85A-88D8-4081-AC11-CBC2CFBF9BC7",
+      "review_id": "RVW-A97DC6FD-899F-4FD4-BD16-33A42C301004",
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG012-NORMAL-001",
+      "agent_id": "AG-012",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-3C43EEAC-8815-46A1-967E-BA208109E05A",
+      "review_id": null,
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG012-BOUNDARY-001",
+      "agent_id": "AG-012",
+      "category": "high_risk",
+      "passed": true,
+      "trace_id": "TRC-27B96755-F0B6-4859-A140-9CF3ABD0EA07",
+      "review_id": "RVW-CAAE337B-F8F1-45E8-9347-59B30BB31941",
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG025-ORDER-001",
+      "agent_id": "AG-025",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-8E80923E-4DD7-422C-9EC5-2337D89D912A",
+      "review_id": "RVW-A41D68E8-2536-4BB3-BBAC-04A4BB078E5A",
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG025-COLLAB-001",
+      "agent_id": "AG-025",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-E78C7D4A-2855-40C3-9010-E190D3AAE6AB",
+      "review_id": null,
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG025-BOUNDARY-001",
+      "agent_id": "AG-025",
+      "category": "high_risk",
+      "passed": true,
+      "trace_id": "TRC-35880D12-CAE4-4620-8CFE-C90FAC637439",
+      "review_id": "RVW-8E090DA3-7450-48F0-BD0A-A559E20FDC45",
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG027-NORMAL-001",
+      "agent_id": "AG-027",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-6FBDCA2E-B330-4EB8-A175-03D7C82FDD86",
+      "review_id": null,
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG027-COMPARE-001",
+      "agent_id": "AG-027",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-1D6D2ACB-B731-466F-B2D4-86488800055B",
+      "review_id": null,
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG027-AMBIGUOUS-001",
+      "agent_id": "AG-027",
+      "category": "metric_ambiguity",
+      "passed": true,
+      "trace_id": "TRC-D333EC9D-A0E6-467F-A34B-C5FB88E42A69",
+      "review_id": null,
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG027-QUALITY-001",
+      "agent_id": "AG-027",
+      "category": "data_quality",
+      "passed": true,
+      "trace_id": "TRC-5F36773A-CD33-4166-828E-4E4ECA86DBA5",
+      "review_id": "RVW-60045F3B-E94F-4E2B-B2AF-25C62EE74C4B",
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG027-NODATA-001",
+      "agent_id": "AG-027",
+      "category": "no_data",
+      "passed": true,
+      "trace_id": "TRC-AB3EEAAF-EF19-40CC-98BF-00E0DB517C24",
+      "review_id": null,
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG027-CAUSAL-001",
+      "agent_id": "AG-027",
+      "category": "causal_boundary",
+      "passed": true,
+      "trace_id": "TRC-8AF17995-E7DD-4D1A-8FC4-8CF971716380",
+      "review_id": "RVW-3A79638F-61D8-47D2-A7DD-2C68AEBEF6CE",
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG027-PERMISSION-001",
+      "agent_id": "AG-027",
+      "category": "permission",
+      "passed": true,
+      "trace_id": "TRC-21342AD9-D30A-4171-8E48-D475311F9BAD",
+      "review_id": "RVW-358704B7-8958-471E-B05C-6350F7AB4BB3",
+      "failures": []
+    },
+    {
+      "id": "FOUR-AG027-BOUNDARY-001",
+      "agent_id": "AG-027",
+      "category": "high_risk",
+      "passed": true,
+      "trace_id": "TRC-1C95968B-CEF8-424D-8FA3-07FEFD197D7D",
+      "review_id": "RVW-17D20056-23C8-4D2B-BE9D-F1E08DC915A1",
+      "failures": []
+    }
+  ],
+  "boundary": "四个重点业务Agent的工程黄金集；验证可重复业务行为、边界、人工复核和可追溯性，不代表甲方正式接口、真实数据效果或生产验收。"
+}

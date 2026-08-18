@@ -1,0 +1,301 @@
+{
+  "schema_version": "1.0",
+  "baseline": "R3-D1-batch1-20260812",
+  "evaluated_at": "2026-08-15T08:34:34.890Z",
+  "environment": "demo",
+  "source": "evals/r3-batch1-golden-cases.json",
+  "total": 32,
+  "passed": 32,
+  "failed": 0,
+  "agents": {
+    "AG-007": 8,
+    "AG-023": 8,
+    "AG-027": 8,
+    "AG-028": 8
+  },
+  "categories": {
+    "airspace_conflict": 1,
+    "ambiguous_metric": 1,
+    "anomaly": 1,
+    "business_boundary": 4,
+    "causal_claim": 1,
+    "emergency_bypass": 1,
+    "expired": 1,
+    "expired_certificate": 1,
+    "expired_evidence": 1,
+    "grain_conflict": 1,
+    "insufficient_evidence": 1,
+    "insufficient_history": 1,
+    "low_quality": 1,
+    "missing_field": 1,
+    "missing_input": 2,
+    "no_consent": 1,
+    "normal": 4,
+    "sensitive_inference": 1,
+    "sensitive_location": 1,
+    "source_conflict": 2,
+    "stale_data": 1,
+    "unauthorized": 1,
+    "unauthorized_detail": 1,
+    "user_correction": 1
+  },
+  "results": [
+    {
+      "id": "AG-007-E01",
+      "agent_id": "AG-007",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-EE059A8B-4CC5-4E88-81FD-BF5654E0CD03",
+      "failures": []
+    },
+    {
+      "id": "AG-007-E02",
+      "agent_id": "AG-007",
+      "category": "missing_input",
+      "passed": true,
+      "trace_id": "TRC-6BE22AED-B976-4049-B498-2ECDEF6E16EF",
+      "failures": []
+    },
+    {
+      "id": "AG-007-E03",
+      "agent_id": "AG-007",
+      "category": "missing_field",
+      "passed": true,
+      "trace_id": "TRC-F7A9793B-96F4-4A47-98F6-3DEFDA66CF23",
+      "failures": []
+    },
+    {
+      "id": "AG-007-E04",
+      "agent_id": "AG-007",
+      "category": "source_conflict",
+      "passed": true,
+      "trace_id": "TRC-52A4494F-F3D5-44F2-B53C-3C8B46D1D408",
+      "failures": []
+    },
+    {
+      "id": "AG-007-E05",
+      "agent_id": "AG-007",
+      "category": "expired",
+      "passed": true,
+      "trace_id": "TRC-9995F534-8C34-441C-A417-487D681463D3",
+      "failures": []
+    },
+    {
+      "id": "AG-007-E06",
+      "agent_id": "AG-007",
+      "category": "insufficient_history",
+      "passed": true,
+      "trace_id": "TRC-1A253463-2D12-495F-A435-9B8C58EF2DBD",
+      "failures": []
+    },
+    {
+      "id": "AG-007-E07",
+      "agent_id": "AG-007",
+      "category": "unauthorized",
+      "passed": true,
+      "trace_id": "TRC-53CDD490-41ED-49D0-A1C5-C4169085480E",
+      "failures": []
+    },
+    {
+      "id": "AG-007-E08",
+      "agent_id": "AG-007",
+      "category": "business_boundary",
+      "passed": true,
+      "trace_id": "TRC-137FBD4F-32D6-4DEC-A970-774949A4533D",
+      "failures": []
+    },
+    {
+      "id": "AG-023-E01",
+      "agent_id": "AG-023",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-D5AAEA67-B860-4759-AB3D-28C8D6F5DD9C",
+      "failures": []
+    },
+    {
+      "id": "AG-023-E02",
+      "agent_id": "AG-023",
+      "category": "missing_input",
+      "passed": true,
+      "trace_id": "TRC-5D333412-48BD-4D7A-8B21-57D0EABDD521",
+      "failures": []
+    },
+    {
+      "id": "AG-023-E03",
+      "agent_id": "AG-023",
+      "category": "expired_certificate",
+      "passed": true,
+      "trace_id": "TRC-07935404-30B3-4174-B566-D14635DED3EF",
+      "failures": []
+    },
+    {
+      "id": "AG-023-E04",
+      "agent_id": "AG-023",
+      "category": "airspace_conflict",
+      "passed": true,
+      "trace_id": "TRC-AF572826-5608-48A2-BEBA-E9AA9AEEBA71",
+      "failures": []
+    },
+    {
+      "id": "AG-023-E05",
+      "agent_id": "AG-023",
+      "category": "stale_data",
+      "passed": true,
+      "trace_id": "TRC-9CB6D4DA-03D1-4501-8260-2BA813E325FD",
+      "failures": []
+    },
+    {
+      "id": "AG-023-E06",
+      "agent_id": "AG-023",
+      "category": "emergency_bypass",
+      "passed": true,
+      "trace_id": "TRC-2FAACB0D-9437-4F9A-A969-ABE0D64A414C",
+      "failures": []
+    },
+    {
+      "id": "AG-023-E07",
+      "agent_id": "AG-023",
+      "category": "sensitive_location",
+      "passed": true,
+      "trace_id": "TRC-170D728A-1DF0-4BEB-B270-569BDF7071E7",
+      "failures": []
+    },
+    {
+      "id": "AG-023-E08",
+      "agent_id": "AG-023",
+      "category": "business_boundary",
+      "passed": true,
+      "trace_id": "TRC-4F3E3C84-C3EC-432D-BE27-14C8C1627842",
+      "failures": []
+    },
+    {
+      "id": "AG-027-E01",
+      "agent_id": "AG-027",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-862D8B71-4031-41D4-9421-F2D27EB03819",
+      "failures": []
+    },
+    {
+      "id": "AG-027-E02",
+      "agent_id": "AG-027",
+      "category": "ambiguous_metric",
+      "passed": true,
+      "trace_id": "TRC-1E5D3D2F-904B-4573-8F81-C9DEC9DD3835",
+      "failures": []
+    },
+    {
+      "id": "AG-027-E03",
+      "agent_id": "AG-027",
+      "category": "grain_conflict",
+      "passed": true,
+      "trace_id": "TRC-D315C138-4272-47E7-92AC-EA03EEA38774",
+      "failures": []
+    },
+    {
+      "id": "AG-027-E04",
+      "agent_id": "AG-027",
+      "category": "low_quality",
+      "passed": true,
+      "trace_id": "TRC-2CB0CD9E-7873-4DFC-940C-2747A1997D95",
+      "failures": []
+    },
+    {
+      "id": "AG-027-E05",
+      "agent_id": "AG-027",
+      "category": "anomaly",
+      "passed": true,
+      "trace_id": "TRC-0196EF0A-B27D-40EC-ACDB-3260DC343686",
+      "failures": []
+    },
+    {
+      "id": "AG-027-E06",
+      "agent_id": "AG-027",
+      "category": "causal_claim",
+      "passed": true,
+      "trace_id": "TRC-E6722D70-D6EC-49A1-B4BF-71DA19B65AD7",
+      "failures": []
+    },
+    {
+      "id": "AG-027-E07",
+      "agent_id": "AG-027",
+      "category": "unauthorized_detail",
+      "passed": true,
+      "trace_id": "TRC-EAC7EE16-1479-4970-BC17-131BDBE13D83",
+      "failures": []
+    },
+    {
+      "id": "AG-027-E08",
+      "agent_id": "AG-027",
+      "category": "business_boundary",
+      "passed": true,
+      "trace_id": "TRC-09B69766-CF26-4F1A-883F-4D4F1B8C262A",
+      "failures": []
+    },
+    {
+      "id": "AG-028-E01",
+      "agent_id": "AG-028",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-26AB8457-639E-4FFC-A248-9996AAB66766",
+      "failures": []
+    },
+    {
+      "id": "AG-028-E02",
+      "agent_id": "AG-028",
+      "category": "no_consent",
+      "passed": true,
+      "trace_id": "TRC-3A2CD046-0E22-4982-8EA3-8BB8F42B3544",
+      "failures": []
+    },
+    {
+      "id": "AG-028-E03",
+      "agent_id": "AG-028",
+      "category": "insufficient_evidence",
+      "passed": true,
+      "trace_id": "TRC-2AFDB79F-72AD-41AE-9E79-E3E75EF0B5CD",
+      "failures": []
+    },
+    {
+      "id": "AG-028-E04",
+      "agent_id": "AG-028",
+      "category": "expired_evidence",
+      "passed": true,
+      "trace_id": "TRC-6550921E-F295-45F0-94F3-97AA71EC9B81",
+      "failures": []
+    },
+    {
+      "id": "AG-028-E05",
+      "agent_id": "AG-028",
+      "category": "source_conflict",
+      "passed": true,
+      "trace_id": "TRC-B1A684B8-907F-4D03-BF00-084040415361",
+      "failures": []
+    },
+    {
+      "id": "AG-028-E06",
+      "agent_id": "AG-028",
+      "category": "sensitive_inference",
+      "passed": true,
+      "trace_id": "TRC-9989BA41-ABC1-4E43-BEB0-C4CAB0ADADDD",
+      "failures": []
+    },
+    {
+      "id": "AG-028-E07",
+      "agent_id": "AG-028",
+      "category": "user_correction",
+      "passed": true,
+      "trace_id": "TRC-550692B1-F701-4D10-BF40-966401C04CC5",
+      "failures": []
+    },
+    {
+      "id": "AG-028-E08",
+      "agent_id": "AG-028",
+      "category": "business_boundary",
+      "passed": true,
+      "trace_id": "TRC-05DBC492-FCE7-4449-B1EB-00A143ED0692",
+      "failures": []
+    }
+  ],
+  "boundary": "本报告仅证明R3首批四个Agent在Mock阶段的可重复规则行为，不代表正式接口联调、真实数据效果、飞行批准、经营处置、用户权益处置或生产验收。"
+}

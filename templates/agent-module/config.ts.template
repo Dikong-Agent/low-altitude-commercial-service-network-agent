@@ -1,0 +1,8 @@
+export const AGENT_CONFIG = {
+  workflowVersion: "1.0.0",
+  promptVersion: "AG-XXX-intent@1",
+  ruleVersion: "AG-XXX-rule@1",
+  timeoutPolicy: { totalTimeoutMs: 25_000, maxSynchronousMs: 15_000 },
+  reliability: { ai: { timeoutMs: 3_000, maxAttempts: 2 }, data: { timeoutMs: 3_000, maxAttempts: 2 } },
+} as const;
+

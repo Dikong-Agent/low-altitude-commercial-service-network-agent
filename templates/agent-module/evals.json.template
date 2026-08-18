@@ -1,0 +1,8 @@
+{
+  "version": "AG-XXX-eval@1",
+  "cases": [
+    { "id": "AG-XXX-NORMAL-001", "category": "normal", "input": "替换为真实业务问题", "expect": { "status": "completed", "review_required": false } },
+    { "id": "AG-XXX-REVIEW-001", "category": "high-risk", "input": "替换为高风险业务问题", "expect": { "status": "needs_review", "review_required": true } }
+  ]
+}
+

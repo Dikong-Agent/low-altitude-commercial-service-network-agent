@@ -18,6 +18,7 @@ import {
 } from "./api-guard";
 import { AISafetyError, assertSafeAgentOutput } from "./ai-safety";
 import { AsyncTaskConflictError, enqueueAgentTask } from "./async-runtime";
+import { AgentPolicyError } from "./agent-policy-errors";
 
 const MAX_REQUEST_BYTES = 20_000;
 
@@ -40,6 +41,15 @@ function responseEngine(response: AgentInvokeResponse): string {
     ?? response.output.comparison?.engine
     ?? response.output.manual?.engine
     ?? response.output.recommendation?.engine
+    ?? response.output.quote_comparison?.engine
+    ?? response.output.learning_recommendation?.engine
+    ?? response.output.price_lookup?.engine
+    ?? response.output.flight_service_match?.engine
+    ?? response.output.data_analysis?.engine
+    ?? response.output.user_features?.engine
+    ?? response.output.news_recommendation?.engine
+    ?? response.output.public_opinion?.engine
+    ?? response.output.precision_recommendation?.engine
     ?? "langgraph-demo";
 }
 
@@ -179,6 +189,11 @@ export async function handleAgentInvocation(request: Request, agentId: string): 
     const timedOut = !cancelled && error instanceof DependencyUnavailableError && /time budget|timed out/i.test(`${error.message} ${error.cause instanceof Error ? error.cause.message : ""}`);
     const dependencyFailure = error instanceof DependencyUnavailableError;
     const safetyFailure = error instanceof AISafetyError;
+    const policyFailure = error instanceof AgentPolicyError;
+    if (policyFailure) {
+      recordAgentRun({ traceId, agentId: definition.id, status: "failed", durationMs: Date.now() - startedAt, errorCode: error.code, versions: definition.versions, dependencies: execution.dependencySpans });
+      return runtimeErrorResponse(error.status, error.code, error.message, traceId);
+    }
     const errorCode = cancelled ? "REQUEST_CANCELLED" : timedOut ? "AGENT_TIMEOUT" : dependencyFailure ? "DEPENDENCY_UNAVAILABLE" : safetyFailure ? error.code : "WORKFLOW_FAILED";
     const event = {
       traceId,

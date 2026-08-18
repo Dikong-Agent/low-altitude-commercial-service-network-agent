@@ -2,8 +2,8 @@ import type { NumericDimension } from "./types";
 import { capabilityCoverageForAgent } from "../../capability-coverage";
 
 export const AG001_CONFIG = {
-  workflowVersion: "1.2.0",
-  ruleVersion: "AG-001 场景比较规则 v1.2",
+  workflowVersion: "1.4.0",
+  ruleVersion: "AG-001 约束驱动选型与证据质量规则 v1.4",
   maxCandidates: 3,
   reliability: {
     aiPlatform: { timeoutMs: 3_000, maxAttempts: 2, circuitFailureThreshold: 3, circuitResetMs: 30_000 },
@@ -11,17 +11,17 @@ export const AG001_CONFIG = {
   },
   capabilityCoverage: capabilityCoverageForAgent("AG-001"),
   scoring: {
-    base: 20,
-    focusWeight: 60,
-    scenarioAll: 20,
-    scenarioPartial: 10,
+    base: 10,
+    focusWeight: 45,
+    scenarioAll: 40,
+    scenarioPartial: 15,
     scenarioNone: 0,
-    noScenario: 10,
+    noScenario: 20,
     ineligibleCap: 49,
   },
   defaultFocus: {
     园区巡检: ["enduranceMinutes", "deliveryDays", "windResistanceMps", "priceYuan"],
-    山区巡检: ["windResistanceMps", "payloadKg", "enduranceMinutes"],
+    山区巡检: ["windResistanceMps", "payloadKg", "maxOperatingAltitudeM", "enduranceMinutes"],
     电力巡检: ["windResistanceMps", "enduranceMinutes", "payloadKg"],
     应急保障: ["payloadKg", "windResistanceMps", "deliveryDays"],
     物资投送: ["payloadKg", "windResistanceMps", "enduranceMinutes"],

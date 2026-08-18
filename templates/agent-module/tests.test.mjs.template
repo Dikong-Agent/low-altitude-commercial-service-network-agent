@@ -1,0 +1,6 @@
+import test from "node:test";
+
+test("AG-XXX covers normal, missing-data, conflict, unauthorized, dependency-failure, review and prompt-injection paths", async () => {
+  // 每个路径必须写出业务断言，不能只断言HTTP 200。
+});
+

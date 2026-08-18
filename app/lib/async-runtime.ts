@@ -1,11 +1,11 @@
-import type { AgentInvokeRequest } from "./contracts";
-import { getRuntimeAgentDefinition } from "./agent-runtime-registry";
-import { assertSafeAgentOutput } from "./ai-safety";
-import { persistAgentRun } from "./durable-state";
-import { recordAgentRun, toClientAgentResponse } from "./observability";
-import { createAgentExecutionContext, DependencyUnavailableError, runWithAgentExecutionContext } from "./reliability";
-import type { RequestIdentity } from "./request-identity";
-import { getRuntimeBindings, type D1Database } from "./runtime-bindings";
+import type { AgentInvokeRequest } from "./contracts.ts";
+import { getRuntimeAgentDefinition } from "./agent-runtime-registry.ts";
+import { assertSafeAgentOutput } from "./ai-safety.ts";
+import { persistAgentRun } from "./durable-state.ts";
+import { recordAgentRun, toClientAgentResponse } from "./observability.ts";
+import { createAgentExecutionContext, DependencyUnavailableError, runWithAgentExecutionContext } from "./reliability.ts";
+import type { RequestIdentity } from "./request-identity.ts";
+import { getRuntimeBindings, type D1Database } from "./runtime-bindings.ts";
 
 function retentionHours(name: string, fallback: number): number {
   const value = Number(process.env[name] ?? fallback);

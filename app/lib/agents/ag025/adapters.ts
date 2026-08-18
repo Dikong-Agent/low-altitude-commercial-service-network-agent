@@ -1,6 +1,8 @@
 import type { Ag025InvokeRequest, CustomerServiceDomainSchema, CustomerServiceIssueSchema } from "../../contracts";
 import type { z } from "zod/v4";
 import type { CommonAIPlatformPort, CommonDomainDataPort } from "../../runtime-ports";
+import { rankLegacyKnowledge } from "../../rag/legacy-bridge";
+import type { RagAugmentation } from "../../rag/contracts.ts";
 import { AG025_CONFIG } from "./config";
 import { DEMO_CUSTOMER_ORDERS, DEMO_CUSTOMER_PRODUCTS, DEMO_CUSTOMER_SERVICE_GUIDES, DEMO_CUSTOMER_SERVICE_KNOWLEDGE } from "./catalog";
 import type {
@@ -21,6 +23,7 @@ type Issue = z.infer<typeof CustomerServiceIssueSchema>;
 export interface RankedCustomerKnowledge {
   entry: CustomerServiceKnowledgeEntry;
   relevance: number;
+  rag?: RagAugmentation;
 }
 
 export interface AIPlatformPort extends CommonAIPlatformPort {
@@ -108,23 +111,33 @@ function detectDomains(input: string): Domain[] {
   if (/飞行服务|空域|航线|报备|飞行任务/.test(input)) domains.push("flight_service");
   if (/技术服务|调试|设备故障|技术支持/.test(input)) domains.push("technical_service");
   if (/投融资|融资|信贷|贷款|商业服务/.test(input)) domains.push("commercial_service");
-  if (/平台|会员|权益|支付方式|规则/.test(input)) domains.push("platform");
+  if (/平台|会员|权益|支付方式|规则|发票/.test(input)) domains.push("platform");
   return domains.length ? unique(domains) : ["unknown"];
 }
 
 function detectIssues(input: string): Issue[] {
   const issues: Issue[] = [];
-  if (/会员|权益|支付方式|平台规则|怎么付款/.test(input)) issues.push("general_rule");
+  if (/会员|权益|支付方式|平台规则|怎么付款|发票|平台.*规则/.test(input)) issues.push("general_rule");
   if (/购买|选型|推荐|产品|商品|无人机|云巡|山岳/.test(input)) issues.push("product");
   if (/订单|发货|物流|签收|到哪|状态/.test(input)) issues.push("order");
   if (/售后|退款|退货|换货|维修|故障|投诉处理/.test(input)) issues.push("after_sales");
   if (/飞行服务|技术服务|商业服务|空域|报备|航线/.test(input)) issues.push("service");
-  if (/投诉|不满|欺骗|一直不处理|曝光/.test(input)) issues.push("complaint");
+  if (/投诉|不满|欺骗|一直不处理|一直没解决|还是没解决|答非所问|曝光/.test(input)) issues.push("complaint");
   if (/投融资|融资|估值|投资机构/.test(input)) issues.push("finance");
   if (/信贷|贷款|授信|还款/.test(input)) issues.push("credit");
-  if (/经营数据|指标|日报|周报|月报|原因分析/.test(input)) issues.push("analytics");
-  if (/刷单|炒信|恶意差评|骚扰|威胁|辱骂|绕开平台/.test(input)) issues.push("violation");
+  if (/经营数据|指标|日报|周报|月报|原因分析|分析.*(?:订单量|交易量|销售额)|(?:订单量|交易量|销售额).*(?:原因|趋势|变化)|下降原因/.test(input)) issues.push("analytics");
+  if (/刷单|炒信|恶意差评|骚扰|威胁|辱骂|诈骗|冒充|异常收款|验证码|站外|绕开平台|私下交易|线下转账|加微信|身份证|银行卡|手机号|家庭住址|账号密码/.test(input)) issues.push("violation");
   return issues.length ? unique(issues) : ["unknown"];
+}
+
+function selectSpecialistAgent(input: string, issueTypes: Issue[], domains: Domain[]): Pick<CustomerServiceIntent, "specialistAgentId" | "specialistReason"> {
+  if (issueTypes.includes("analytics")) return { specialistAgentId: "AG-027", specialistReason: "经营指标与原因线索由数据智能分析Agent处理" };
+  if (issueTypes.includes("order")) return { specialistAgentId: null, specialistReason: "订单信息由智能客服通过只读业务数据端口解释，不再依赖独立订单Agent" };
+  if (/政策|法规|条例|标准|实名登记|飞行活动申请/.test(input)) return { specialistAgentId: "AG-012", specialistReason: "政策法规与标准问题由政策、标准解读Agent处理" };
+  if (domains.includes("flight_service")) return { specialistAgentId: null, specialistReason: "当前四样例范围只提供客服知识说明和政策核验，不提供飞行匹配或调度" };
+  if (domains.includes("technical_service")) return { specialistAgentId: null, specialistReason: "当前四样例范围未注册说明书解读能力，设备故障与操作安全问题需转专业人员处理" };
+  if (issueTypes.includes("product")) return { specialistAgentId: "AG-001", specialistReason: "商品型号比较与必要条件核验由产品型号对比Agent处理" };
+  return { specialistAgentId: null, specialistReason: null };
 }
 
 export class DemoAIPlatformAdapter implements AIPlatformPort {
@@ -135,7 +148,7 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
     const domains = detectDomains(input);
     const issueTypes = detectIssues(input);
     const wantsHuman = explicitHumanRequest(input);
-    const highRiskBoundary = issueTypes.some((issue) => ["finance", "credit", "analytics", "violation"].includes(issue));
+    const highRiskBoundary = issueTypes.some((issue) => ["finance", "credit", "violation"].includes(issue));
     const contextOrders = contextOrderIds(request);
     const inputOrders = textOrderIds(input);
     const explicitOrders = unique([...contextOrders, ...inputOrders]);
@@ -163,15 +176,16 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
       conflicts.push("正文商品型号与上下文商品型号不一致");
       missingFields.push("正文与上下文中的唯一商品型号");
     }
-    if (!orderConflict && issueTypes.includes("order") && orderIds.length !== 1) missingFields.push(orderIds.length > 1 ? "需要确认唯一订单号" : "订单号");
+    if (!orderConflict && issueTypes.includes("order") && !issueTypes.includes("analytics") && orderIds.length !== 1) missingFields.push(orderIds.length > 1 ? "需要确认唯一订单号" : "订单号");
     const unknown = issueTypes.length === 1 && issueTypes[0] === "unknown";
     if (unknown) missingFields.push("具体问题或业务板块");
+    const specialist = selectSpecialistAgent(input, issueTypes, domains);
 
     let route: CustomerServiceIntent["route"] = "knowledge_answer";
     if (wantsHuman || issueTypes.includes("complaint") || highRiskBoundary) route = "human_handoff";
     else if (missingFields.length) route = "clarification";
-    else if (issueTypes.includes("order") || productModels.length) route = "business_data";
-    else if (issueTypes.includes("product") || issueTypes.includes("service")) route = "specialist_agent";
+    else if (specialist.specialistAgentId) route = "specialist_agent";
+    else if (productModels.length) route = "business_data";
     else if (unknown) route = "clarification";
 
     const needsClarification = route === "clarification";
@@ -185,16 +199,48 @@ export class DemoAIPlatformAdapter implements AIPlatformPort {
       needsClarification,
       clarificationMessage: needsClarification ? `请补充${missingFields.join("、")}，我再选择正确的客服处理路径。` : null,
       explicitHumanRequest: wantsHuman, highRiskBoundary, priorContextUsed, conflicts, complaintElements,
+      specialistAgentId: route === "human_handoff" ? null : specialist.specialistAgentId,
+      specialistReason: route === "human_handoff" ? null : specialist.specialistReason,
     };
   }
 
   async rankCustomerKnowledge(entries: CustomerServiceKnowledgeEntry[], intent: CustomerServiceIntent, query: string): Promise<RankedCustomerKnowledge[]> {
-    return entries.map((entry) => {
+    const directCandidates = entries.filter((entry) => {
+      const restrictedIssue = ["finance", "credit", "complaint", "violation"].includes(entry.issueType);
+      const issueCompatible = !restrictedIssue || intent.issueTypes.includes(entry.issueType);
+      return issueCompatible && entry.keywords.some((keyword) => query.includes(keyword));
+    });
+    const common = await rankLegacyKnowledge("AG-025", [query, ...intent.domains, ...intent.issueTypes].join(" "), directCandidates.map((entry) => ({
+      id: entry.id, title: entry.title, content: [entry.answer, ...entry.keywords, entry.domain, entry.issueType].join(" "), sourceUri: entry.sourceRef, domain: "faq",
+    })));
+    const directIds = new Set(directCandidates.map((entry) => entry.id));
+    const directEvidence = common.evidence.filter((item) => directIds.has(item.chunkId.split(":").at(-1) ?? item.chunkId));
+    const directEvidenceIds = new Set(directEvidence.map((item) => item.chunkId));
+    const directClaims = common.answer?.claims.filter((claim) => claim.evidenceChunkIds.every((id) => directEvidenceIds.has(id))) ?? [];
+    const directRag = {
+      ...common,
+      status: directEvidence.length === 0 ? "insufficient_evidence" as const : common.status === "completed" && directClaims.length === 0 ? "evidence_only" as const : common.status,
+      answer: common.answer && directClaims.length ? { ...common.answer, claims: directClaims, reviewRequired: common.answer.reviewRequired || directClaims.length !== common.answer.claims.length } : undefined,
+      evidence: directEvidence,
+      ranks: new Map([...common.ranks].filter(([id]) => directIds.has(id.split(":").at(-1) ?? id))),
+      audit: {
+        ...common.audit,
+        lexicalEvidenceCount: directEvidence.filter((item) => item.scores.lexical !== undefined).length,
+        vectorEvidenceCount: directEvidence.filter((item) => item.scores.vector !== undefined).length,
+      },
+    };
+    const ranked: RankedCustomerKnowledge[] = directCandidates.map((entry) => {
       const keywordHits = entry.keywords.filter((keyword) => query.includes(keyword)).length;
       const issueHit = intent.issueTypes.includes(entry.issueType) ? 1 : 0;
       const domainHit = intent.domains.includes(entry.domain) ? 1 : 0;
-      return { entry, relevance: Math.min(1, 0.28 + keywordHits * 0.18 + issueHit * 0.24 + domainHit * 0.16) };
-    }).filter((item) => item.relevance >= 0.46).sort((a, b) => b.relevance - a.relevance).slice(0, AG025_CONFIG.maxKnowledgeMatches);
+      return { entry, relevance: Math.min(1, 0.28 + keywordHits * 0.18 + issueHit * 0.24 + domainHit * 0.16), keywordHits };
+    }).filter((item) => item.relevance >= 0.46 && item.keywordHits > 0)
+      .sort((a, b) => b.relevance - a.relevance)
+      .slice(0, AG025_CONFIG.maxKnowledgeMatches)
+      .map(({ entry, relevance }) => ({ entry, relevance }));
+    const retrieved = directRag.ranks.size ? ranked.filter((item) => directRag.ranks.has(item.entry.id)) : ranked;
+    if (retrieved[0]) retrieved[0].rag = directRag;
+    return retrieved;
   }
 }
 
@@ -205,7 +251,7 @@ export class MockCustomerServiceDataAdapter implements CustomerServiceDataPort {
     const matches = DEMO_CUSTOMER_SERVICE_KNOWLEDGE.filter((entry) =>
       intent.issueTypes.includes(entry.issueType) || intent.domains.includes(entry.domain) || entry.keywords.some((keyword) => query.includes(keyword)),
     );
-    return structuredClone((matches.length ? matches : DEMO_CUSTOMER_SERVICE_KNOWLEDGE.filter((entry) => entry.issueType === "general_rule")).slice(0, limit));
+    return structuredClone(matches.slice(0, limit));
   }
 
   async getOrders(ids: string[], accessScope: CustomerAccessScope): Promise<CustomerOrderSnapshot[]> {

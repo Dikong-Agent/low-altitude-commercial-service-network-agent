@@ -1,7 +1,7 @@
 import type { RequestIdentity } from "./request-identity";
 
 export type AIPlatformCapability = "understanding" | "generation" | "retrieval" | "reranking" | "ocr" | "multimodal";
-export type DomainKind = "product" | "document" | "policy" | "customer-service" | "conversation";
+export type DomainKind = "product" | "document" | "policy" | "customer-service" | "conversation" | "maintenance" | "flight-knowledge" | "flight-service" | "product-content" | "order-progress" | "insurance" | "writing-material" | "intelligence-content" | "contract" | "analytics" | "user-feature" | "content-recommendation" | "public-opinion" | "precision-recommendation";
 
 /** Trusted context shared by every Agent port. It is created by the runtime, never by the browser. */
 export interface AgentAccessContext {

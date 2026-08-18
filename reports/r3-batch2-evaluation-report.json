@@ -1,0 +1,230 @@
+{
+  "schema_version": "1.0",
+  "baseline": "R3-D1-batch2-20260812",
+  "evaluated_at": "2026-08-15T08:34:35.646Z",
+  "environment": "demo",
+  "source": "evals/r3-batch2-golden-cases.json",
+  "total": 24,
+  "passed": 24,
+  "failed": 0,
+  "agents": {
+    "AG-016": 8,
+    "AG-017": 8,
+    "AG-026": 8
+  },
+  "categories": {
+    "business_boundary": 3,
+    "cold_start": 1,
+    "cross_domain": 1,
+    "diversity": 1,
+    "duplicate": 2,
+    "expired": 1,
+    "hard_constraint": 1,
+    "high_risk": 1,
+    "insufficient_sample": 1,
+    "malicious_claim": 1,
+    "missing_field": 2,
+    "missing_input": 1,
+    "normal": 3,
+    "risk_snapshot": 1,
+    "sarcasm": 1,
+    "sensitive_attribute": 1,
+    "source_conflict": 1,
+    "unauthorized": 1
+  },
+  "results": [
+    {
+      "id": "AG-016-E01",
+      "agent_id": "AG-016",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-727837B7-038E-4338-B871-731D6C96175A",
+      "failures": []
+    },
+    {
+      "id": "AG-016-E02",
+      "agent_id": "AG-016",
+      "category": "unauthorized",
+      "passed": true,
+      "trace_id": "TRC-084FFD8C-2A5C-4DDF-9DF5-C26D28450A3A",
+      "failures": []
+    },
+    {
+      "id": "AG-016-E03",
+      "agent_id": "AG-016",
+      "category": "missing_input",
+      "passed": true,
+      "trace_id": "TRC-B69CC265-290D-436F-A9D5-65D1F63A521C",
+      "failures": []
+    },
+    {
+      "id": "AG-016-E04",
+      "agent_id": "AG-016",
+      "category": "expired",
+      "passed": true,
+      "trace_id": "TRC-1A797040-0ADA-4032-A2FF-B7B1EC7A438B",
+      "failures": []
+    },
+    {
+      "id": "AG-016-E05",
+      "agent_id": "AG-016",
+      "category": "duplicate",
+      "passed": true,
+      "trace_id": "TRC-29E9CA72-7D18-4734-814B-7CA6A52151B9",
+      "failures": []
+    },
+    {
+      "id": "AG-016-E06",
+      "agent_id": "AG-016",
+      "category": "diversity",
+      "passed": true,
+      "trace_id": "TRC-85916A34-D924-4DED-BD9A-EFF6E9A9D36D",
+      "failures": []
+    },
+    {
+      "id": "AG-016-E07",
+      "agent_id": "AG-016",
+      "category": "risk_snapshot",
+      "passed": true,
+      "trace_id": "TRC-C5A1BE1D-D5C8-4EFB-8524-DB7A833265A9",
+      "failures": []
+    },
+    {
+      "id": "AG-016-E08",
+      "agent_id": "AG-016",
+      "category": "business_boundary",
+      "passed": true,
+      "trace_id": "TRC-A8008C59-FE48-4AD2-8C69-F720BC1233BC",
+      "failures": []
+    },
+    {
+      "id": "AG-017-E01",
+      "agent_id": "AG-017",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-0015A40F-1C1F-4239-BFAB-2C1127AFCD8A",
+      "failures": []
+    },
+    {
+      "id": "AG-017-E02",
+      "agent_id": "AG-017",
+      "category": "missing_field",
+      "passed": true,
+      "trace_id": "TRC-13BD0A93-EEBB-4429-8C20-F58B7D3A3C3A",
+      "failures": []
+    },
+    {
+      "id": "AG-017-E03",
+      "agent_id": "AG-017",
+      "category": "duplicate",
+      "passed": true,
+      "trace_id": "TRC-A3EBF73D-E88D-4E5F-831F-52DF12CA3208",
+      "failures": []
+    },
+    {
+      "id": "AG-017-E04",
+      "agent_id": "AG-017",
+      "category": "sarcasm",
+      "passed": true,
+      "trace_id": "TRC-9C976FAC-BF2B-442D-A487-0E669DF6874E",
+      "failures": []
+    },
+    {
+      "id": "AG-017-E05",
+      "agent_id": "AG-017",
+      "category": "malicious_claim",
+      "passed": true,
+      "trace_id": "TRC-46EA4CF9-87D8-4941-B7EC-D774C0FCC72D",
+      "failures": []
+    },
+    {
+      "id": "AG-017-E06",
+      "agent_id": "AG-017",
+      "category": "insufficient_sample",
+      "passed": true,
+      "trace_id": "TRC-588A50FB-CFC2-4FBD-94F5-D6BB3E6B8028",
+      "failures": []
+    },
+    {
+      "id": "AG-017-E07",
+      "agent_id": "AG-017",
+      "category": "source_conflict",
+      "passed": true,
+      "trace_id": "TRC-84022927-3743-451B-86C7-EFB3CC9D9B6F",
+      "failures": []
+    },
+    {
+      "id": "AG-017-E08",
+      "agent_id": "AG-017",
+      "category": "business_boundary",
+      "passed": true,
+      "trace_id": "TRC-850C51C1-BC52-4719-A14A-A5E3360F8C2C",
+      "failures": []
+    },
+    {
+      "id": "AG-026-E01",
+      "agent_id": "AG-026",
+      "category": "normal",
+      "passed": true,
+      "trace_id": "TRC-48C3227B-847A-427C-83F8-74557F2667A4",
+      "failures": []
+    },
+    {
+      "id": "AG-026-E02",
+      "agent_id": "AG-026",
+      "category": "cold_start",
+      "passed": true,
+      "trace_id": "TRC-25864B37-994F-49D3-A989-C86652B1E3C9",
+      "failures": []
+    },
+    {
+      "id": "AG-026-E03",
+      "agent_id": "AG-026",
+      "category": "hard_constraint",
+      "passed": true,
+      "trace_id": "TRC-61DB4C72-1749-4567-95EC-7A210A27D3B2",
+      "failures": []
+    },
+    {
+      "id": "AG-026-E04",
+      "agent_id": "AG-026",
+      "category": "missing_field",
+      "passed": true,
+      "trace_id": "TRC-BCBB87AA-D891-4C29-B4AE-A48D6C7917D1",
+      "failures": []
+    },
+    {
+      "id": "AG-026-E05",
+      "agent_id": "AG-026",
+      "category": "cross_domain",
+      "passed": true,
+      "trace_id": "TRC-CDFA0038-3E26-45DC-A5D8-85FCE0F24D53",
+      "failures": []
+    },
+    {
+      "id": "AG-026-E06",
+      "agent_id": "AG-026",
+      "category": "high_risk",
+      "passed": true,
+      "trace_id": "TRC-0EB322F9-0E33-45F4-B910-B3E44AD8CEDF",
+      "failures": []
+    },
+    {
+      "id": "AG-026-E07",
+      "agent_id": "AG-026",
+      "category": "sensitive_attribute",
+      "passed": true,
+      "trace_id": "TRC-45401FCF-DCB8-43C8-989F-B7812027F96D",
+      "failures": []
+    },
+    {
+      "id": "AG-026-E08",
+      "agent_id": "AG-026",
+      "category": "business_boundary",
+      "passed": true,
+      "trace_id": "TRC-6F351AB5-CF9F-457A-BB0C-46BD5644E39B",
+      "failures": []
+    }
+  ],
+  "boundary": "本报告仅证明R3第二批三个Agent在Mock阶段的可重复规则行为，不代表正式接口联调、真实数据效果、业务处置或生产验收。"
+}

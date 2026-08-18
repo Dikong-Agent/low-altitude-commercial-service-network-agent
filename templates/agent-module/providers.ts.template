@@ -1,0 +1,12 @@
+import type { RequestIdentity } from "../../app/lib/request-identity";
+import { DependencyUnavailableError } from "../../app/lib/reliability";
+import type { AgentAIPlatformPort, AgentBusinessDataPort } from "./adapters";
+
+export interface AgentDependencies { ai: AgentAIPlatformPort; data: AgentBusinessDataPort; environment: "demo" | "production"; providerName: string }
+type Factory = (identity?: RequestIdentity) => AgentDependencies;
+const factories = new Map<string, Factory>();
+export function registerProvider(name: string, factory: Factory) { factories.set(name, factory); }
+export function resolveProvider(name = process.env.AGXXX_PROVIDER ?? "demo", identity?: RequestIdentity) {
+  const factory = factories.get(name); if (!factory) throw new DependencyUnavailableError("agxxx.provider", `Unknown provider: ${name}`); return factory(identity);
+}
+

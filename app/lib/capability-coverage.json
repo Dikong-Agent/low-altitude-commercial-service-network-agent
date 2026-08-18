@@ -993,5 +993,2143 @@
       "source_requirement_id": "85",
       "capability": "人工转接原因趋势分析"
     }
+  ],
+  "AG-004": [
+    {
+      "function_id": "F-0031",
+      "source_requirement_id": "232",
+      "capability": "配件使用场景识别"
+    },
+    {
+      "function_id": "F-0032",
+      "source_requirement_id": "232",
+      "capability": "性能需求识别"
+    },
+    {
+      "function_id": "F-0033",
+      "source_requirement_id": "232",
+      "capability": "预算条件识别"
+    },
+    {
+      "function_id": "F-0034",
+      "source_requirement_id": "206",
+      "capability": "候选配件语义匹配"
+    },
+    {
+      "function_id": "F-0035",
+      "source_requirement_id": "232",
+      "capability": "整机型号与配件兼容性判断"
+    },
+    {
+      "function_id": "F-0036",
+      "source_requirement_id": "232",
+      "capability": "配件接口规格适配判断"
+    },
+    {
+      "function_id": "F-0037",
+      "source_requirement_id": "206",
+      "capability": "配件软件版本适配判断"
+    },
+    {
+      "function_id": "F-0038",
+      "source_requirement_id": "85",
+      "capability": "配件固件版本适配判断"
+    },
+    {
+      "function_id": "F-0039",
+      "source_requirement_id": "206",
+      "capability": "配件使用场景适配判断"
+    },
+    {
+      "function_id": "F-0040",
+      "source_requirement_id": "232",
+      "capability": "配件组合冲突识别"
+    },
+    {
+      "function_id": "F-0041",
+      "source_requirement_id": "166",
+      "capability": "配件价格适用条件解释"
+    },
+    {
+      "function_id": "F-0042",
+      "source_requirement_id": "166",
+      "capability": "配件需求可满足性判断"
+    },
+    {
+      "function_id": "F-0043",
+      "source_requirement_id": "232",
+      "capability": "配件组合推荐"
+    },
+    {
+      "function_id": "F-0044",
+      "source_requirement_id": "232",
+      "capability": "替代配件方案推荐"
+    },
+    {
+      "function_id": "F-0045",
+      "source_requirement_id": "206",
+      "capability": "配件适配依据说明"
+    },
+    {
+      "function_id": "F-0046",
+      "source_requirement_id": "232",
+      "capability": "配件不适配原因解释"
+    },
+    {
+      "function_id": "F-0047",
+      "source_requirement_id": "206",
+      "capability": "配件不适配使用风险说明"
+    },
+    {
+      "function_id": "F-0217",
+      "source_requirement_id": "85",
+      "capability": "配件安装步骤指导"
+    },
+    {
+      "function_id": "F-0218",
+      "source_requirement_id": "85",
+      "capability": "配件使用注意事项说明"
+    }
+  ],
+  "AG-005": [
+    {
+      "function_id": "F-0474",
+      "source_requirement_id": "123",
+      "capability": "可比报价对象语义匹配"
+    },
+    {
+      "function_id": "F-0475",
+      "source_requirement_id": "123",
+      "capability": "跨供应商报价口径语义对齐"
+    },
+    {
+      "function_id": "F-0476",
+      "source_requirement_id": "123",
+      "capability": "可用供应商报价候选识别"
+    },
+    {
+      "function_id": "F-0477",
+      "source_requirement_id": "123",
+      "capability": "综合采购成本对比"
+    },
+    {
+      "function_id": "F-0478",
+      "source_requirement_id": "123",
+      "capability": "交付承诺对比"
+    },
+    {
+      "function_id": "F-0479",
+      "source_requirement_id": "123",
+      "capability": "质保与服务条款对比"
+    },
+    {
+      "function_id": "F-0480",
+      "source_requirement_id": "123",
+      "capability": "采购报价差异结论生成"
+    }
+  ],
+  "AG-010": [
+    {
+      "function_id": "F-0063",
+      "source_requirement_id": "330",
+      "capability": "视频观看特征识别"
+    },
+    {
+      "function_id": "F-0064",
+      "source_requirement_id": "330",
+      "capability": "用户学习基础识别"
+    },
+    {
+      "function_id": "F-0065",
+      "source_requirement_id": "330",
+      "capability": "培训视频主题候选匹配"
+    },
+    {
+      "function_id": "F-0066",
+      "source_requirement_id": "330",
+      "capability": "培训难度匹配"
+    },
+    {
+      "function_id": "F-0067",
+      "source_requirement_id": "330",
+      "capability": "视频候选有效性判断"
+    },
+    {
+      "function_id": "F-0068",
+      "source_requirement_id": "330",
+      "capability": "视频推荐评分"
+    },
+    {
+      "function_id": "F-0069",
+      "source_requirement_id": "330",
+      "capability": "培训视频推荐排序"
+    },
+    {
+      "function_id": "F-0070",
+      "source_requirement_id": "330",
+      "capability": "视频推荐依据生成"
+    },
+    {
+      "function_id": "F-0071",
+      "source_requirement_id": "330",
+      "capability": "视频推荐反馈评价"
+    },
+    {
+      "function_id": "F-0072",
+      "source_requirement_id": "332",
+      "capability": "活动需求识别"
+    },
+    {
+      "function_id": "F-0073",
+      "source_requirement_id": "332",
+      "capability": "活动类型匹配"
+    },
+    {
+      "function_id": "F-0074",
+      "source_requirement_id": "332",
+      "capability": "活动参与时段适配判断"
+    },
+    {
+      "function_id": "F-0075",
+      "source_requirement_id": "332",
+      "capability": "活动参与地域适配判断"
+    },
+    {
+      "function_id": "F-0076",
+      "source_requirement_id": "332",
+      "capability": "活动候选推荐"
+    },
+    {
+      "function_id": "F-0077",
+      "source_requirement_id": "332",
+      "capability": "活动推荐依据生成"
+    },
+    {
+      "function_id": "F-0078",
+      "source_requirement_id": "332",
+      "capability": "活动推荐反馈评价"
+    }
+  ],
+  "AG-019": [
+    {
+      "function_id": "F-0447",
+      "source_requirement_id": "272",
+      "capability": "资讯重复内容识别"
+    },
+    {
+      "function_id": "F-0637",
+      "source_requirement_id": "266",
+      "capability": "标讯重复候选识别"
+    },
+    {
+      "function_id": "F-0668",
+      "source_requirement_id": "317",
+      "capability": "社区帖子重复候选识别"
+    }
+  ],
+  "AG-008": [
+    {
+      "function_id": "F-0059",
+      "source_requirement_id": "85",
+      "capability": "已购产品维护对象理解"
+    },
+    {
+      "function_id": "F-0060",
+      "source_requirement_id": "85",
+      "capability": "产品保养阶段综合判断"
+    },
+    {
+      "function_id": "F-0061",
+      "source_requirement_id": "85",
+      "capability": "保养耗材更换建议"
+    },
+    {
+      "function_id": "F-0062",
+      "source_requirement_id": "85",
+      "capability": "保养更换件建议"
+    },
+    {
+      "function_id": "F-0130",
+      "source_requirement_id": "240",
+      "capability": "故障表现严重程度辅助判断"
+    },
+    {
+      "function_id": "F-0131",
+      "source_requirement_id": "240",
+      "capability": "维修优先级建议"
+    },
+    {
+      "function_id": "F-0132",
+      "source_requirement_id": "240",
+      "capability": "维修服务匹配"
+    },
+    {
+      "function_id": "F-0219",
+      "source_requirement_id": "85",
+      "capability": "维护机型条件理解"
+    },
+    {
+      "function_id": "F-0220",
+      "source_requirement_id": "85",
+      "capability": "维护使用环境理解"
+    },
+    {
+      "function_id": "F-0221",
+      "source_requirement_id": "85",
+      "capability": "整机通用维护建议生成"
+    },
+    {
+      "function_id": "F-0222",
+      "source_requirement_id": "85",
+      "capability": "检查周期建议生成"
+    },
+    {
+      "function_id": "F-0223",
+      "source_requirement_id": "85",
+      "capability": "电池维护建议生成"
+    },
+    {
+      "function_id": "F-0224",
+      "source_requirement_id": "85",
+      "capability": "电机维护建议生成"
+    },
+    {
+      "function_id": "F-0225",
+      "source_requirement_id": "85",
+      "capability": "飞控维护建议生成"
+    },
+    {
+      "function_id": "F-0226",
+      "source_requirement_id": "85",
+      "capability": "机身维护建议生成"
+    },
+    {
+      "function_id": "F-0227",
+      "source_requirement_id": "85",
+      "capability": "载荷维护建议生成"
+    },
+    {
+      "function_id": "F-0228",
+      "source_requirement_id": "85",
+      "capability": "低温环境维护建议生成"
+    },
+    {
+      "function_id": "F-0229",
+      "source_requirement_id": "85",
+      "capability": "高湿环境维护建议生成"
+    },
+    {
+      "function_id": "F-0230",
+      "source_requirement_id": "85",
+      "capability": "高温环境维护建议生成"
+    },
+    {
+      "function_id": "F-0231",
+      "source_requirement_id": "85",
+      "capability": "沙尘环境维护建议生成"
+    },
+    {
+      "function_id": "F-0232",
+      "source_requirement_id": "85",
+      "capability": "产品售后保障条款要点提取"
+    },
+    {
+      "function_id": "F-0233",
+      "source_requirement_id": "85",
+      "capability": "产品售后保障范围场景解释"
+    },
+    {
+      "function_id": "F-0234",
+      "source_requirement_id": "85",
+      "capability": "产品售后办理注意事项生成"
+    },
+    {
+      "function_id": "F-0235",
+      "source_requirement_id": "85",
+      "capability": "专业维修资料要点提取"
+    },
+    {
+      "function_id": "F-0236",
+      "source_requirement_id": "85",
+      "capability": "维修服务资料要点提取"
+    },
+    {
+      "function_id": "F-0281",
+      "source_requirement_id": "240",
+      "capability": "飞行器维修保障服务范围解释"
+    },
+    {
+      "function_id": "F-0282",
+      "source_requirement_id": "240",
+      "capability": "飞行器维修保障材料清单生成"
+    },
+    {
+      "function_id": "F-0284",
+      "source_requirement_id": "240",
+      "capability": "飞行器维修保障办理注意事项生成"
+    }
+  ],
+  "AG-014": [
+    {
+      "function_id": "F-0267",
+      "source_requirement_id": "241",
+      "capability": "监管平台适用性判断"
+    },
+    {
+      "function_id": "F-0268",
+      "source_requirement_id": "241",
+      "capability": "飞行信息来源说明"
+    },
+    {
+      "function_id": "F-0269",
+      "source_requirement_id": "241",
+      "capability": "飞行信息时效说明"
+    }
+  ],
+  "AG-020": [
+    {
+      "function_id": "F-0607",
+      "source_requirement_id": "166",
+      "capability": "商品资料语义理解"
+    },
+    {
+      "function_id": "F-0608",
+      "source_requirement_id": "166",
+      "capability": "商品目标受众识别"
+    },
+    {
+      "function_id": "F-0609",
+      "source_requirement_id": "166",
+      "capability": "商品使用场景识别"
+    },
+    {
+      "function_id": "F-0610",
+      "source_requirement_id": "166",
+      "capability": "商品核心卖点提炼"
+    },
+    {
+      "function_id": "F-0611",
+      "source_requirement_id": "166",
+      "capability": "商品参数场景化表达生成"
+    },
+    {
+      "function_id": "F-0612",
+      "source_requirement_id": "166",
+      "capability": "商品图文介绍结构生成"
+    },
+    {
+      "function_id": "F-0613",
+      "source_requirement_id": "166",
+      "capability": "商品图文介绍文案生成"
+    },
+    {
+      "function_id": "F-0614",
+      "source_requirement_id": "166",
+      "capability": "商品图文事实依据缺口识别"
+    },
+    {
+      "function_id": "F-0624",
+      "source_requirement_id": "148",
+      "capability": "商品图片质量问题识别"
+    },
+    {
+      "function_id": "F-0625",
+      "source_requirement_id": "148",
+      "capability": "商品图片清晰度优化"
+    },
+    {
+      "function_id": "F-0626",
+      "source_requirement_id": "148",
+      "capability": "商品图片曝光优化"
+    },
+    {
+      "function_id": "F-0627",
+      "source_requirement_id": "148",
+      "capability": "商品图片色彩优化"
+    },
+    {
+      "function_id": "F-0628",
+      "source_requirement_id": "196",
+      "capability": "商品图片展示场景适配建议"
+    },
+    {
+      "function_id": "F-0629",
+      "source_requirement_id": "196",
+      "capability": "商品图片背景优化建议"
+    },
+    {
+      "function_id": "F-0630",
+      "source_requirement_id": "196",
+      "capability": "商品图片构图优化建议"
+    },
+    {
+      "function_id": "F-0631",
+      "source_requirement_id": "148",
+      "capability": "商品图片处理前后一致性辅助判断"
+    }
+  ],
+  "AG-006": [
+    {
+      "function_id": "F-0481",
+      "source_requirement_id": "175",
+      "capability": "订单履约阶段解读"
+    },
+    {
+      "function_id": "F-0482",
+      "source_requirement_id": "175",
+      "capability": "物流节点语义解读"
+    },
+    {
+      "function_id": "F-0483",
+      "source_requirement_id": "175",
+      "capability": "订单履约环节异常识别"
+    },
+    {
+      "function_id": "F-0484",
+      "source_requirement_id": "175",
+      "capability": "物流运输延误风险辅助判断"
+    },
+    {
+      "function_id": "F-0485",
+      "source_requirement_id": "175",
+      "capability": "预计交付承诺偏差辅助判断"
+    },
+    {
+      "function_id": "F-0486",
+      "source_requirement_id": "175",
+      "capability": "订单履约异常原因解释"
+    },
+    {
+      "function_id": "F-0487",
+      "source_requirement_id": "175",
+      "capability": "物流后续进展预测解释"
+    },
+    {
+      "function_id": "F-0488",
+      "source_requirement_id": "175",
+      "capability": "物流异常后续处理建议"
+    }
+  ],
+  "AG-009": [
+    {
+      "function_id": "F-0104",
+      "source_requirement_id": "362",
+      "capability": "保险关注特征识别"
+    },
+    {
+      "function_id": "F-0105",
+      "source_requirement_id": "362",
+      "capability": "保障需求识别"
+    },
+    {
+      "function_id": "F-0106",
+      "source_requirement_id": "362",
+      "capability": "保险产品条件匹配"
+    },
+    {
+      "function_id": "F-0107",
+      "source_requirement_id": "362",
+      "capability": "保障缺口分析"
+    },
+    {
+      "function_id": "F-0108",
+      "source_requirement_id": "362",
+      "capability": "免责条件适用性判断"
+    },
+    {
+      "function_id": "F-0109",
+      "source_requirement_id": "362",
+      "capability": "保险适配候选方案生成"
+    },
+    {
+      "function_id": "F-0110",
+      "source_requirement_id": "362",
+      "capability": "保障方案差异比较"
+    },
+    {
+      "function_id": "F-0111",
+      "source_requirement_id": "362",
+      "capability": "保险推荐依据生成"
+    },
+    {
+      "function_id": "F-0112",
+      "source_requirement_id": "362",
+      "capability": "保险推荐待人工确认事项生成"
+    },
+    {
+      "function_id": "F-0251",
+      "source_requirement_id": "361",
+      "capability": "保险问题识别"
+    },
+    {
+      "function_id": "F-0252",
+      "source_requirement_id": "361",
+      "capability": "投保条件场景解答"
+    },
+    {
+      "function_id": "F-0253",
+      "source_requirement_id": "361",
+      "capability": "险种保障要点场景解答"
+    },
+    {
+      "function_id": "F-0254",
+      "source_requirement_id": "361",
+      "capability": "投保条款依据关联"
+    },
+    {
+      "function_id": "F-0255",
+      "source_requirement_id": "361",
+      "capability": "理赔范围解答"
+    },
+    {
+      "function_id": "F-0256",
+      "source_requirement_id": "361",
+      "capability": "理赔材料清单生成"
+    },
+    {
+      "function_id": "F-0257",
+      "source_requirement_id": "361",
+      "capability": "理赔材料补正问题解答"
+    },
+    {
+      "function_id": "F-0258",
+      "source_requirement_id": "361",
+      "capability": "理赔办理路径场景化说明"
+    },
+    {
+      "function_id": "F-0259",
+      "source_requirement_id": "361",
+      "capability": "理赔审核与赔付时限规则解释"
+    },
+    {
+      "function_id": "F-0260",
+      "source_requirement_id": "361",
+      "capability": "拒赔原因条款解释"
+    },
+    {
+      "function_id": "F-0261",
+      "source_requirement_id": "361",
+      "capability": "保险专业协同建议"
+    }
+  ],
+  "AG-015": [
+    {
+      "function_id": "F-0615",
+      "source_requirement_id": "148",
+      "capability": "店铺经营资料理解"
+    },
+    {
+      "function_id": "F-0616",
+      "source_requirement_id": "148",
+      "capability": "店铺经营定位识别"
+    },
+    {
+      "function_id": "F-0617",
+      "source_requirement_id": "148",
+      "capability": "店铺经营优势提炼"
+    },
+    {
+      "function_id": "F-0618",
+      "source_requirement_id": "148",
+      "capability": "B2B店铺内容表达策略识别"
+    },
+    {
+      "function_id": "F-0619",
+      "source_requirement_id": "196",
+      "capability": "B2C店铺内容表达策略识别"
+    },
+    {
+      "function_id": "F-0620",
+      "source_requirement_id": "148",
+      "capability": "店铺内容主题生成"
+    },
+    {
+      "function_id": "F-0621",
+      "source_requirement_id": "148",
+      "capability": "店铺宣传文案生成"
+    },
+    {
+      "function_id": "F-0622",
+      "source_requirement_id": "148",
+      "capability": "店铺宣传事实不一致线索识别"
+    },
+    {
+      "function_id": "F-0623",
+      "source_requirement_id": "148",
+      "capability": "店铺宣传依据缺口识别"
+    },
+    {
+      "function_id": "F-0632",
+      "source_requirement_id": "333",
+      "capability": "活动文案生成"
+    },
+    {
+      "function_id": "F-0673",
+      "source_requirement_id": "306",
+      "capability": "目标受众特征理解"
+    },
+    {
+      "function_id": "F-0674",
+      "source_requirement_id": "306",
+      "capability": "内容表达风格要求理解"
+    },
+    {
+      "function_id": "F-0675",
+      "source_requirement_id": "293",
+      "capability": "低空业务场景表达重点识别"
+    },
+    {
+      "function_id": "F-0676",
+      "source_requirement_id": "293",
+      "capability": "行业术语语义规范化"
+    },
+    {
+      "function_id": "F-0677",
+      "source_requirement_id": "293",
+      "capability": "行业规范引用辅助匹配"
+    },
+    {
+      "function_id": "F-0678",
+      "source_requirement_id": "70",
+      "capability": "公众号推文生成"
+    },
+    {
+      "function_id": "F-0679",
+      "source_requirement_id": "306",
+      "capability": "低空行业专题稿件生成"
+    },
+    {
+      "function_id": "F-0680",
+      "source_requirement_id": "306",
+      "capability": "低空行业宣传文案生成"
+    },
+    {
+      "function_id": "F-0681",
+      "source_requirement_id": "306",
+      "capability": "行业内容结构优化"
+    },
+    {
+      "function_id": "F-0682",
+      "source_requirement_id": "306",
+      "capability": "行业内容改写"
+    },
+    {
+      "function_id": "F-0683",
+      "source_requirement_id": "306",
+      "capability": "行业内容润色"
+    },
+    {
+      "function_id": "F-0684",
+      "source_requirement_id": "306",
+      "capability": "行业稿件事实依据缺口识别"
+    },
+    {
+      "function_id": "F-0685",
+      "source_requirement_id": "306",
+      "capability": "行业稿件引用依据整理"
+    }
+  ],
+  "AG-013": [
+    {
+      "function_id": "F-0321",
+      "source_requirement_id": "268",
+      "capability": "标讯检索条件理解"
+    },
+    {
+      "function_id": "F-0322",
+      "source_requirement_id": "267",
+      "capability": "标讯关键信息问答"
+    },
+    {
+      "function_id": "F-0323",
+      "source_requirement_id": "270",
+      "capability": "标讯状态解释"
+    },
+    {
+      "function_id": "F-0324",
+      "source_requirement_id": "270",
+      "capability": "标讯时效风险解释"
+    },
+    {
+      "function_id": "F-0325",
+      "source_requirement_id": "267",
+      "capability": "标讯变更内容解读"
+    },
+    {
+      "function_id": "F-0326",
+      "source_requirement_id": "270",
+      "capability": "相似历史标讯关联"
+    },
+    {
+      "function_id": "F-0445",
+      "source_requirement_id": "272",
+      "capability": "资讯场景相关性判断"
+    },
+    {
+      "function_id": "F-0446",
+      "source_requirement_id": "272",
+      "capability": "资讯来源可信线索评估"
+    },
+    {
+      "function_id": "F-0448",
+      "source_requirement_id": "272",
+      "capability": "资讯事实一致性疑点识别"
+    },
+    {
+      "function_id": "F-0452",
+      "source_requirement_id": "272",
+      "capability": "人工审核要点生成"
+    },
+    {
+      "function_id": "F-0582",
+      "source_requirement_id": "317",
+      "capability": "单帖热度演化分析"
+    },
+    {
+      "function_id": "F-0583",
+      "source_requirement_id": "317",
+      "capability": "单帖认可影响因素线索分析"
+    },
+    {
+      "function_id": "F-0633",
+      "source_requirement_id": "266",
+      "capability": "标讯正文结构识别"
+    },
+    {
+      "function_id": "F-0634",
+      "source_requirement_id": "266",
+      "capability": "标讯基础字段提取"
+    },
+    {
+      "function_id": "F-0635",
+      "source_requirement_id": "266",
+      "capability": "标讯附件要求提取"
+    },
+    {
+      "function_id": "F-0636",
+      "source_requirement_id": "266",
+      "capability": "标讯内容摘要生成"
+    },
+    {
+      "function_id": "F-0638",
+      "source_requirement_id": "270",
+      "capability": "标讯关联公告识别"
+    },
+    {
+      "function_id": "F-0639",
+      "source_requirement_id": "270",
+      "capability": "标讯状态要素识别"
+    },
+    {
+      "function_id": "F-0640",
+      "source_requirement_id": "270",
+      "capability": "标讯状态变更依据提取"
+    },
+    {
+      "function_id": "F-0641",
+      "source_requirement_id": "270",
+      "capability": "标讯流程阶段识别"
+    },
+    {
+      "function_id": "F-0642",
+      "source_requirement_id": "270",
+      "capability": "标讯参与期限有效性辅助判断"
+    },
+    {
+      "function_id": "F-0643",
+      "source_requirement_id": "270",
+      "capability": "标讯公告失效状态辅助判断"
+    },
+    {
+      "function_id": "F-0644",
+      "source_requirement_id": "272",
+      "capability": "场景资讯关键信息提取"
+    },
+    {
+      "function_id": "F-0645",
+      "source_requirement_id": "272",
+      "capability": "场景资讯主题分类"
+    },
+    {
+      "function_id": "F-0646",
+      "source_requirement_id": "272",
+      "capability": "场景资讯标签生成"
+    },
+    {
+      "function_id": "F-0647",
+      "source_requirement_id": "272",
+      "capability": "场景资讯标题建议"
+    },
+    {
+      "function_id": "F-0648",
+      "source_requirement_id": "272",
+      "capability": "场景资讯摘要生成"
+    },
+    {
+      "function_id": "F-0649",
+      "source_requirement_id": "272",
+      "capability": "场景资讯审核修改建议"
+    },
+    {
+      "function_id": "F-0669",
+      "source_requirement_id": "317",
+      "capability": "内容质量多维评估"
+    },
+    {
+      "function_id": "F-0670",
+      "source_requirement_id": "317",
+      "capability": "优质帖子候选辅助识别"
+    },
+    {
+      "function_id": "F-0671",
+      "source_requirement_id": "317",
+      "capability": "优质内容主题归类"
+    },
+    {
+      "function_id": "F-0672",
+      "source_requirement_id": "317",
+      "capability": "实操攻略综合生成"
+    }
+  ],
+  "AG-018": [
+    {
+      "function_id": "F-0397",
+      "source_requirement_id": "99",
+      "capability": "合同业绩达标条件理解"
+    },
+    {
+      "function_id": "F-0398",
+      "source_requirement_id": "99",
+      "capability": "业绩目标偏差识别"
+    },
+    {
+      "function_id": "F-0399",
+      "source_requirement_id": "99",
+      "capability": "业绩差距原因分析"
+    },
+    {
+      "function_id": "F-0400",
+      "source_requirement_id": "99",
+      "capability": "业绩达标趋势分析"
+    },
+    {
+      "function_id": "F-0401",
+      "source_requirement_id": "99",
+      "capability": "多条件业绩达标辅助判断"
+    },
+    {
+      "function_id": "F-0402",
+      "source_requirement_id": "109",
+      "capability": "付款条款与履约状态综合辅助判断"
+    },
+    {
+      "function_id": "F-0403",
+      "source_requirement_id": "109",
+      "capability": "逾期影响程度分析"
+    },
+    {
+      "function_id": "F-0404",
+      "source_requirement_id": "109",
+      "capability": "保证金约定与实缴差异识别"
+    },
+    {
+      "function_id": "F-0405",
+      "source_requirement_id": "109",
+      "capability": "保证金义务适配性分析"
+    },
+    {
+      "function_id": "F-0406",
+      "source_requirement_id": "109",
+      "capability": "保证金缺口风险分析"
+    },
+    {
+      "function_id": "F-0407",
+      "source_requirement_id": "109",
+      "capability": "赔付条件触发风险提示"
+    },
+    {
+      "function_id": "F-0408",
+      "source_requirement_id": "109",
+      "capability": "历史违约特征识别"
+    },
+    {
+      "function_id": "F-0409",
+      "source_requirement_id": "109",
+      "capability": "违规处罚持续影响分析"
+    },
+    {
+      "function_id": "F-0410",
+      "source_requirement_id": "109",
+      "capability": "合同续签风险辅助判断"
+    },
+    {
+      "function_id": "F-0411",
+      "source_requirement_id": "109",
+      "capability": "合作方综合履约风险辅助评估"
+    },
+    {
+      "function_id": "F-0412",
+      "source_requirement_id": "99",
+      "capability": "履约风险依据生成"
+    },
+    {
+      "function_id": "F-0413",
+      "source_requirement_id": "99",
+      "capability": "履约风险提示生成"
+    },
+    {
+      "function_id": "F-0414",
+      "source_requirement_id": "101",
+      "capability": "疑似渠道乱价线索识别"
+    },
+    {
+      "function_id": "F-0415",
+      "source_requirement_id": "101",
+      "capability": "低价违约风险线索识别"
+    },
+    {
+      "function_id": "F-0416",
+      "source_requirement_id": "101",
+      "capability": "价格异常判断依据生成"
+    },
+    {
+      "function_id": "F-0489",
+      "source_requirement_id": "109",
+      "capability": "合同履约主体识别"
+    },
+    {
+      "function_id": "F-0490",
+      "source_requirement_id": "109",
+      "capability": "合同条款条件关系理解"
+    },
+    {
+      "function_id": "F-0491",
+      "source_requirement_id": "109",
+      "capability": "合同义务关系理解"
+    },
+    {
+      "function_id": "F-0492",
+      "source_requirement_id": "101",
+      "capability": "授权价格条款要素识别"
+    },
+    {
+      "function_id": "F-0493",
+      "source_requirement_id": "101",
+      "capability": "最低价格约束条款识别"
+    },
+    {
+      "function_id": "F-0494",
+      "source_requirement_id": "101",
+      "capability": "价格适用范围识别"
+    },
+    {
+      "function_id": "F-0495",
+      "source_requirement_id": "101",
+      "capability": "价格有效期限识别"
+    },
+    {
+      "function_id": "F-0496",
+      "source_requirement_id": "101",
+      "capability": "价格约束组合关系理解"
+    },
+    {
+      "function_id": "F-0497",
+      "source_requirement_id": "109",
+      "capability": "合同业绩义务条款提取"
+    },
+    {
+      "function_id": "F-0498",
+      "source_requirement_id": "109",
+      "capability": "合同续签约定要素识别"
+    },
+    {
+      "function_id": "F-0499",
+      "source_requirement_id": "109",
+      "capability": "付款义务要素提取"
+    },
+    {
+      "function_id": "F-0500",
+      "source_requirement_id": "109",
+      "capability": "保证金义务要素提取"
+    },
+    {
+      "function_id": "F-0501",
+      "source_requirement_id": "109",
+      "capability": "赔付责任条款要素识别"
+    },
+    {
+      "function_id": "F-0502",
+      "source_requirement_id": "109",
+      "capability": "违约处罚条款要素识别"
+    },
+    {
+      "function_id": "F-0503",
+      "source_requirement_id": "109",
+      "capability": "合同条款冲突与歧义识别"
+    },
+    {
+      "function_id": "F-0504",
+      "source_requirement_id": "109",
+      "capability": "合同义务人工复核事项生成"
+    }
+  ],
+  "AG-007": [
+    {
+      "function_id": "F-0461",
+      "source_requirement_id": "123",
+      "capability": "待询价商品识别"
+    },
+    {
+      "function_id": "F-0462",
+      "source_requirement_id": "123",
+      "capability": "采购数量理解"
+    },
+    {
+      "function_id": "F-0463",
+      "source_requirement_id": "123",
+      "capability": "交付条件理解"
+    },
+    {
+      "function_id": "F-0464",
+      "source_requirement_id": "123",
+      "capability": "报价条件完整性辅助判断"
+    },
+    {
+      "function_id": "F-0465",
+      "source_requirement_id": "123",
+      "capability": "缺失报价条件追问"
+    },
+    {
+      "function_id": "F-0466",
+      "source_requirement_id": "123",
+      "capability": "价格构成识别"
+    },
+    {
+      "function_id": "F-0467",
+      "source_requirement_id": "123",
+      "capability": "优惠适用条件识别"
+    },
+    {
+      "function_id": "F-0468",
+      "source_requirement_id": "123",
+      "capability": "报价覆盖范围识别"
+    },
+    {
+      "function_id": "F-0469",
+      "source_requirement_id": "123",
+      "capability": "交付承诺要素提取"
+    },
+    {
+      "function_id": "F-0470",
+      "source_requirement_id": "123",
+      "capability": "质保条款要素提取"
+    },
+    {
+      "function_id": "F-0471",
+      "source_requirement_id": "123",
+      "capability": "报价时效适用性辅助判断"
+    },
+    {
+      "function_id": "F-0472",
+      "source_requirement_id": "123",
+      "capability": "报价采购条件适配辅助判断"
+    },
+    {
+      "function_id": "F-0473",
+      "source_requirement_id": "123",
+      "capability": "报价来源适用范围与核验线索说明"
+    }
+  ],
+  "AG-023": [
+    {
+      "function_id": "F-0113",
+      "source_requirement_id": "249",
+      "capability": "飞行任务服务需求理解"
+    },
+    {
+      "function_id": "F-0114",
+      "source_requirement_id": "249",
+      "capability": "飞手技能条件识别"
+    },
+    {
+      "function_id": "F-0115",
+      "source_requirement_id": "249",
+      "capability": "飞行任务服务复杂度识别"
+    },
+    {
+      "function_id": "F-0116",
+      "source_requirement_id": "249",
+      "capability": "紧急任务匹配策略判断"
+    },
+    {
+      "function_id": "F-0117",
+      "source_requirement_id": "249",
+      "capability": "候选飞手匹配"
+    },
+    {
+      "function_id": "F-0118",
+      "source_requirement_id": "249",
+      "capability": "候选飞手资质符合性辅助判断"
+    },
+    {
+      "function_id": "F-0119",
+      "source_requirement_id": "249",
+      "capability": "飞手服务地域适配判断"
+    },
+    {
+      "function_id": "F-0120",
+      "source_requirement_id": "249",
+      "capability": "飞手任务时段可服务性判断"
+    },
+    {
+      "function_id": "F-0121",
+      "source_requirement_id": "249",
+      "capability": "飞手机型操作经验适配判断"
+    },
+    {
+      "function_id": "F-0122",
+      "source_requirement_id": "249",
+      "capability": "飞手到场保障条件判断"
+    },
+    {
+      "function_id": "F-0123",
+      "source_requirement_id": "249",
+      "capability": "飞手任务档期适配判断"
+    },
+    {
+      "function_id": "F-0124",
+      "source_requirement_id": "249",
+      "capability": "飞手历史口碑分析"
+    },
+    {
+      "function_id": "F-0125",
+      "source_requirement_id": "249",
+      "capability": "飞手候选加权评分"
+    },
+    {
+      "function_id": "F-0126",
+      "source_requirement_id": "249",
+      "capability": "候选飞手推荐排序"
+    },
+    {
+      "function_id": "F-0127",
+      "source_requirement_id": "249",
+      "capability": "飞手推荐清单生成"
+    },
+    {
+      "function_id": "F-0128",
+      "source_requirement_id": "249",
+      "capability": "飞手推荐依据生成"
+    },
+    {
+      "function_id": "F-0129",
+      "source_requirement_id": "249",
+      "capability": "候选飞手差距事项生成"
+    },
+    {
+      "function_id": "F-0262",
+      "source_requirement_id": "241",
+      "capability": "飞行咨询场景识别"
+    },
+    {
+      "function_id": "F-0263",
+      "source_requirement_id": "241",
+      "capability": "飞行地点识别"
+    },
+    {
+      "function_id": "F-0264",
+      "source_requirement_id": "241",
+      "capability": "飞行时间识别"
+    },
+    {
+      "function_id": "F-0265",
+      "source_requirement_id": "241",
+      "capability": "飞行器条件理解"
+    },
+    {
+      "function_id": "F-0266",
+      "source_requirement_id": "241",
+      "capability": "飞行人员条件理解"
+    },
+    {
+      "function_id": "F-0275",
+      "source_requirement_id": "241",
+      "capability": "空域条件适用性判断"
+    },
+    {
+      "function_id": "F-0276",
+      "source_requirement_id": "241",
+      "capability": "任务资质差距识别"
+    },
+    {
+      "function_id": "F-0277",
+      "source_requirement_id": "241",
+      "capability": "飞行环境影响解释"
+    },
+    {
+      "function_id": "F-0278",
+      "source_requirement_id": "241",
+      "capability": "飞行任务综合风险判断"
+    },
+    {
+      "function_id": "F-0279",
+      "source_requirement_id": "241",
+      "capability": "飞行咨询综合结论生成"
+    },
+    {
+      "function_id": "F-0280",
+      "source_requirement_id": "241",
+      "capability": "飞行准备事项生成"
+    },
+    {
+      "function_id": "F-0283",
+      "source_requirement_id": "240",
+      "capability": "飞行器维修保障办理路径说明"
+    }
+  ],
+  "AG-027": [
+    {
+      "function_id": "F-0516",
+      "source_requirement_id": "156",
+      "capability": "B2B分析范围理解"
+    },
+    {
+      "function_id": "F-0517",
+      "source_requirement_id": "156",
+      "capability": "B2B基础经营概况关联解读"
+    },
+    {
+      "function_id": "F-0518",
+      "source_requirement_id": "156",
+      "capability": "B2B经营趋势特征识别"
+    },
+    {
+      "function_id": "F-0519",
+      "source_requirement_id": "156",
+      "capability": "客户价值变化分析"
+    },
+    {
+      "function_id": "F-0520",
+      "source_requirement_id": "156",
+      "capability": "客户结构变化识别"
+    },
+    {
+      "function_id": "F-0521",
+      "source_requirement_id": "156",
+      "capability": "B2B商品经营结构诊断"
+    },
+    {
+      "function_id": "F-0522",
+      "source_requirement_id": "156",
+      "capability": "渠道销售表现诊断"
+    },
+    {
+      "function_id": "F-0523",
+      "source_requirement_id": "156",
+      "capability": "订单金额异常波动识别"
+    },
+    {
+      "function_id": "F-0524",
+      "source_requirement_id": "156",
+      "capability": "品类订单结构异常识别"
+    },
+    {
+      "function_id": "F-0525",
+      "source_requirement_id": "156",
+      "capability": "B2B订单交易异常模式归纳"
+    },
+    {
+      "function_id": "F-0526",
+      "source_requirement_id": "156",
+      "capability": "B2B合同履约总体表现诊断"
+    },
+    {
+      "function_id": "F-0527",
+      "source_requirement_id": "156",
+      "capability": "供应商总体履约表现诊断"
+    },
+    {
+      "function_id": "F-0528",
+      "source_requirement_id": "156",
+      "capability": "B2B订单履约异常模式归因"
+    },
+    {
+      "function_id": "F-0529",
+      "source_requirement_id": "156",
+      "capability": "B2B跨环节经营异常关联识别"
+    },
+    {
+      "function_id": "F-0530",
+      "source_requirement_id": "156",
+      "capability": "B2B综合经营洞察生成"
+    },
+    {
+      "function_id": "F-0531",
+      "source_requirement_id": "156",
+      "capability": "B2B重点关注事项生成"
+    },
+    {
+      "function_id": "F-0532",
+      "source_requirement_id": "156",
+      "capability": "B2B经营改进建议生成"
+    },
+    {
+      "function_id": "F-0533",
+      "source_requirement_id": "156",
+      "capability": "B2B经营摘要生成"
+    },
+    {
+      "function_id": "F-0534",
+      "source_requirement_id": "156",
+      "capability": "B2B经营分析报告生成"
+    },
+    {
+      "function_id": "F-0535",
+      "source_requirement_id": "202",
+      "capability": "B2C分析范围理解"
+    },
+    {
+      "function_id": "F-0536",
+      "source_requirement_id": "202",
+      "capability": "B2C交易概况关联解读"
+    },
+    {
+      "function_id": "F-0537",
+      "source_requirement_id": "202",
+      "capability": "B2C流量转化概况关联解读"
+    },
+    {
+      "function_id": "F-0538",
+      "source_requirement_id": "202",
+      "capability": "B2C经营趋势特征识别"
+    },
+    {
+      "function_id": "F-0539",
+      "source_requirement_id": "202",
+      "capability": "渠道流量质量诊断"
+    },
+    {
+      "function_id": "F-0540",
+      "source_requirement_id": "202",
+      "capability": "购买转化瓶颈识别"
+    },
+    {
+      "function_id": "F-0541",
+      "source_requirement_id": "202",
+      "capability": "用户价值变化分析"
+    },
+    {
+      "function_id": "F-0542",
+      "source_requirement_id": "202",
+      "capability": "用户流失风险识别"
+    },
+    {
+      "function_id": "F-0543",
+      "source_requirement_id": "202",
+      "capability": "B2C商品经营结构诊断"
+    },
+    {
+      "function_id": "F-0544",
+      "source_requirement_id": "202",
+      "capability": "营销活动效果归因"
+    },
+    {
+      "function_id": "F-0545",
+      "source_requirement_id": "202",
+      "capability": "售后问题结构分析"
+    },
+    {
+      "function_id": "F-0546",
+      "source_requirement_id": "202",
+      "capability": "B2C售后异常模式归因"
+    },
+    {
+      "function_id": "F-0547",
+      "source_requirement_id": "202",
+      "capability": "B2C跨环节经营异常关联识别"
+    },
+    {
+      "function_id": "F-0548",
+      "source_requirement_id": "202",
+      "capability": "B2C综合经营洞察生成"
+    },
+    {
+      "function_id": "F-0549",
+      "source_requirement_id": "202",
+      "capability": "B2C重点关注事项生成"
+    },
+    {
+      "function_id": "F-0550",
+      "source_requirement_id": "202",
+      "capability": "B2C经营改进建议生成"
+    },
+    {
+      "function_id": "F-0551",
+      "source_requirement_id": "202",
+      "capability": "B2C经营摘要生成"
+    },
+    {
+      "function_id": "F-0552",
+      "source_requirement_id": "202",
+      "capability": "B2C经营分析报告生成"
+    },
+    {
+      "function_id": "F-0585",
+      "source_requirement_id": "70",
+      "capability": "运营指标口径理解"
+    },
+    {
+      "function_id": "F-0586",
+      "source_requirement_id": "70",
+      "capability": "分析时间范围理解"
+    },
+    {
+      "function_id": "F-0587",
+      "source_requirement_id": "70",
+      "capability": "业务筛选条件理解"
+    },
+    {
+      "function_id": "F-0589",
+      "source_requirement_id": "70",
+      "capability": "运营问数分析方案生成"
+    },
+    {
+      "function_id": "F-0590",
+      "source_requirement_id": "70",
+      "capability": "单指标异常关联线索分析"
+    },
+    {
+      "function_id": "F-0591",
+      "source_requirement_id": "70",
+      "capability": "跨指标经营原因辅助分析"
+    },
+    {
+      "function_id": "F-0592",
+      "source_requirement_id": "70",
+      "capability": "问数结果摘要生成"
+    },
+    {
+      "function_id": "F-0593",
+      "source_requirement_id": "70",
+      "capability": "后续分析问题建议"
+    },
+    {
+      "function_id": "F-0594",
+      "source_requirement_id": "84",
+      "capability": "推荐反馈结构与趋势分析"
+    },
+    {
+      "function_id": "F-0595",
+      "source_requirement_id": "84",
+      "capability": "推荐采纳差异分析"
+    },
+    {
+      "function_id": "F-0604",
+      "source_requirement_id": "70",
+      "capability": "问答与内容共性知识问题归纳"
+    },
+    {
+      "function_id": "F-0605",
+      "source_requirement_id": "70",
+      "capability": "问答与内容知识补强建议生成"
+    },
+    {
+      "function_id": "F-0606",
+      "source_requirement_id": "70",
+      "capability": "问答与内容规则澄清建议生成"
+    }
+  ],
+  "AG-028": [
+    {
+      "function_id": "F-0196",
+      "source_requirement_id": "84",
+      "capability": "浏览特征提取"
+    },
+    {
+      "function_id": "F-0197",
+      "source_requirement_id": "84",
+      "capability": "互动特征提取"
+    },
+    {
+      "function_id": "F-0198",
+      "source_requirement_id": "84",
+      "capability": "交易特征识别"
+    },
+    {
+      "function_id": "F-0199",
+      "source_requirement_id": "84",
+      "capability": "场景偏好识别"
+    },
+    {
+      "function_id": "F-0200",
+      "source_requirement_id": "84",
+      "capability": "价格敏感度识别"
+    },
+    {
+      "function_id": "F-0201",
+      "source_requirement_id": "84",
+      "capability": "用户特征变化分析"
+    },
+    {
+      "function_id": "F-0202",
+      "source_requirement_id": "84",
+      "capability": "用户特征综合强度判断"
+    },
+    {
+      "function_id": "F-0203",
+      "source_requirement_id": "84",
+      "capability": "用户特征时效性辅助判断"
+    },
+    {
+      "function_id": "F-0572",
+      "source_requirement_id": "315",
+      "capability": "专业能力标签生成"
+    },
+    {
+      "function_id": "F-0573",
+      "source_requirement_id": "315",
+      "capability": "专业贡献标签生成"
+    },
+    {
+      "function_id": "F-0574",
+      "source_requirement_id": "315",
+      "capability": "认证维度识别"
+    },
+    {
+      "function_id": "F-0575",
+      "source_requirement_id": "315",
+      "capability": "认证规则匹配"
+    },
+    {
+      "function_id": "F-0576",
+      "source_requirement_id": "315",
+      "capability": "认证材料支撑度辅助判断"
+    },
+    {
+      "function_id": "F-0577",
+      "source_requirement_id": "315",
+      "capability": "认证时效适用性辅助判断"
+    },
+    {
+      "function_id": "F-0578",
+      "source_requirement_id": "315",
+      "capability": "认证人工复审事项生成"
+    }
+  ],
+  "AG-016": [
+    {
+      "function_id": "F-0162",
+      "source_requirement_id": "273",
+      "capability": "资讯阅读特征识别"
+    },
+    {
+      "function_id": "F-0163",
+      "source_requirement_id": "273",
+      "capability": "资讯候选内容匹配"
+    },
+    {
+      "function_id": "F-0164",
+      "source_requirement_id": "273",
+      "capability": "资讯有效期判断"
+    },
+    {
+      "function_id": "F-0165",
+      "source_requirement_id": "273",
+      "capability": "资讯时效评分"
+    },
+    {
+      "function_id": "F-0166",
+      "source_requirement_id": "273",
+      "capability": "资讯推荐主题多样性评价"
+    },
+    {
+      "function_id": "F-0167",
+      "source_requirement_id": "273",
+      "capability": "资讯推荐排序"
+    },
+    {
+      "function_id": "F-0168",
+      "source_requirement_id": "273",
+      "capability": "资讯推荐依据生成"
+    },
+    {
+      "function_id": "F-0169",
+      "source_requirement_id": "273",
+      "capability": "资讯推荐反馈识别"
+    }
+  ],
+  "AG-017": [
+    {
+      "function_id": "F-0457",
+      "source_requirement_id": "59",
+      "capability": "外部舆情异常传播线索识别"
+    },
+    {
+      "function_id": "F-0458",
+      "source_requirement_id": "58",
+      "capability": "外部舆情疑似恶意攻击内容识别"
+    },
+    {
+      "function_id": "F-0459",
+      "source_requirement_id": "59",
+      "capability": "外部舆情风险等级辅助判断"
+    },
+    {
+      "function_id": "F-0460",
+      "source_requirement_id": "59",
+      "capability": "外部舆情风险事项摘要生成"
+    },
+    {
+      "function_id": "F-0553",
+      "source_requirement_id": "193",
+      "capability": "评价情绪倾向识别"
+    },
+    {
+      "function_id": "F-0554",
+      "source_requirement_id": "193",
+      "capability": "商品评价高频问题聚类"
+    },
+    {
+      "function_id": "F-0555",
+      "source_requirement_id": "167",
+      "capability": "商品关注主题归纳"
+    },
+    {
+      "function_id": "F-0556",
+      "source_requirement_id": "167",
+      "capability": "商品认可要点归纳"
+    },
+    {
+      "function_id": "F-0557",
+      "source_requirement_id": "193",
+      "capability": "商品口碑趋势变化识别"
+    },
+    {
+      "function_id": "F-0558",
+      "source_requirement_id": "193",
+      "capability": "商品口碑分析简报生成"
+    },
+    {
+      "function_id": "F-0602",
+      "source_requirement_id": "272",
+      "capability": "内容审核高频问题分析"
+    },
+    {
+      "function_id": "F-0603",
+      "source_requirement_id": "272",
+      "capability": "内容审核偏差事项分析"
+    }
+  ],
+  "AG-026": [
+    {
+      "function_id": "F-0018",
+      "source_requirement_id": "84",
+      "capability": "标准商品个性化候选匹配"
+    },
+    {
+      "function_id": "F-0019",
+      "source_requirement_id": "84",
+      "capability": "标准商品可推荐性判断"
+    },
+    {
+      "function_id": "F-0020",
+      "source_requirement_id": "84",
+      "capability": "标准商品个性化适配度评分"
+    },
+    {
+      "function_id": "F-0021",
+      "source_requirement_id": "84",
+      "capability": "标准商品个性化推荐排序"
+    },
+    {
+      "function_id": "F-0022",
+      "source_requirement_id": "84",
+      "capability": "标准商品推荐依据生成"
+    },
+    {
+      "function_id": "F-0023",
+      "source_requirement_id": "84",
+      "capability": "标准商品推荐限制条件说明"
+    },
+    {
+      "function_id": "F-0079",
+      "source_requirement_id": "345",
+      "capability": "简历专业信息提取"
+    },
+    {
+      "function_id": "F-0080",
+      "source_requirement_id": "345",
+      "capability": "求职能力标签生成"
+    },
+    {
+      "function_id": "F-0081",
+      "source_requirement_id": "345",
+      "capability": "求职方向识别"
+    },
+    {
+      "function_id": "F-0082",
+      "source_requirement_id": "346",
+      "capability": "岗位条件提取"
+    },
+    {
+      "function_id": "F-0083",
+      "source_requirement_id": "346",
+      "capability": "求职岗位候选匹配"
+    },
+    {
+      "function_id": "F-0084",
+      "source_requirement_id": "346",
+      "capability": "企业人才候选匹配"
+    },
+    {
+      "function_id": "F-0085",
+      "source_requirement_id": "346",
+      "capability": "人岗匹配程度判断"
+    },
+    {
+      "function_id": "F-0086",
+      "source_requirement_id": "346",
+      "capability": "人岗硬性条件冲突识别"
+    },
+    {
+      "function_id": "F-0087",
+      "source_requirement_id": "346",
+      "capability": "求职岗位推荐排序"
+    },
+    {
+      "function_id": "F-0088",
+      "source_requirement_id": "346",
+      "capability": "企业人才推荐排序"
+    },
+    {
+      "function_id": "F-0089",
+      "source_requirement_id": "346",
+      "capability": "人岗匹配依据生成"
+    },
+    {
+      "function_id": "F-0090",
+      "source_requirement_id": "346",
+      "capability": "人岗能力差距分析"
+    },
+    {
+      "function_id": "F-0091",
+      "source_requirement_id": "346",
+      "capability": "求职岗位备选方向生成"
+    },
+    {
+      "function_id": "F-0092",
+      "source_requirement_id": "346",
+      "capability": "企业人才备选方向生成"
+    },
+    {
+      "function_id": "F-0133",
+      "source_requirement_id": "83",
+      "capability": "场景描述理解"
+    },
+    {
+      "function_id": "F-0134",
+      "source_requirement_id": "83",
+      "capability": "场景要素识别"
+    },
+    {
+      "function_id": "F-0135",
+      "source_requirement_id": "83",
+      "capability": "产品需求语义分解"
+    },
+    {
+      "function_id": "F-0136",
+      "source_requirement_id": "83",
+      "capability": "服务需求语义分解"
+    },
+    {
+      "function_id": "F-0137",
+      "source_requirement_id": "83",
+      "capability": "场景约束条件识别"
+    },
+    {
+      "function_id": "F-0138",
+      "source_requirement_id": "83",
+      "capability": "缺失信息追问"
+    },
+    {
+      "function_id": "F-0139",
+      "source_requirement_id": "84",
+      "capability": "新品推荐机会识别"
+    },
+    {
+      "function_id": "F-0140",
+      "source_requirement_id": "84",
+      "capability": "热点推荐机会识别"
+    },
+    {
+      "function_id": "F-0141",
+      "source_requirement_id": "83",
+      "capability": "场景方案要素匹配"
+    },
+    {
+      "function_id": "F-0142",
+      "source_requirement_id": "83",
+      "capability": "产品服务候选组合生成"
+    },
+    {
+      "function_id": "F-0143",
+      "source_requirement_id": "83",
+      "capability": "服务商场景适配判断"
+    },
+    {
+      "function_id": "F-0144",
+      "source_requirement_id": "83",
+      "capability": "场景方案约束冲突识别"
+    },
+    {
+      "function_id": "F-0145",
+      "source_requirement_id": "83",
+      "capability": "场景方案适配度评分"
+    },
+    {
+      "function_id": "F-0146",
+      "source_requirement_id": "83",
+      "capability": "场景组合推荐排序"
+    },
+    {
+      "function_id": "F-0147",
+      "source_requirement_id": "83",
+      "capability": "场景组合首选方案生成"
+    },
+    {
+      "function_id": "F-0148",
+      "source_requirement_id": "83",
+      "capability": "场景方案备选组合生成"
+    },
+    {
+      "function_id": "F-0149",
+      "source_requirement_id": "83",
+      "capability": "场景组合推荐依据生成"
+    },
+    {
+      "function_id": "F-0150",
+      "source_requirement_id": "84",
+      "capability": "新用户初始特征形成"
+    },
+    {
+      "function_id": "F-0151",
+      "source_requirement_id": "84",
+      "capability": "新商品初始推荐特征形成"
+    },
+    {
+      "function_id": "F-0152",
+      "source_requirement_id": "84",
+      "capability": "初始推荐依据充分性判断"
+    },
+    {
+      "function_id": "F-0153",
+      "source_requirement_id": "84",
+      "capability": "初始推荐候选内容识别"
+    },
+    {
+      "function_id": "F-0154",
+      "source_requirement_id": "84",
+      "capability": "初始推荐结果生成"
+    },
+    {
+      "function_id": "F-0155",
+      "source_requirement_id": "84",
+      "capability": "推荐反馈语义识别"
+    },
+    {
+      "function_id": "F-0156",
+      "source_requirement_id": "84",
+      "capability": "推荐同质化问题识别"
+    },
+    {
+      "function_id": "F-0157",
+      "source_requirement_id": "84",
+      "capability": "推荐多样性优化建议"
+    },
+    {
+      "function_id": "F-0158",
+      "source_requirement_id": "83",
+      "capability": "单客户推荐条件调整建议"
+    },
+    {
+      "function_id": "F-0159",
+      "source_requirement_id": "83",
+      "capability": "客户推荐依据摘要生成"
+    },
+    {
+      "function_id": "F-0160",
+      "source_requirement_id": "83",
+      "capability": "客户推荐关注事项摘要生成"
+    },
+    {
+      "function_id": "F-0161",
+      "source_requirement_id": "83",
+      "capability": "推荐后续沟通建议"
+    },
+    {
+      "function_id": "F-0170",
+      "source_requirement_id": "315",
+      "capability": "专家服务供给条件识别"
+    },
+    {
+      "function_id": "F-0171",
+      "source_requirement_id": "315",
+      "capability": "项目专家需求理解"
+    },
+    {
+      "function_id": "F-0172",
+      "source_requirement_id": "315",
+      "capability": "专家服务候选匹配"
+    },
+    {
+      "function_id": "F-0173",
+      "source_requirement_id": "315",
+      "capability": "专家能力需求匹配"
+    },
+    {
+      "function_id": "F-0174",
+      "source_requirement_id": "315",
+      "capability": "企业项目场景适配判断"
+    },
+    {
+      "function_id": "F-0175",
+      "source_requirement_id": "315",
+      "capability": "专家项目硬性条件冲突识别"
+    },
+    {
+      "function_id": "F-0176",
+      "source_requirement_id": "315",
+      "capability": "专家候选推荐排序"
+    },
+    {
+      "function_id": "F-0177",
+      "source_requirement_id": "315",
+      "capability": "专家推荐清单生成"
+    },
+    {
+      "function_id": "F-0178",
+      "source_requirement_id": "315",
+      "capability": "专家备选方向生成"
+    },
+    {
+      "function_id": "F-0179",
+      "source_requirement_id": "315",
+      "capability": "专家匹配依据生成"
+    },
+    {
+      "function_id": "F-0180",
+      "source_requirement_id": "315",
+      "capability": "专家候选差距事项生成"
+    },
+    {
+      "function_id": "F-0181",
+      "source_requirement_id": "315",
+      "capability": "专家候选信息合规摘要生成"
+    },
+    {
+      "function_id": "F-0182",
+      "source_requirement_id": "315",
+      "capability": "专家服务匹配效果分析"
+    },
+    {
+      "function_id": "F-0183",
+      "source_requirement_id": "83",
+      "capability": "选购目标识别"
+    },
+    {
+      "function_id": "F-0184",
+      "source_requirement_id": "84",
+      "capability": "使用场景识别"
+    },
+    {
+      "function_id": "F-0185",
+      "source_requirement_id": "83",
+      "capability": "关键能力条件识别"
+    },
+    {
+      "function_id": "F-0186",
+      "source_requirement_id": "84",
+      "capability": "选购预算条件识别"
+    },
+    {
+      "function_id": "F-0187",
+      "source_requirement_id": "83",
+      "capability": "交付服务条件识别"
+    },
+    {
+      "function_id": "F-0188",
+      "source_requirement_id": "83",
+      "capability": "候选产品服务范围生成"
+    },
+    {
+      "function_id": "F-0189",
+      "source_requirement_id": "83",
+      "capability": "选购方案约束冲突识别"
+    },
+    {
+      "function_id": "F-0190",
+      "source_requirement_id": "83",
+      "capability": "候选方案差异分析"
+    },
+    {
+      "function_id": "F-0191",
+      "source_requirement_id": "84",
+      "capability": "首选方案建议生成"
+    },
+    {
+      "function_id": "F-0192",
+      "source_requirement_id": "83",
+      "capability": "备选方案生成"
+    },
+    {
+      "function_id": "F-0193",
+      "source_requirement_id": "83",
+      "capability": "选购依据生成"
+    },
+    {
+      "function_id": "F-0194",
+      "source_requirement_id": "84",
+      "capability": "选购结果反馈理解"
+    },
+    {
+      "function_id": "F-0195",
+      "source_requirement_id": "84",
+      "capability": "选购方案调整建议"
+    },
+    {
+      "function_id": "F-0579",
+      "source_requirement_id": "315",
+      "capability": "人才储备候选资格依据生成"
+    },
+    {
+      "function_id": "F-0580",
+      "source_requirement_id": "315",
+      "capability": "人才储备候选资格辅助判断"
+    },
+    {
+      "function_id": "F-0581",
+      "source_requirement_id": "315",
+      "capability": "人才储备候选资格待核验事项生成"
+    },
+    {
+      "function_id": "F-0596",
+      "source_requirement_id": "84",
+      "capability": "无效推荐原因分析"
+    },
+    {
+      "function_id": "F-0597",
+      "source_requirement_id": "84",
+      "capability": "推荐语义覆盖度评价"
+    },
+    {
+      "function_id": "F-0598",
+      "source_requirement_id": "84",
+      "capability": "推荐偏差识别"
+    },
+    {
+      "function_id": "F-0599",
+      "source_requirement_id": "84",
+      "capability": "跨业务推荐策略改进建议"
+    }
   ]
 }

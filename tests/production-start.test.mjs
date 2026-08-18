@@ -1,6 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { runProductionServer } from "../scripts/start-production.mjs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { loadLocalRuntimeEnvironment, runProductionServer } from "../scripts/start-production.mjs";
+
+test("production launcher loads local runtime provider settings", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "jdz-env-"));
+  const key = `JDZ_TEST_PROVIDER_${crypto.randomUUID().replaceAll("-", "")}`;
+  try {
+    await writeFile(join(directory, ".env.local"), `${key}=enabled\n`, "utf8");
+    loadLocalRuntimeEnvironment(directory);
+    assert.equal(process.env[key], "enabled");
+  } finally {
+    delete process.env[key];
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test("production server serves its client assets and Agent API", async () => {
   const { server, port } = await runProductionServer({ port: 0, host: "127.0.0.1" });

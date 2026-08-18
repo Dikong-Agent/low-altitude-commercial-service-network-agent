@@ -1,6 +1,7 @@
 import type { AgentManualOutput, ManualTopic } from "../../contracts";
 import { AG002_CONFIG } from "./config";
 import type { ManualIntent, ParsedManual, RankedManualSection } from "./types";
+import { toAgentRagRuntime } from "../../rag/output.ts";
 
 function sectionLocation(section: RankedManualSection["section"]): string {
   const pages = section.pageStart === section.pageEnd ? `第${section.pageStart}页` : `第${section.pageStart}–${section.pageEnd}页`;
@@ -100,10 +101,12 @@ export function buildManualOutput(
     excerpt: section.plainLanguage,
     relevance,
   }));
+  const rag = rankedSections.find((item) => item.rag)?.rag;
   const terminologyOnly = intent.topics.every((topic) => topic === "terminology") && glossary.length > 0;
-  const answer = terminologyOnly
+  const deterministicAnswer = terminologyOnly
     ? glossary.map((item) => `${item.term}：${item.plain_explanation}`).join("；")
     : selectAnswerSections(intent, rankedSections).map((section) => section.plainLanguage).join(" ");
+  const answer = rag?.status === "completed" && rag.answer?.summary ? rag.answer.summary : deterministicAnswer;
 
   return {
     engine,
@@ -121,6 +124,7 @@ export function buildManualOutput(
     risk_markers: riskMarkers,
     glossary,
     citations,
+    rag_runtime: toAgentRagRuntime(rag),
     document_structure: {
       chapters: manual.structure.chapters,
       tables: manual.structure.tables,
@@ -129,7 +133,7 @@ export function buildManualOutput(
       recognition_mode: manual.recognitionMode,
     },
     capability_coverage: AG002_CONFIG.capabilityCoverage.map((item) => ({ ...item })),
-    data_notice: "当前结果仅基于虚构样例说明书和 Mock 文档解析生成；正式操作必须核对真实有效手册、现行法规并由具备资质的人员确认。",
+    data_notice: "当前结果仅基于虚构样例说明书和演示文档生成；正式操作必须核对真实有效手册、现行法规，并由具备资质的人员确认。",
     rule_version: AG002_CONFIG.ruleVersion,
   };
 }

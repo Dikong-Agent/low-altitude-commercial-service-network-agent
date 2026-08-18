@@ -1,26 +1,12 @@
 import type { z } from "zod/v4";
-import {
-  Ag002InvokeRequestSchema,
-  Ag012InvokeRequestSchema,
-  Ag025InvokeRequestSchema,
-  AgentInvokeRequestSchema,
-  AgentInvokeResponseSchema,
-  type AgentId,
-  type AgentInvokeRequest,
-  type AgentInvokeResponse,
-} from "./contracts";
-import { invokeAg001 } from "./agents/ag001/workflow";
-import { invokeAg002 } from "./agents/ag002/workflow";
-import { invokeAg003 } from "./agents/ag003/workflow";
-import { invokeAg012 } from "./agents/ag012/workflow";
-import { invokeAg025 } from "./agents/ag025/workflow";
-import { customerAccessScopeFromIdentity } from "./agents/ag025/providers";
-import { AG001_CONFIG } from "./agents/ag001/config";
-import { AG002_CONFIG } from "./agents/ag002/config";
-import { AG003_CONFIG } from "./agents/ag003/config";
-import { AG012_CONFIG } from "./agents/ag012/config";
-import { AG025_CONFIG } from "./agents/ag025/config";
-import type { RequestIdentity } from "./request-identity";
+import type { AgentModuleDefinition, AgentModuleVersions } from "./agent-sdk/index.ts";
+import { ag001Module } from "./agents/ag001/module.ts";
+import { ag012Module } from "./agents/ag012/module.ts";
+import { ag025Module } from "./agents/ag025/module.ts";
+import { ag027Module } from "./agents/ag027/module.ts";
+import type { AgentId, AgentInvokeRequest, AgentInvokeResponse } from "./contracts.ts";
+import { AgentInvokeResponseSchema } from "./contracts.ts";
+import type { RequestIdentity } from "./request-identity.ts";
 
 export interface AgentAccessPolicy {
   productionRequiresTrustedIdentity: boolean;
@@ -32,13 +18,7 @@ export interface AgentTimeoutPolicy {
   maxSynchronousMs: number;
 }
 
-export interface AgentVersionSet {
-  capability: string;
-  workflow: string;
-  prompt: string;
-  rule: string;
-  model: string;
-}
+export type AgentVersionSet = AgentModuleVersions;
 
 export interface RuntimeAgentDefinition {
   id: AgentId;
@@ -51,66 +31,25 @@ export interface RuntimeAgentDefinition {
   invoke(request: AgentInvokeRequest, traceId: string, identity: RequestIdentity): Promise<AgentInvokeResponse>;
 }
 
-const commonAccessPolicy: AgentAccessPolicy = {
-  productionRequiresTrustedIdentity: true,
-  requiredAnyRole: ["agent-user", "buyer", "operator", "customer-service", "admin"],
-};
+function toRuntimeDefinition<TRequest extends AgentInvokeRequest>(module: AgentModuleDefinition<TRequest>): RuntimeAgentDefinition {
+  return {
+    ...module,
+    requestSchema: module.requestSchema as z.ZodType<AgentInvokeRequest>,
+    responseSchema: AgentInvokeResponseSchema,
+    invoke: (request, traceId, identity) => module.invoke(module.requestSchema.parse(request), traceId, identity),
+  };
+}
 
-const commonTimeoutPolicy: AgentTimeoutPolicy = { totalTimeoutMs: 25_000, maxSynchronousMs: 15_000 };
-const ag001RequestSchema = AgentInvokeRequestSchema.extend({ agent_id: AgentInvokeRequestSchema.shape.agent_id.extract(["AG-001"]) });
-const ag003RequestSchema = AgentInvokeRequestSchema.extend({ agent_id: AgentInvokeRequestSchema.shape.agent_id.extract(["AG-003"]) });
-
+/**
+ * Active engineering scope frozen on 2026-08-17.
+ * The full 28-Agent requirement trace remains in project artifacts; only these
+ * four engineering examples are deployable through the current Runtime.
+ */
 const definitions: RuntimeAgentDefinition[] = [
-  {
-    id: "AG-001",
-    requestSchema: ag001RequestSchema,
-    responseSchema: AgentInvokeResponseSchema,
-    accessPolicy: commonAccessPolicy,
-    timeoutPolicy: commonTimeoutPolicy,
-    executionMode: "synchronous",
-    versions: { capability: "AG-001@1.3", workflow: AG001_CONFIG.workflowVersion, prompt: "structured-intent@1", rule: AG001_CONFIG.ruleVersion, model: "upstream-managed" },
-    invoke: (request, traceId, identity) => invokeAg001(request, traceId, identity),
-  },
-  {
-    id: "AG-002",
-    requestSchema: Ag002InvokeRequestSchema,
-    responseSchema: AgentInvokeResponseSchema,
-    accessPolicy: commonAccessPolicy,
-    timeoutPolicy: { totalTimeoutMs: 40_000, maxSynchronousMs: 15_000 },
-    executionMode: "async-capable",
-    versions: { capability: "AG-002@1.2", workflow: AG002_CONFIG.workflowVersion, prompt: "manual-grounding@1", rule: AG002_CONFIG.ruleVersion, model: "upstream-managed" },
-    invoke: (request, traceId, identity) => invokeAg002(request, traceId, identity),
-  },
-  {
-    id: "AG-003",
-    requestSchema: ag003RequestSchema,
-    responseSchema: AgentInvokeResponseSchema,
-    accessPolicy: commonAccessPolicy,
-    timeoutPolicy: commonTimeoutPolicy,
-    executionMode: "synchronous",
-    versions: { capability: "AG-003@1.1", workflow: "1.0.0", prompt: "recommendation-intent@1", rule: AG003_CONFIG.ruleVersion, model: "upstream-managed" },
-    invoke: (request, traceId, identity) => invokeAg003(request, traceId, identity),
-  },
-  {
-    id: "AG-012",
-    requestSchema: Ag012InvokeRequestSchema,
-    responseSchema: AgentInvokeResponseSchema,
-    accessPolicy: commonAccessPolicy,
-    timeoutPolicy: { totalTimeoutMs: 35_000, maxSynchronousMs: 15_000 },
-    executionMode: "async-capable",
-    versions: { capability: "AG-012@1.2", workflow: AG012_CONFIG.workflowVersion, prompt: "policy-grounding@1", rule: AG012_CONFIG.ruleVersion, model: "upstream-managed" },
-    invoke: (request, traceId, identity) => invokeAg012(Ag012InvokeRequestSchema.parse(request), traceId, identity),
-  },
-  {
-    id: "AG-025",
-    requestSchema: Ag025InvokeRequestSchema,
-    responseSchema: AgentInvokeResponseSchema,
-    accessPolicy: commonAccessPolicy,
-    timeoutPolicy: commonTimeoutPolicy,
-    executionMode: "synchronous",
-    versions: { capability: "AG-025@1.1", workflow: AG025_CONFIG.workflowVersion, prompt: "customer-routing@1", rule: AG025_CONFIG.ruleVersion, model: "upstream-managed" },
-    invoke: (request, traceId, identity) => invokeAg025(Ag025InvokeRequestSchema.parse(request), traceId, customerAccessScopeFromIdentity(identity), identity),
-  },
+  toRuntimeDefinition(ag001Module),
+  toRuntimeDefinition(ag012Module),
+  toRuntimeDefinition(ag025Module),
+  toRuntimeDefinition(ag027Module),
 ];
 
 const byId = new Map(definitions.map((definition) => [definition.id, definition]));
@@ -126,9 +65,7 @@ export function listRuntimeAgentDefinitions(): readonly RuntimeAgentDefinition[]
 export function assertAgentAccess(definition: RuntimeAgentDefinition, identity: RequestIdentity): void {
   if (definition.accessPolicy.productionRequiresTrustedIdentity && identity.source !== "trusted-gateway") return;
   const required = definition.accessPolicy.requiredAnyRole;
-  if (required.length && !required.some((role) => identity.roles.includes(role))) {
-    throw new AgentAccessDeniedError();
-  }
+  if (required.length && !required.some((role) => identity.roles.includes(role))) throw new AgentAccessDeniedError();
 }
 
 export class AgentAccessDeniedError extends Error {

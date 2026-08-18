@@ -62,7 +62,7 @@ function evaluateProduct(product: DemoProduct, intent: RecommendationIntent): Re
     id: product.id, name: product.name, candidateType: "product", category: product.category, score,
     eligible: failures.length === 0, priceYuan: product.priceYuan, matchedTags: [...new Set(matchedTags)],
     limitations: failures, requestMatch, suitableConditions,
-    conditionAssessment: failures.length ? `未通过：${failures.join("；")}` : `通过硬条件与${matchedScenarios.length ? "场景" : "基础类目"}适配检查。`,
+    conditionAssessment: failures.length ? `未通过：${failures.join("；")}` : `符合必要条件与${matchedScenarios.length ? "场景" : "基础类目"}适用范围。`,
     reason, source: product.source,
   };
 }
@@ -143,8 +143,8 @@ export function buildRecommendationOutput(
       reason: primary
         ? primary.reason
         : explicitTargetFailed
-          ? "目标型号或包含目标型号的方案未通过当前硬条件与适用条件检查，已停止用其他候选顶替目标，并单独列出可行备选。"
-          : "样例目录中没有同时满足全部硬条件和适用条件的候选，已停止强行推荐并列出主要差距。",
+          ? "目标型号或包含目标型号的方案不符合当前必要条件与适用范围，结果中不以其他候选替代目标，并单独列出可行备选。"
+          : "样例目录中没有同时满足全部必要条件和适用条件的候选，因此未形成首选建议，并列出主要差距。",
       alternative_ids: alternatives.map((item) => item.id),
     },
     gaps,
@@ -152,7 +152,7 @@ export function buildRecommendationOutput(
       ? ["真实库存与上架状态", "载荷组合和实施服务报价", "正式空域与作业条件"]
       : ["真实库存与上架状态", "实时价格与交付信息", "正式商品标签与评价数据"],
     capability_coverage: AG003_CONFIG.capabilityCoverage.map((item) => ({ ...item })),
-    data_notice: "全部方案、产品、价格和评分均为虚构 Mock 数据，仅用于 AG-003 技术演示；不代表商城真实商品、正式报价或采购建议。",
+    data_notice: "全部方案、产品、价格和评分均为虚构样例数据，仅用于 AG-003 功能演示；不代表商城真实商品、正式报价或采购建议。",
     rule_version: AG003_CONFIG.ruleVersion,
   };
 }

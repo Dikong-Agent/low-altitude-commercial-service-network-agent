@@ -105,7 +105,7 @@ export async function GET(request: Request, context: { params: Promise<{ resourc
       items,
       total: items.length,
       connector: { port: "PolicyDataPort", status: "mock-active", target: "正式政策知识库、标准库及适航资料接口" },
-      notice: "全部政策、标准、文号、机构和条款均为虚构样例，仅用于 AG-012 工作流与接口测试。",
+      notice: "目录含1份国务院官网公开现行法规摘录与3份虚构政策/标准样例；来源已分开标识，仅用于 AG-012 工作流与接口测试，不替代完整法规及主管部门口径。",
     }, { headers: { "Cache-Control": "no-store" } });
   }
   if (resource === "customer-service-knowledge") {
@@ -114,7 +114,7 @@ export async function GET(request: Request, context: { params: Promise<{ resourc
       items: DEMO_CUSTOMER_SERVICE_KNOWLEDGE.map((entry) => ({ id: entry.id, title: entry.title, domain: entry.domain, issue_type: entry.issueType, source_ref: entry.sourceRef, updated_at: entry.updatedAt })),
       total: DEMO_CUSTOMER_SERVICE_KNOWLEDGE.length,
       connector: { port: "CustomerServiceDataPort", status: "mock-active", target: "正式 FAQ、知识库及客服业务接口" },
-      notice: "全部 FAQ 和规则均为虚构样例，仅用于 AG-025 多意图路由与接口测试。",
+      notice: "全部常见问题和处理规则均为虚构样例，仅用于 AG-025 咨询分类与接口测试。",
     }, { headers: { "Cache-Control": "no-store" } });
   }
   if (resource === "customer-orders") {
